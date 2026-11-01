@@ -176,7 +176,7 @@ body.gap-set :is(#msgs,#log){gap:var(--gap)!important}
 body.ot :is(#msgs,#log){justify-content:flex-start!important}
 body.al-right :is(#msgs,#log){align-items:flex-end}
 body.al-right.s-rv .msg{scale:-1 1;align-self:flex-end!important}
-body.al-right.s-rv .msg>*,body.al-right.s-rv .badge>*,body.al-right.s-rv .body>*{scale:-1 1}
+body.al-right.s-rv .badge>*,body.al-right.s-rv .body>*{scale:-1 1}
 .isbot{opacity:.82}body.hb .isbot{display:none}
 body.f-youtube .p-tt,body.f-tiktok .p-yt{display:none}
 

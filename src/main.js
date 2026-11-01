@@ -85,6 +85,7 @@ function applyLockedInput(){
     }
   }catch{}
 }
+function applyLockedInputSoon(w){[0,300,1200].forEach(t=>setTimeout(()=>{if(main===w)applyLockedInput();},t));}
 const showWin=(w,asLocked)=>{if(!w||w.isDestroyed())return;if(asLocked)w.showInactive();else w.show();};
 // pengaman: kalau halaman belum siap (blank), muat ulang sampai 4 kali
 function watchLoad(w,go){
