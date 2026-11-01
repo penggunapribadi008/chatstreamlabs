@@ -1,0 +1,67 @@
+<body class="dock p-polos">
+<div id="boot">Memuat…</div>
+<div id="tb"><div class="ttl"><img src="/icon.png" alt=""><span id="tbt">ChatLivestream Labs</span></div><div class="wbs"><button class="wb" id="wmin" title="Perkecil">&#8211;</button><button class="wb x" id="wclose" title="Tutup">&#10005;</button></div></div>
+<div id="ctl"><button class="cb2" id="eye" title="Sembunyikan dari OBS"><svg class="e-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--eyec,#ffd166)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="e-shut" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--eyec,#5eead4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11c2.5 4 5.5 6 9 6s6.5-2 9-6"/><path d="M12 17v3M7.5 15.5l-1.6 2.4M16.5 15.5l1.6 2.4"/><path d="M4 4l16 16"/></svg></button><button class="cb2" id="unlock" title="Buka kunci"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-1.5"/></svg></button><div class="cb2" id="mover" title="Tahan lalu geser untuk memindahkan"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></div></div>
+<div id="app">
+  <div id="top"><div class="vchip"><img src="/yt.png" alt=""><b id="vy">-</b></div><div class="vchip"><img src="/tt.png" alt=""><b id="vt">-</b></div><div id="tot"><small>Total penonton</small><b id="vs">-</b></div></div>
+  <div id="lw"><div id="list"><div id="msgs"></div></div><button id="tobottom">&#8595; Chat terbaru</button></div>
+  <div id="foot">
+    <div class="fr"><select id="flt" title="Filter dan tujuan kirim"><option value="all">Semua</option><option value="youtube">YouTube</option><option value="tiktok">TikTok</option></select><input id="msg" type="text" placeholder="Ketik pesan untuk penonton…" maxlength="150"><button id="send">Kirim</button><button class="ib" id="lock" title="Kunci jendela">&#128274;</button><button class="ib" id="gear" title="Pengaturan">&#9881;</button></div>
+  </div>
+</div>
+<div id="panel">
+  <div class="tabs"><div class="tabrow"><button class="tab on" data-t="k">Koneksi</button><button class="tab" data-t="p">Pribadi</button><button class="tab" data-t="o">Overlay</button><button class="tab" data-t="h">Hotkey</button></div></div>
+  <div id="panes">
+  <div class="pane on" id="pk">
+    <div class="card"><h3>Sambungkan live</h3>
+      <label><span>Username YouTube</span></label><input type="text" id="yt" placeholder="@namakamu">
+      <label><span>Username TikTok</span></label><input type="text" id="tk" placeholder="@namakamu">
+      <div class="btns"><button class="btn b1" id="conn">Sambungkan</button><button class="btn b2" id="disc">Putuskan</button></div>
+      <div id="st"></div></div>
+    <div class="card"><h3>Kirim chat lewat Chrome</h3>
+      <div class="hint">Membalas chat butuh akunmu sendiri. Aplikasi memakai Chrome yang sudah login lewat ekstensi kecil, jadi tidak ada login di dalam aplikasi.</div>
+      <div class="stat"><div class="chip2"><img src="/yt.png" alt=""><span>YouTube</span><b id="ay">-</b></div><div class="chip2"><img src="/tt.png" alt=""><span>TikTok</span><b id="at">-</b></div></div>
+      <ol class="steps">
+        <li><div class="sn">1</div><div class="sb"><b>Buka folder ekstensi</b><span>Folder berisi ekstensi "ChatLivestream Labs - Pengirim Chat".</span><div class="btns"><button class="btn b3 sm" id="oe">Buka folder ekstensi</button></div></div></li>
+        <li><div class="sn">2</div><div class="sb"><b>Pasang di Chrome</b><span>Buka <code>chrome://extensions</code>, nyalakan <b>Developer mode</b> (pojok kanan atas), klik <b>Load unpacked</b>, lalu pilih folder dari langkah 1. Cukup sekali.</span><div class="btns"><button class="btn b3 sm" id="cx">Salin alamat chrome://extensions</button></div></div></li>
+        <li><div class="sn">3</div><div class="sb"><b>Buka halaman live-mu di Chrome</b><span>Pakai Chrome yang sudah login ke akun YouTube dan TikTok. Biarkan tabnya terbuka selama live. Status di atas berubah jadi "terhubung".</span><div class="btns"><button class="btn b3 sm" id="oy">Buka chat YouTube</button><button class="btn b3 sm" id="ot">Buka live TikTok</button></div><div class="btns"><button class="btn b4 sm" id="cy">Salin alamat YouTube</button><button class="btn b4 sm" id="ct">Salin alamat TikTok</button></div></div></li>
+      </ol>
+      <div class="hint">Kalau Chrome bukan browser utama, pakai tombol Salin alamat lalu tempel di Chrome. Pesan hanya terkirim saat live sedang berjalan.</div></div>
+    <div class="card"><h3>Nama bot tambahan</h3><input type="text" id="botNames" placeholder="pisahkan dengan koma, contoh: moobot, fossabot">
+      <div class="btns"><button class="btn b1" id="sbot">Terapkan</button></div></div>
+  </div>
+  <div class="pane" id="pp"><div id="pp_b"></div>
+    <div class="card"><h3>Jendela</h3><div class="row"><span>Sembunyikan dari OBS</span><input type="checkbox" id="protect"></div>
+      <label><span>Posisi tombol saat terkunci</span></label><select id="ctrlPos"><option value="top-left">Kiri atas</option><option value="top-center">Tengah atas</option><option value="top-right">Kanan atas</option><option value="bottom-left">Kiri bawah</option><option value="bottom-center">Tengah bawah</option><option value="bottom-right">Kanan bawah</option></select>
+      <div class="hint">Saat terkunci ada dua kotak di luar jendela chat: gembok untuk membuka kunci dan ikon empat arah untuk memindahkan jendela (tahan lalu geser). Jendela tidak ikut terekam OBS. Latar baru benar-benar transparan saat dikunci.</div></div>
+    <div class="bar"><button class="btn b4" data-reset="dock">Reset</button><button class="btn b1" data-apply="dock">Terapkan</button></div></div>
+  <div class="pane" id="po"><div id="po_b"></div>
+    <div class="card"><h3>Pratinjau &amp; OBS</h3>
+      <div class="btns" style="margin-top:0"><button class="btn b3" id="prev">Pratinjau overlay OBS</button><button class="btn b3" id="test">Kirim pesan tes</button></div>
+      <div class="g2"><div style="flex:1"><label><span>Lebar (px)</span></label><input type="number" id="obsW" min="100" max="3840"></div><div style="flex:1"><label><span>Tinggi (px)</span></label><input type="number" id="obsH" min="100" max="2160"></div></div>
+      <label><span>Password WebSocket OBS (kosongkan kalau tidak ada)</span></label><input type="text" id="obsPass">
+      <div class="btns"><button class="btn b1" id="obsadd">+ Tambahkan overlay ke OBS</button></div>
+      <div id="obsmsg" class="hint">OBS harus terbuka dan WebSocket aktif: Tools &gt; WebSocket Server Settings &gt; centang Enable WebSocket server. Overlay masuk ke scene yang sedang aktif.</div>
+      <label><span>Alamat overlay (kalau mau pasang manual)</span></label><input type="text" readonly id="u2"></div>
+    <div class="bar"><button class="btn b4" data-reset="overlay">Reset</button><button class="btn b1" data-apply="overlay">Terapkan</button></div></div>
+  <div class="pane" id="ph"><div class="card"><h3>Hotkey</h3>
+    <div class="hint">Klik kolom, lalu tekan tombol yang kamu mau. Boleh satu tombol saja (misalnya F9 atau tombol Numpad) atau kombinasi dengan Ctrl / Alt / Shift. Tombol tunggal akan terpakai di seluruh Windows selama aplikasi jalan. Tekan Backspace untuk mengosongkan, Esc untuk batal.</div>
+    <div id="hkl"></div></div>
+    <div class="bar"><button class="btn b4" id="hkdef">Kembalikan default</button><button class="btn b1" id="hkapply">Terapkan</button></div></div>
+  </div>
+</div>
+<div id="tpl">
+  <h1>Kelola gaya overlay</h1><div class="sub">Gaya dipilih lewat Pengaturan &gt; Overlay. Di sini kamu menambah gaya CSS buatanmu sendiri atau menghapusnya.</div>
+  <button class="addbtn" id="tAdd">+ Tambah gaya baru</button>
+  <div class="btns" style="margin:-6px 0 16px"><button class="btn b4 sm" id="tRestore">Pulihkan gaya bawaan</button></div>
+  <div id="tplList"></div>
+</div>
+<div id="addwin">
+  <div class="cols">
+    <div class="colL"><label><span>Nama gaya</span></label><input type="text" id="tn" placeholder="Contoh: Gaya Cyberpunk">
+      <label><span>CSS</span><span><button class="btn b3 sm" id="timp">Impor file .css</button></span></label>
+      <textarea id="tc" spellcheck="false" placeholder="/* tempel CSS di sini */"></textarea><input type="file" id="tf" accept=".css,text/css" hidden></div>
+    <div class="colR"><label><span>Pratinjau</span></label><div class="pvbox"><iframe id="tlive" src="about:blank"></iframe></div></div>
+  </div>
+  <div class="foot"><button class="btn b3" id="tguide" style="margin-right:auto">Salin panduan struktur (untuk AI)</button><button class="btn b4" id="tcancel">Batal</button><button class="btn b1" id="tsave">Simpan</button></div>
+</div>
