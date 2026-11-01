@@ -1,0 +1,49 @@
+name: Build installer Windows
+
+# Dijalankan otomatis tiap ada push ke cabang main, atau manual lewat tab Actions > Run workflow.
+# Kalau kamu membuat tag versi (misalnya v14.0.0), installer juga dilampirkan ke halaman Releases.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Pasang dependensi
+        run: npm ci
+
+      - name: Tes asap
+        run: npm test
+        continue-on-error: true   # tes yang gagal tidak menghalangi pembuatan installer
+
+      - name: Buat installer
+        run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"   # tanpa tanda tangan digital
+
+      - name: Simpan installer sebagai artefak
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-windows
+          path: dist/*.exe
+          if-no-files-found: error
+
+      - name: Lampirkan ke Releases (khusus tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe
+          generate_release_notes: true
