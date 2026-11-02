@@ -1,0 +1,41 @@
+/*
+  Cozy Multichat (tone tanah) - overlay OBS.
+  Dikenali otomatis karena memakai data-color. Struktur satu pesan:
+
+  <div id="chat" data-mode="person">
+    <div class="msg" data-platform="youtube|tiktok" data-color="1..5"
+         data-type="chat|event" data-role="mod|streamer|bot">
+      <div class="avatar"><img src="avatar.png" alt=""></div>
+      <div class="body">
+        <div class="row">
+          <span class="name">Nama</span>
+          <span class="tag" data-tag="mod|streamer|bot|superchat">mod</span>
+        </div>
+        <span class="text">Isi pesan</span>
+      </div>
+    </div>
+  </div>
+
+  Variabel dari pengaturan: --fsn (ukuran nama), --fst (ukuran chat), --gap (jarak).
+  Warna bubble: ubah 5 baris data-color di bawah. Tambah data-color="6", "7", ... kalau mau lebih banyak warna.
+*/
+#chat{display:flex;flex-direction:column;gap:var(--gap,12px);font-family:"Nunito","Segoe UI",system-ui,sans-serif}
+#chat .msg{--c-bg:#84682c;--c-ac:#f4dc94;position:relative;display:flex;align-items:center;gap:12px;width:fit-content;max-width:94%;padding:12px 18px 12px 12px;border-radius:18px;background:var(--c-bg);color:#fff;box-sizing:border-box;animation:cozyIn .35s ease both}
+#chat .msg::before{content:"";position:absolute;inset:5px;border:1.5px dashed rgba(255,255,255,.38);border-radius:14px;pointer-events:none}
+#chat .msg[data-color="1"]{--c-bg:#84682c;--c-ac:#f4dc94}
+#chat .msg[data-color="2"]{--c-bg:#87543f;--c-ac:#ffbea8}
+#chat .msg[data-color="3"]{--c-bg:#814e5a;--c-ac:#f7b1c4}
+#chat .msg[data-color="4"]{--c-bg:#614b80;--c-ac:#d3c0f7}
+#chat .msg[data-color="5"]{--c-bg:#527a56;--c-ac:#bfe8ba}
+#chat .msg.sc{--c-bg:color-mix(in srgb,var(--sc,#ffca28) 45%,#3b2a10);--c-ac:#fff1b0}
+#chat .avatar{position:relative;flex:none;width:42px;height:42px;border-radius:50%;border:2px solid rgba(255,255,255,.55);background:rgba(0,0,0,.25)}
+#chat .avatar img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
+#chat .avatar::after{content:"";position:absolute;right:-7px;bottom:-5px;width:20px;height:20px;border-radius:50%;border:2px solid var(--c-bg);background-size:cover;background-position:center}
+#chat .msg[data-platform="youtube"] .avatar::after{background-image:url(/yt.png)}
+#chat .msg[data-platform="tiktok"] .avatar::after{background-image:url(/tt.png)}
+#chat .body{position:relative;display:flex;flex-direction:column;gap:2px;min-width:0}
+#chat .row{display:flex;align-items:center;gap:8px;line-height:1.2}
+#chat .name{font-size:var(--fsn,15px);font-weight:800;letter-spacing:.2px;color:var(--c-ac)}
+#chat .tag{font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.2);color:var(--c-ac)}
+#chat .text{font-size:var(--fst,16px);font-weight:600;line-height:1.35;color:#fff;overflow-wrap:anywhere}
+@keyframes cozyIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}

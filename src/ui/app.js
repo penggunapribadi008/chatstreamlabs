@@ -66,7 +66,7 @@ function applyStyle(){
   let pid=view==='overlay'?(forceId||s.preset):'polos',tpl=tplOf(pid);if(!tpl){pid='polos';tpl=tplOf('polos');}
   const oldStruct=curStruct;curStruct=tpl.struct;curPid=pid;
   let an=s.anim;if(an==='auto'||!an)an=(view==='overlay'&&tpl.custom)?'tpl':'slide';
-  const usesVars=!!(tpl.custom&&/--fs[nt]\b|--p5-scale|--nr\b/.test(tpl.css||'')),zm=view==='overlay'&&tpl.custom&&!usesVars&&tpl.struct!=='p5'&&/font(-size)?\s*:[^;}]*\d+(\.\d+)?px/.test(tpl.css||'');
+  const usesVars=!!(tpl.custom&&/--fs[nt]\b|--p5-scale|--nr\b/.test(tpl.css||'')),zm=view==='overlay'&&tpl.custom&&!usesVars&&tpl.struct!=='p5'&&tpl.struct!=='cozy'&&/font(-size)?\s*:[^;}]*\d+(\.\d+)?px/.test(tpl.css||'');
   r.setProperty('--zn',(s.fsName/20).toFixed(3));r.setProperty('--zt',(s.fsText/20).toFixed(3));
   $('usercss').textContent=tpl.custom?tpl.css:'';
   b.className=[view,isPrev?'preview':'',isLocked?'locked':'',s.chatBg?'cb':'',s.order==='top'?'ot':'',(view==='overlay'&&s.align==='right')?'al-right':'',(view==='overlay'&&tpl.struct==='rv')?'s-rv':'','p-'+(tpl.custom?'custom':pid),'an-'+an,zm?'zm':'',(view==='overlay'&&s.gap!==DEF.overlay.gap)?'gap-set':'',booting?'noanim':'',s.viewers?'sv':'',s.time?'st':'',s.avatar?'':'na',s.botTag?'':'nobt',s.hideBots?'hb':'',(view==='dock'&&filt!=='all')?'f-'+filt:''].filter(Boolean).join(' ');
@@ -116,14 +116,18 @@ function buildRV(m,src,pf){
   if(m.sc)d.style.setProperty('--sc',scColor(m));
   return d;}
 const cozyN=()=>{const css=(tplOf(forceId||cur(view).preset)||{}).css||'';const n=[...css.matchAll(/data-color\s*=\s*["']?(\d+)/g)].map(x=>+x[1]);return Math.max(5,...n);};
+const COZY_BG=['#84682c','#87543f','#814e5a','#614b80','#527a56'];
+const avFallback=(name,c)=>{const ch=([...String(name||'?')][0]||'?').toUpperCase().replace(/[<>&"']/g,'?');
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="'+COZY_BG[(c-1)%5]+'"/><text x="32" y="43" font-size="30" font-family="Segoe UI,Arial,sans-serif" font-weight="700" text-anchor="middle" fill="#fff">'+ch+'</text></svg>');};
 function buildCozy(m,src,pf){
   const d=document.createElement('div');d.className='msg'+FLAGS(m);d.dataset.platform=pf==='y'?'youtube':'tiktok';
-  let h=0;for(const ch of String(m.name||''))h=(h*31+ch.charCodeAt(0))>>>0;d.dataset.color=String(h%cozyN()+1);
-  d.innerHTML='<div class="avatar"></div><div class="body"><div class="row"><span class="name"></span></div><span class="text"></span></div>';
-  const row=d.querySelector('.row'),tag=(t,c)=>{const s=document.createElement('span');s.className='tag'+(c?' '+c:'');s.textContent=t;row.appendChild(s);};
+  let h=0;for(const ch of String(m.name||''))h=(h*31+ch.charCodeAt(0))>>>0;const col=h%cozyN()+1;d.dataset.color=String(col);
+  d.dataset.type=m.sc?'event':'chat';d.dataset.role=m.owner?'streamer':m.mod?'mod':m.bot?'bot':'';
+  d.innerHTML='<div class="avatar"><img alt=""></div><div class="body"><div class="row"><span class="name"></span></div><span class="text"></span></div>';
+  const row=d.querySelector('.row'),tag=(t,k)=>{const s=document.createElement('span');s.className='tag';s.dataset.tag=k;s.textContent=t;row.appendChild(s);};
   d.querySelector('.name').textContent=m.name||'';d.querySelector('.text').textContent=m.text;
-  if(m.sc){tag(m.sc.amount,'sc');d.style.setProperty('--sc',scColor(m));}if(m.owner)tag('streamer','own');else if(m.mod)tag('mod');if(m.bot)tag('bot');
-  const av=d.querySelector('.avatar');if(m.avatar){const i=document.createElement('img');i.alt='';i.src=m.avatar;av.appendChild(i);}else av.textContent=(m.name||'?')[0].toUpperCase();
+  if(m.sc){tag(m.sc.amount,'superchat');d.style.setProperty('--sc',scColor(m));}if(m.owner)tag('streamer','streamer');else if(m.mod)tag('mod','mod');if(m.bot)tag('bot','bot');
+  const img=d.querySelector('.avatar img'),fb=avFallback(m.name,col);img.referrerPolicy='no-referrer';img.onerror=()=>{img.onerror=null;img.src=fb;};img.src=m.avatar||fb;
   return d;}
 function rebuild(){[...wrap.children].forEach(x=>x.remove());const s=cur(view);msgsData.slice(-s.max).forEach(m=>add(m,true));}
 function add(m,re){
@@ -355,6 +359,11 @@ function initAdd(){
   addEventListener('message',e=>{if(e.data&&e.data.type==='ready'){sendCfg($('tlive'));liveDraft();}});
   $('tc').addEventListener('input',liveDraft);
   $('timp').onclick=()=>$('tf').click();
+  $('texp').onclick=async()=>{const css=$('tc').value;if(!css.trim())return alert('CSS masih kosong, belum ada yang bisa diekspor.');
+    const name=($('tn').value||'gaya-overlay').trim().replace(/[\\/:*?"<>|]+/g,'-').replace(/\s+/g,'-')||'gaya-overlay';
+    let r;try{r=await(await post('/export-css',{name,css})).json();}catch{r={error:'gagal'};}
+    if(r.canceled)return;if(r.ok){const b=$('texp');b.textContent='Tersimpan';setTimeout(()=>b.textContent='Ekspor file .css',1500);return;}
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([css],{type:'text/css'}));a.download=name+'.css';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);};
   $('tf').onchange=()=>{const f=$('tf').files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('tc').value=String(r.result||'').slice(0,400000);if(!$('tn').value)$('tn').value=f.name.replace(/\.css$/i,'');liveDraft();};r.readAsText(f);$('tf').value='';};
   $('tguide').onclick=async()=>{try{await navigator.clipboard.writeText(GUIDE);}catch{const ta=document.createElement('textarea');ta.value=GUIDE;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}alert('Panduan struktur disalin. Tempel ke AI bersama desain yang kamu mau, lalu minta dibuatkan CSS-nya.');};
   $('tcancel').onclick=()=>post('/win',{which:'tpladd',act:'close'});

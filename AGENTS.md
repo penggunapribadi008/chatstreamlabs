@@ -150,4 +150,7 @@ Jangan mengubah hal lain, jalankan `npm test` lagi di akhir, dan laporkan apa ya
 - Ekstensi Chrome mencari server di port tersimpan (`chrome.storage.local.port`, diisi lewat halaman Opsi ekstensi) lalu 3000-3010. Jangan hapus izin `storage`.
 
 ## 7. Struktur "cozy" (struktur HTML keempat)
-CSS yang memuat `data-color=` atau `data-mode=` dideteksi sebagai `cozy` (`detectStruct`). Markup: wadah `#chat[data-mode=person]` > `.msg[data-platform=youtube|tiktok][data-color=1..N]` > `.avatar>img` + `.body` > `.row` (`.name`, `.tag`) + `.text`. `buildCozy` di `app.js`; N diambil dari angka terbesar `data-color` di CSS (minimal 5).
+CSS yang memuat `data-color=` atau `data-mode=` dideteksi sebagai `cozy` (`detectStruct`). Atribut tambahan tiap pesan: `data-type` (`chat`, atau `event` untuk Super Chat) dan `data-role` (`mod`/`streamer`/`bot`/kosong); tiap `.tag` punya `data-tag`. Avatar selalu `<img>` (ada gambar inisial cadangan kalau foto kosong/gagal). Ukuran TIDAK diskalakan lewat `zoom` untuk struktur ini; pakai `var(--fsn)`/`var(--fst)` kalau ingin mengikuti pengaturan. Aturan CSS bawaan aplikasi tidak boleh memakai nama kelas generik (`.row`, `.name`, `.text`, `.tag`, `.avatar`, `.body`) tanpa dibatasi ke `body:not(.overlay)`, supaya tidak menimpa CSS buatan pengguna. Markup: wadah `#chat[data-mode=person]` > `.msg[data-platform=youtube|tiktok][data-color=1..N]` > `.avatar>img` + `.body` > `.row` (`.name`, `.tag`) + `.text`. `buildCozy` di `app.js`; N diambil dari angka terbesar `data-color` di CSS (minimal 5).
+
+## 8. Ekspor gaya
+Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor). `POST /export-css` memanggil `hooks.saveCss` (dialog Simpan di `main.js`); kalau bukan di Electron, jatuh ke unduhan blob.
