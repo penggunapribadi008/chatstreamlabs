@@ -8,7 +8,7 @@ GitHub akan membangun installer Windows untukmu secara otomatis. Kamu hanya perl
 3. Tidak ada kunci rahasia, tidak ada biaya. Repositori boleh **Private**.
 
 ## Langkah singkat (lewat browser)
-1. Masuk ke GitHub, klik **+** di kanan atas, pilih **New repository**. Beri nama (contoh: `chatlivestream-labs`), pilih **Private**, lalu **Create repository**.
+1. Masuk ke GitHub, klik **+** di kanan atas, pilih **New repository**. Beri nama (contoh: `chatstream-labs`), pilih **Private**, lalu **Create repository**.
 2. Di halaman repositori yang kosong, klik **uploading an existing file**.
 3. Ekstrak zip ini di komputermu, lalu **seret semua isi folder** (bukan folder induknya) ke halaman GitHub itu, termasuk folder `.github`.
    Kalau folder `.github` tidak ikut terunggah (kadang folder yang namanya diawali titik tersembunyi di Windows), nyalakan
@@ -36,7 +36,7 @@ Setelah proses selesai, installer otomatis terlampir di **Releases**.
 
 ## Setelah installer jadi
 - Windows SmartScreen akan memberi peringatan karena aplikasi belum bertanda tangan digital. Klik **More info > Run anyway**.
-- Kalau sebelumnya kamu sudah memasang "Chatstream Labs", pengaturannya otomatis ikut terbawa. Aplikasi lama bisa di-uninstall.
+- Kalau sebelumnya kamu sudah memasang versi lama ("ChatLivestream Labs" atau "Chatstream Labs"), pengaturan dan gaya buatanmu otomatis ikut terbawa saat pertama kali membuka ChatStream Labs. Aplikasi lama bisa di-uninstall.
 - Ekstensi Chrome (untuk kirim chat) ada di folder `extension` di dalam folder instalasi, atau di zip ini.
 
 ## Kalau proses gagal

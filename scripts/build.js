@@ -6,7 +6,7 @@ const fs=require('fs'),path=require('path'),esbuild=require('esbuild');
 const root=path.join(__dirname,'..'),out=path.join(root,'build'),ui=f=>fs.readFileSync(path.join(root,'src/ui',f),'utf8');
 fs.rmSync(out,{recursive:true,force:true});fs.mkdirSync(out,{recursive:true});
 fs.writeFileSync(path.join(out,'index.html'),
-  '<!doctype html><html lang="id"><head><meta charset="utf-8"><title>ChatLivestream Labs</title>\n<style>'+ui('style.css')+'</style><style id="usercss"></style></head>\n'+ui('body.html')+'<script>\n'+ui('app.js')+'</script></body></html>\n');
+  '<!doctype html><html lang="id"><head><meta charset="utf-8"><title>ChatStream Labs</title>\n<style>'+ui('style.css')+'</style><style id="usercss"></style></head>\n'+ui('body.html')+'<script>\n'+ui('app.js')+'</script></body></html>\n');
 esbuild.buildSync({entryPoints:[path.join(root,'src/server.js')],bundle:true,platform:'node',target:'node22',format:'cjs',outfile:path.join(out,'server.js'),
   external:['bufferutil','utf-8-validate'],minifyWhitespace:true,minifySyntax:true,logLevel:'error'});
 fs.copyFileSync(path.join(root,'src/main.js'),path.join(out,'main.js'));

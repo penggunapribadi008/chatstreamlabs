@@ -87,8 +87,8 @@ const srv=http.createServer((req,res)=>{
 function tryListen(p,left){
   const onErr=e=>{srv.removeListener('listening',onOk);
     if(e.code==='EADDRINUSE'&&left>0)return tryListen(p+1,left-1);
-    throw new Error(e.code==='EADDRINUSE'?'Port 3000 sampai 3010 sedang dipakai program lain. Tutup program itu lalu buka ulang ChatLivestream Labs.':String(e&&e.message||e));};
-  const onOk=()=>{srv.removeListener('error',onErr);PORT=p;console.log(`ChatLivestream Labs jalan di http://localhost:${PORT}`);_ready();setTimeout(autoStart,12000);};
+    throw new Error(e.code==='EADDRINUSE'?'Port 3000 sampai 3010 sedang dipakai program lain. Tutup program itu lalu buka ulang ChatStream Labs.':String(e&&e.message||e));};
+  const onOk=()=>{srv.removeListener('error',onErr);PORT=p;console.log(`ChatStream Labs jalan di http://localhost:${PORT}`);_ready();setTimeout(autoStart,12000);};
   srv.once('error',onErr);srv.once('listening',onOk);srv.listen(p);
 }
 tryListen(PORT,10);
@@ -173,7 +173,7 @@ function obsAdd({password,port,width,height,url}){
       }else if(m.op===2){
         try{
           const sc=await req('GetCurrentProgramScene');const scene=sc.currentProgramSceneName||sc.sceneName;
-          const NAME='ChatLivestream Overlay',st={url,width:+width||500,height:+height||900,fps:30,css:'body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }'};
+          const NAME='ChatStream Overlay',st={url,width:+width||500,height:+height||900,fps:30,css:'body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }'};
           try{await req('CreateInput',{sceneName:scene,inputName:NAME,inputKind:'browser_source',inputSettings:st,sceneItemEnabled:true});}
           catch(e){if(e.code!==601)throw e;await req('SetInputSettings',{inputName:NAME,inputSettings:st,overlay:true});try{await req('CreateSceneItem',{sceneName:scene,sourceName:NAME,sceneItemEnabled:true});}catch{}}
           fin(resolve,{scene});

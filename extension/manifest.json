@@ -1,8 +1,8 @@
 {
  "manifest_version": 3,
- "name": "ChatLivestream Labs - Pengirim Chat",
+ "name": "ChatStream Labs - Pengirim Chat",
  "version": "1.1",
- "description": "Mengirim chat dari aplikasi ChatLivestream Labs ke halaman live YouTube / TikTok yang sedang kamu buka di Chrome.",
+ "description": "Mengirim chat dari aplikasi ChatStream Labs ke halaman live YouTube / TikTok yang sedang kamu buka di Chrome.",
  "icons": {
   "128": "icon.png"
  },

@@ -5,14 +5,26 @@ const gotLock=app.requestSingleInstanceLock();
 if(!gotLock)app.exit(0);
 try{
   const nu=app.getPath('userData');fs.mkdirSync(nu,{recursive:true});
-  let prevNames=[];try{prevNames=require('../package.json').previousNames||[];}catch{}
-  for(const oldName of prevNames){
-    const old=path.join(app.getPath('appData'),oldName);if(old===nu)continue;
-    for(const f of['config.json','settings.json','window.json'])if(!fs.existsSync(path.join(nu,f))&&fs.existsSync(path.join(old,f)))fs.copyFileSync(path.join(old,f),path.join(nu,f));
+  // Pindahan data dari nama aplikasi lama: SEKALI saja (ditandai berkas .migrasi-nama), dan yang dipakai adalah berkas TERBARU.
+  // (Di Windows nama folder tidak peka huruf besar/kecil, jadi folder nama lama bisa saja sama dengan folder nama baru dan berisi data lebih lama.)
+  const mark=path.join(nu,'.migrasi-nama');
+  if(!fs.existsSync(mark)){
+    let prevNames=[];try{prevNames=require('../package.json').previousNames||[];}catch{}
+    const same=(a,b)=>path.resolve(a).toLowerCase()===path.resolve(b).toLowerCase();
+    const mt=f=>{try{return fs.statSync(f).mtimeMs;}catch{return -1;}};
+    for(const f of['config.json','settings.json','window.json']){
+      const dst=path.join(nu,f);let best=null,bt=mt(dst);
+      for(const oldName of prevNames){
+        const old=path.join(app.getPath('appData'),oldName);if(same(old,nu))continue;
+        const t=mt(path.join(old,f));if(t>bt){bt=t;best=path.join(old,f);}
+      }
+      if(best)fs.copyFileSync(best,dst);
+    }
+    fs.writeFileSync(mark,'1');
   }
 }catch{}
 process.env.CG_DATA=app.getPath('userData');
-process.on('uncaughtException',e=>{try{dialog.showErrorBox('ChatLivestream Labs - error',String(e&&e.message&&/^Port /.test(e.message)?e.message:(e&&e.stack)||e));}catch{}});
+process.on('uncaughtException',e=>{try{dialog.showErrorBox('ChatStream Labs - error',String(e&&e.message&&/^Port /.test(e.message)?e.message:(e&&e.stack)||e));}catch{}});
 const BF=path.join(app.getPath('userData'),'window.json'),SFILE=path.join(app.getPath('userData'),'settings.json');
 const readJ=f=>{try{return JSON.parse(fs.readFileSync(f,'utf8'));}catch{return{};}};
 const saveB=b=>{try{fs.writeFileSync(BF,JSON.stringify({...readJ(BF),...b}));}catch{}};
@@ -28,7 +40,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const THEME_BG={standar:'#0e1214',neo:'#e3e8ef',glass:'#08101d',clay:'#f4e6d8',liquid:'#071a2e',spatial:'#0d0e12'};
 const themeBg=()=>THEME_BG[(readJ(SFILE).dock||{}).theme]||'#0e1214';
 const isLight=c=>{const n=parseInt(c.slice(1),16);return(0.299*(n>>16&255)+0.587*(n>>8&255)+0.114*(n&255))/255>.6;};
-const splash=()=>{const bg=themeBg();return 'data:text/html;charset=utf-8,'+encodeURIComponent('<body style="margin:0;background:'+bg+';color:'+(isLight(bg)?'#4a4a55':'#c9c9dd')+';font:14px Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh">Memuat ChatLivestream Labs…</body>');};
+const splash=()=>{const bg=themeBg();return 'data:text/html;charset=utf-8,'+encodeURIComponent('<body style="margin:0;background:'+bg+';color:'+(isLight(bg)?'#4a4a55':'#c9c9dd')+';font:14px Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh">Memuat ChatStream Labs…</body>');};
 const LOGF=()=>path.join(app.getPath('userData'),'log.txt');
 const log=t=>{try{fs.appendFileSync(LOGF(),new Date().toISOString()+' '+t+'\n');}catch{}};
 app.on('second-instance',()=>{
@@ -100,7 +112,7 @@ function watchLoad(w,go){
 function makeMain(bounds){
   const L=locked;
   const b=bounds||readJ(BF).outer||{};
-  const o={x:b.x,y:b.y,width:b.width||460,height:b.height||800,title:'ChatLivestream Labs',icon:ICON,minWidth:300,minHeight:300,show:false};
+  const o={x:b.x,y:b.y,width:b.width||460,height:b.height||800,title:'ChatStream Labs',icon:ICON,minWidth:300,minHeight:300,show:false};
   if(L)Object.assign(o,{frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,alwaysOnTop:true,resizable:false,skipTaskbar:true,focusable:false,thickFrame:false});
   else Object.assign(o,{frame:false,backgroundColor:themeBg()});
   const w=new BrowserWindow(o);
@@ -135,7 +147,7 @@ async function askQuit(){
   if(quitting||asking)return;asking=true;
   try{
     const parent=(main&&!main.isDestroyed()&&main.isVisible()&&!locked)?main:undefined;
-    const r=await dialog.showMessageBox(parent,{type:'question',buttons:['Keluar','Batal'],defaultId:1,cancelId:1,noLink:true,title:'Keluar',message:'Keluar dari ChatLivestream Labs?',detail:'Koneksi ke live YouTube dan TikTok akan terputus, dan overlay di OBS berhenti menampilkan chat.'});
+    const r=await dialog.showMessageBox(parent,{type:'question',buttons:['Keluar','Batal'],defaultId:1,cancelId:1,noLink:true,title:'Keluar',message:'Keluar dari ChatStream Labs?',detail:'Koneksi ke live YouTube dan TikTok akan terputus, dan overlay di OBS berhenti menampilkan chat.'});
     if(r.response===0){quitting=true;app.quit();}
   }finally{asking=false;}
 }
@@ -159,7 +171,7 @@ function winCtl(which,act){
 }
 function openSettings(){
   if(wins.settings&&!wins.settings.isDestroyed()){wins.settings.show();wins.settings.focus();return;}
-  openWin('/?view=settings',{width:540,height:860,title:'Pengaturan - ChatLivestream Labs'});
+  openWin('/?view=settings',{width:540,height:860,title:'Pengaturan - ChatStream Labs'});
 }
 // ===== hotkey =====
 const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S'};
@@ -199,7 +211,7 @@ app.whenReady().then(()=>{
   if(!gotLock)return;
   Menu.setApplicationMenu(null);
   makeMain();
-  try{tray=new Tray(nativeImage.createFromPath(ICON).resize({width:16,height:16}));tray.setToolTip('ChatLivestream Labs');tray.setContextMenu(trayMenu());tray.on('click',()=>setLock(!locked));}catch{}
+  try{tray=new Tray(nativeImage.createFromPath(ICON).resize({width:16,height:16}));tray.setToolTip('ChatStream Labs');tray.setContextMenu(trayMenu());tray.on('click',()=>setLock(!locked));}catch{}
   setTimeout(()=>{
     srv=require('./server.js');Object.assign(srv.hooks,hooks);
     setHotkeys(G().hotkeys);

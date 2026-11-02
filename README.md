@@ -1,4 +1,4 @@
-# ChatLivestream Labs
+# ChatStream Labs
 
 Satu aplikasi untuk streamer YouTube + TikTok: gabungkan chat dua platform, tampilkan sebagai overlay di OBS dengan banyak gaya
 (bisa tambah CSS sendiri), lihat jumlah penonton, dan balas chat dari satu kolom. Dibuat dengan Electron.

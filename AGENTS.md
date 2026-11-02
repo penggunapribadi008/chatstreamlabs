@@ -1,4 +1,4 @@
-# AGENTS.md — panduan untuk AI yang mengembangkan ChatLivestream Labs
+# AGENTS.md — panduan untuk AI yang mengembangkan ChatStream Labs
 
 Baca file ini dulu sebelum mengubah apa pun. Proyek ini dibuat bersama AI lewat banyak putaran perbaikan; di bawah ini
 ada konteks, arsitektur, aturan, dan semua jebakan yang sudah pernah kejadian, supaya tidak diulang.
@@ -35,7 +35,7 @@ Electron main (src/main.js)  ──require──▶  server lokal in-process (sr
 - **Kirim chat**: UI → `POST /send` → `extSend()` → WebSocket `/ext` → ekstensi Chrome (`extension/yt.js`, `tt.js`) yang
   mengetik di halaman chat milik Chrome yang sudah login. Ekstensi mencari server di port 3000–3010.
 - **OBS**: `POST /obs-add` memakai obs-websocket v5 (handshake + auth SHA256 ditulis manual di `obsAdd()`), membuat
-  browser source "ChatLivestream Overlay" di scene aktif.
+  browser source "ChatStream Overlay" di scene aktif.
 
 ## 3. Peta berkas
 | Berkas | Isi |
@@ -107,6 +107,16 @@ hapus lalu "Pulihkan gaya bawaan" untuk mendapat versi terbaru.
 11. Library `tiktok-live-proto` berlisensi **AGPL-3.0**; kedua konektor memakai cara tidak resmi (bisa rusak kapan saja, dan
     mungkin melanggar ketentuan layanan platform). Catat ini kalau aplikasi dibagikan.
 12. `build/` dan `dist/` adalah hasil build; JANGAN diedit manual. Edit di `src/`.
+13. **Aturan global di `style.css` bocor ke CSS buatan pengguna.** Dulu `*{outline:none!important}` berlaku juga di overlay, sehingga jahitan putus-putus
+    yang dibuat pengguna lewat `outline` tidak pernah tampil di aplikasi (padahal tampil di browser biasa). Sekarang aturan itu hanya
+    `body:not(.overlay) *`. Prinsip: di tampilan overlay, aturan bawaan aplikasi tidak boleh menimpa properti visual yang lazim dipakai CSS
+    pengguna (`outline`, `gap`, `margin`, `opacity`, dst.) dan harus diberi batas selektor (`#msgs`, `.m`, `body:not(.overlay)`).
+    Cara mengecek: pasang CSS pengguna di halaman polos dan di pratinjau aplikasi, bandingkan tangkapan layarnya; harus identik.
+14. **Pratinjau jendela "Gaya baru"** (`force=__draft`) harus kosong selagi CSS kosong. Dulu tampil tampilan bawaan aplikasi sehingga
+    menyesatkan (terlihat seperti gaya yang sudah ada). Lihat `draftEmpty()` di `app.js`; pesan contoh yang sudah dijadwalkan ikut dibatalkan.
+15. **Pindahan data dari nama lama** (`main.js`) berjalan sekali (berkas `.migrasi-nama` di folder data) dan memakai berkas TERBARU. Di Windows nama
+    folder tidak peka huruf besar/kecil: "Chatstream Labs" dan "ChatStream Labs" adalah folder yang sama, jadi cara lama (salin hanya kalau
+    berkas belum ada) membuat pengaturan terbaru tidak ikut terbawa setelah penggantian nama.
 
 ## 7. Cara kerja sehari-hari
 Build installer Windows: lewat GitHub Actions (`.github/workflows/build.yml`, lihat `PANDUAN-GITHUB.md`) atau `npm run dist` di Windows.
@@ -120,8 +130,8 @@ npm run dist:dir    # folder tanpa installer (untuk uji cepat)
 ```
 - Dibangun & diuji awalnya di Linux (jsdom + server nyata + mock OBS/ekstensi), jadi **perilaku visual Windows tidak pernah diuji
   langsung** oleh AI sebelumnya: mode kunci/tembus-klik/sembunyi-dari-OBS, ikon exe, login & kirim chat ke platform asli.
-  Minta pengguna mencoba dan menempel tangkapan layar/`log.txt` (`%APPDATA%/ChatLivestream Labs/log.txt`) kalau ada masalah.
-- Di Linux/macOS ikon `.exe` tidak tertanam otomatis; jalankan `node scripts/patch-exe.js "dist/win-unpacked/ChatLivestream Labs.exe" assets/icon.ico`.
+  Minta pengguna mencoba dan menempel tangkapan layar/`log.txt` (`%APPDATA%/ChatStream Labs/log.txt`) kalau ada masalah.
+- Di Linux/macOS ikon `.exe` tidak tertanam otomatis; jalankan `node scripts/patch-exe.js "dist/win-unpacked/ChatStream Labs.exe" assets/icon.ico`.
 - Setiap perubahan UI: perbarui `test/smoke.js` bila perilaku penting berubah. Untuk fitur server, uji dengan mock (lihat `serverTests`).
 
 ## 8. Aturan gaya perubahan
@@ -150,7 +160,7 @@ Jangan mengubah hal lain, jalankan `npm test` lagi di akhir, dan laporkan apa ya
 - Ekstensi Chrome mencari server di port tersimpan (`chrome.storage.local.port`, diisi lewat halaman Opsi ekstensi) lalu 3000-3010. Jangan hapus izin `storage`.
 
 ## 7. Struktur "cozy" (struktur HTML keempat)
-CSS yang memuat `data-color=` atau `data-mode=` dideteksi sebagai `cozy` (`detectStruct`). Atribut tambahan tiap pesan: `data-type` (`chat`, atau `event` untuk Super Chat) dan `data-role` (`mod`/`streamer`/`bot`/kosong); tiap `.tag` punya `data-tag`. Avatar selalu `<img>` (ada gambar inisial cadangan kalau foto kosong/gagal). Ukuran TIDAK diskalakan lewat `zoom` untuk struktur ini; pakai `var(--fsn)`/`var(--fst)` kalau ingin mengikuti pengaturan. Aturan CSS bawaan aplikasi tidak boleh memakai nama kelas generik (`.row`, `.name`, `.text`, `.tag`, `.avatar`, `.body`) tanpa dibatasi ke `body:not(.overlay)`, supaya tidak menimpa CSS buatan pengguna. Markup: wadah `#chat[data-mode=person]` > `.msg[data-platform=youtube|tiktok][data-color=1..N]` > `.avatar>img` + `.body` > `.row` (`.name`, `.tag`) + `.text`. `buildCozy` di `app.js`; N diambil dari angka terbesar `data-color` di CSS (minimal 5).
+CSS yang memuat `data-color=` atau `data-mode=` dideteksi sebagai `cozy` (`detectStruct`). Atribut tambahan tiap pesan: `data-type` (`chat`, atau `event` untuk Super Chat) dan `data-role` (`mod`/`streamer`/`bot`/kosong); tiap `.tag` punya `data-tag`. Avatar selalu `<img>` (ada gambar inisial cadangan kalau foto kosong/gagal). Ukuran TIDAK diskalakan lewat `zoom` untuk struktur ini; pakai `var(--fsn)`/`var(--fst)` kalau ingin mengikuti pengaturan. Aturan CSS bawaan aplikasi tidak boleh memakai nama kelas generik (`.row`, `.name`, `.text`, `.tag`, `.avatar`, `.body`) tanpa dibatasi ke `body:not(.overlay)`, supaya tidak menimpa CSS buatan pengguna. Markup: wadah `#chat[data-mode=person]` > `.msg[data-platform=youtube|tiktok][data-color=1..N]` > `.avatar>img` + `.body` > `.row` (`.name`, `.tag`) + `.text`. `buildCozy` di `app.js`; N diambil dari angka terbesar `data-color` di CSS (minimal 5). Foto cadangan (inisial) berupa SVG tanpa latar; warna latarnya urusan CSS gaya. Wadah `#chat` tidak diberi `gap` bawaan (hanya `body.gap-set` saat slider jarak digeser), supaya `margin` buatan pengguna tidak ditambah jarak ekstra. `examples/cozy-multichat-earthy.css` = CSS pengguna yang dipakai sebagai bahan uji di `test/smoke.js`.
 
 ## 8. Ekspor gaya
 Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor). `POST /export-css` memanggil `hooks.saveCss` (dialog Simpan di `main.js`); kalau bukan di Electron, jatuh ke unduhan blob.

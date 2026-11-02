@@ -1,7 +1,9 @@
 :root{--fs:16px;--fsn:16px;--fst:16px;--bg:.9;--gap:12px;--cbg:transparent;
 --base:14,18,20;--winbg:#0e1214;--card-bg:#151b1f;--sh-card:none;--blur:none;--line:#26323a;--ctl-bg:#0b0f11;--ctl-line:#26323a;--sh-in:none;--sh-btn:none;--rad:14px;--rad-c:10px;
 --text:#e8eef0;--muted:#8ea1ab;--acc:#ff7a3d;--acc-t:#1a0e08;--acc2:#35d0ba;--bad:#ff6b6b;--good:#3ecf8e;--yc:#ff8f8a;--tcl:#6fe3ee;--btn2:#232d33}
-*{box-sizing:border-box;outline:none!important;scrollbar-width:none;-webkit-user-select:none;user-select:none}
+*{box-sizing:border-box;scrollbar-width:none;-webkit-user-select:none;user-select:none}
+/* Hanya jendela aplikasi yang menghilangkan garis fokus. Overlay TIDAK boleh: CSS buatan pengguna (mis. jahitan putus-putus lewat outline) harus tampil apa adanya. */
+body:not(.overlay) *{outline:none!important}
 *::-webkit-scrollbar{display:none}
 input,textarea{-webkit-user-select:text;user-select:text}
 html,body{margin:0;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;color:var(--text);background:transparent}
@@ -29,7 +31,10 @@ body.locked #top{background:rgba(15,15,22,var(--bg));border-bottom:0}
 /* daftar chat */
 #lw{flex:1;min-height:0;position:relative;display:flex}
 #list{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;padding:14px 16px;overflow:hidden;font-size:var(--fst)}
-:is(#msgs,#chat){display:flex;flex-direction:column;gap:var(--gap);flex:none}:is(#msgs,#chat):empty{display:none}
+#msgs{display:flex;flex-direction:column;gap:var(--gap);flex:none}
+/* #chat = wadah struktur "cozy": jarak antar pesan diatur CSS pengguna sendiri; --gap baru dipakai kalau slider "Jarak antar chat" digeser (lihat body.gap-set) */
+#chat{display:flex;flex-direction:column;flex:none}
+:is(#msgs,#chat):empty{display:none}
 body.dock #list{overflow-y:auto;justify-content:flex-start}
 body.dock #msgs{margin-top:auto}
 body.ot #list{justify-content:flex-start}body.ot.dock #msgs{margin-top:0}
