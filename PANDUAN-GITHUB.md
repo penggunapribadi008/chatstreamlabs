@@ -16,8 +16,10 @@ GitHub akan membangun installer Windows untukmu secara otomatis. Kamu hanya perl
 4. Di bawah, klik **Commit changes**.
 5. Buka tab **Actions**. Kalau ada tombol hijau untuk mengizinkan workflow, klik. Pilih **Build installer Windows** di sisi kiri,
    lalu klik **Run workflow** > **Run workflow**.
-6. Tunggu sekitar 5 sampai 10 menit sampai ada tanda centang hijau. Klik proses yang selesai itu, lalu turun ke bagian **Artifacts**
-   dan unduh **installer-windows**. Di dalamnya ada file `.exe` installer-nya.
+6. Tunggu sekitar 5 sampai 10 menit sampai ada tanda centang hijau. Installer-nya berupa **satu file `.exe`** bernama
+   `chatstreamlab-v<versi>.exe` (versi mengikuti `package.json`), tanpa zip. Ada dua tempat mengambilnya:
+   - **Releases** (paling mudah): di halaman utama repositori, lihat kolom kanan **Releases**, buka yang paling atas, lalu klik berkas `.exe`.
+   - **Actions**: klik proses yang selesai, turun ke **Artifacts**, klik `chatstreamlab-v<versi>.exe` (langsung terunduh sebagai `.exe`).
 
 ## Cara alternatif: GitHub Desktop (lebih mudah untuk folder tersembunyi)
 1. Pasang **GitHub Desktop**, masuk dengan akunmu.
@@ -25,14 +27,11 @@ GitHub akan membangun installer Windows untukmu secara otomatis. Kamu hanya perl
 3. **Commit to main**, lalu **Publish repository** (centang **Keep this code private**).
 4. Lanjut ke langkah 5 di atas.
 
-## Membuat halaman Releases (opsional)
-Kalau kamu ingin installer muncul rapi di halaman **Releases** (mudah dibagikan ke teman):
-di GitHub Desktop pilih *Repository > ...* atau lewat terminal:
-```
-git tag v14.0.0
-git push origin v14.0.0
-```
-Setelah proses selesai, installer otomatis terlampir di **Releases**.
+## Halaman Releases
+Halaman Releases dibuat otomatis oleh workflow setiap proses selesai, dengan nama `v<versi>` (misalnya `v14.2.1`).
+Untuk rilis baru, naikkan angka `"version"` di `package.json` sebelum commit; nama file dan nama rilis ikut berubah sendiri.
+Kalau versinya tidak dinaikkan, rilis dengan versi yang sama hanya diperbarui `.exe`-nya.
+Mau membuat rilis dengan tag sendiri juga bisa: `git tag v14.2.1` lalu `git push origin v14.2.1`.
 
 ## Setelah installer jadi
 - Windows SmartScreen akan memberi peringatan karena aplikasi belum bertanda tangan digital. Klik **More info > Run anyway**.

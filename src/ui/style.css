@@ -75,8 +75,8 @@ body.an-type :is(.m,.msg){animation:aFade .2s ease both}body.an-type .tx>span,bo
 body.noanim *,body.noanim *::before,body.noanim *::after{animation:none!important;transition:none!important}
 @keyframes aSlide{from{opacity:0;translate:-40px 0}to{opacity:1;translate:0 0}}
 @keyframes aFade{from{opacity:0}to{opacity:1}}
-@keyframes aBounce{0%{opacity:0;translate:0 40px;scale:.85}60%{opacity:1;translate:0 -8px;scale:1.04}80%{translate:0 3px}100%{translate:0 0;scale:1}}
-@keyframes aZoom{from{opacity:0;scale:.5}to{opacity:1;scale:1}}
+@keyframes aBounce{0%{opacity:0;translate:0 40px;scale:calc(var(--sx,1)*.85) .85}60%{opacity:1;translate:0 -8px;scale:calc(var(--sx,1)*1.04) 1.04}80%{translate:0 3px}100%{translate:0 0;scale:var(--sx,1) 1}}
+@keyframes aZoom{from{opacity:0;scale:calc(var(--sx,1)*.5) .5}to{opacity:1;scale:var(--sx,1) 1}}
 @keyframes aFlip{from{opacity:0;rotate:x 90deg}to{opacity:1;rotate:x 0deg}}
 @keyframes aGlitch{0%{opacity:0;translate:-8px 0;filter:hue-rotate(90deg)}25%{opacity:1;translate:6px 0;filter:hue-rotate(-70deg)}50%{translate:-4px 0}75%{translate:3px 0;filter:none}100%{translate:0 0}}
 @keyframes aType{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
@@ -180,7 +180,7 @@ body.zm :is(.nm,.name){zoom:var(--zn,1)}body.zm :is(.tx,.text){zoom:var(--zt,1)}
 body.gap-set :is(#msgs,#log,#chat){gap:var(--gap)!important}
 body.ot :is(#msgs,#log,#chat){justify-content:flex-start!important}
 body.al-right :is(#msgs,#log,#chat){align-items:flex-end}
-body.al-right.s-rv .msg{scale:-1 1;align-self:flex-end!important}
+body.al-right.s-rv .msg{--sx:-1;scale:var(--sx) 1;align-self:flex-end!important}
 body.al-right.s-rv .badge>*,body.al-right.s-rv .body>*{scale:-1 1}
 .isbot{opacity:.82}body.hb .isbot{display:none}
 body.f-youtube .p-tt,body.f-tiktok .p-yt{display:none}

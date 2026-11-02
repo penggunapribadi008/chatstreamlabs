@@ -65,7 +65,7 @@ Wadah semua chat: `#list` (area penuh) › `#msgs` (atau `#log` untuk rv).
   arah muncul (`body.ot`), posisi kiri/kanan (`body.al-right`), animasi masuk (`body.an-*`; "otomatis" = ikuti animasi bawaan CSS).
   Mekanisme: gaya yang memakai `--fsn/--fst/--p5-scale` mengurus ukurannya sendiri; gaya yang memakai font px tetap diskalakan
   lewat `zoom` (`body.zm`, `--zn`, `--zt`, baseline 20px); jarak yang diubah pengguna menimpa lewat `body.gap-set`; kanan = `scale:-1 1`
-  untuk rv. Jangan memecahkan ini saat menambah struktur/gaya baru.
+  untuk rv (lewat variabel `--sx`, lihat jebakan 16). Jangan memecahkan ini saat menambah struktur/gaya baru.
 - Bot dikenali dari daftar nama (Nightbot, StreamElements, …) + daftar tambahan pengguna (`global.botNames`).
 
 ### Super Chat
@@ -117,6 +117,13 @@ hapus lalu "Pulihkan gaya bawaan" untuk mendapat versi terbaru.
 15. **Pindahan data dari nama lama** (`main.js`) berjalan sekali (berkas `.migrasi-nama` di folder data) dan memakai berkas TERBARU. Di Windows nama
     folder tidak peka huruf besar/kecil: "Chatstream Labs" dan "ChatStream Labs" adalah folder yang sama, jadi cara lama (salin hanya kalau
     berkas belum ada) membuat pengaturan terbaru tidak ikut terbawa setelah penggantian nama.
+
+16. **Animasi masuk yang memakai `scale` menghapus mirror kanan struktur rv.** Posisi kanan untuk rv dibuat dengan `scale:-1 1` pada `.msg`
+    (anak `.badge` dan `.body` dibalik lagi supaya teks terbaca). Keyframes `aBounce` dan `aZoom` berakhir di `scale:1` dengan `animation-fill-mode:both`,
+    jadi setelah animasi selesai mirror `.msg` hilang: lapisan jadi kiri tapi teks (yang masih dibalik anak-anaknya) tampil terbalik. Gejalanya: sepersekian
+    detik benar, lalu salah; hanya terjadi saat animasi masuk = Bounce/Zoom (Slide, Fade, Flip aman karena memakai `translate`/`rotate`). Perbaikan: `.msg` rv
+    memakai `--sx:-1; scale:var(--sx) 1`, dan keyframes yang menyentuh `scale` mengalikan dengan `var(--sx,1)`. Aturan: keyframes bawaan yang menganimasikan
+    `scale` WAJIB ikut `--sx`. Gaya struktur std tidak kena karena rata kanannya memakai `flex-direction:row-reverse`, bukan `scale`.
 
 ## 7. Cara kerja sehari-hari
 Build installer Windows: lewat GitHub Actions (`.github/workflows/build.yml`, lihat `PANDUAN-GITHUB.md`) atau `npm run dist` di Windows.
