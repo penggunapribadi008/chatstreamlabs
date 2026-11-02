@@ -15,6 +15,7 @@ function chatUrl(p){
 function cmd(name){if(name==='clear')history.length=0;emit('cmd',{name});}
 function setGlobal(v){settings.global={...settings.global,...v};fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);if(v.protect!==undefined&&hooks.protect)hooks.protect(settings.global.protect!==false);if(hooks.global)hooks.global(settings.global);}
 module.exports={hooks,ready,cmd,setGlobal,get port(){return PORT;}};
+const AVOID=[[3306,'MySQL'],[3389,'Remote Desktop Windows'],[4200,'Angular'],[4455,'OBS WebSocket (dipakai tombol Tambahkan overlay ke OBS)'],[5000,'Flask / AirPlay'],[5173,'Vite'],[5432,'PostgreSQL'],[5500,'Live Server VS Code'],[5900,'VNC'],[6379,'Redis'],[8000,'server web lokal'],[8080,'server web / proxy'],[8888,'Jupyter'],[27017,'MongoDB']].map(([port,name])=>({port,name}));
 const BOTS=['nightbot','streamelements','streamlabs','moobot','fossabot','wizebot','soundalerts','restreambot','botrix','sery_bot','pretzelrocks','coebot','deepbot','phantombot','ankhbot','vivbot'];
 const isBot=n=>{n=(n||'').toLowerCase().trim();const c=(settings.global.botNames||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);return BOTS.includes(n)||c.includes(n);};
 function emit(type,data){const s=`data: ${JSON.stringify({type,data})}\n\n`;clients.forEach(r=>r.write(s));}
@@ -30,11 +31,18 @@ const srv=http.createServer((req,res)=>{
   const body=cb=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>{try{cb(b?JSON.parse(b):{})}catch(e){console.log(e)}res.end('ok')});};
   if(u.pathname==='/events'){
     res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache',Connection:'keep-alive'});
-    res.write(`data: ${JSON.stringify({type:'init',data:{history,settings,cfg:{youtube:cfg.youtube,tiktok:cfg.tiktok},status,viewers}})}\n\n`);
+    res.write(`data: ${JSON.stringify({type:'init',data:{history,settings,cfg:{youtube:cfg.youtube,tiktok:cfg.tiktok,port:PORT,wanted:cfg.port||3000,avoid:AVOID},status,viewers}})}\n\n`);
     clients.add(res);req.on('close',()=>clients.delete(res));return;
   }
   if(req.method==='POST'){
     const json=async fn=>{let b='';await new Promise(r=>{req.on('data',c=>b+=c);req.on('end',r);});let out;try{out=await fn(b?JSON.parse(b):{});}catch(e){out={error:String(e&&e.message||e)};}res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(out));};
+    if(u.pathname==='/port-set')return json(async({port})=>{const p=Number(port);
+      if(!Number.isInteger(p)||p<1024||p>65535)return{error:'Port harus angka bulat antara 1024 dan 65535.'};
+      if(p!==PORT){const av=AVOID.find(x=>x.port===p);if(av)return{error:'localhost:'+p+' telah digunakan oleh '+av.name+'. Pilih port lain (tombol Hindari menampilkan daftarnya).'};
+        const free=await new Promise(r=>{const t=require('net').createServer();t.once('error',()=>r(false));t.once('listening',()=>t.close(()=>r(true)));t.listen(p);});
+        if(!free)return{error:'localhost:'+p+' telah digunakan oleh program lain. Pilih port lain.'};}
+      cfg.port=p;fs.writeFileSync(CF,JSON.stringify(cfg,null,1));return{ok:true,restart:p!==PORT};});
+    if(u.pathname==='/restart')return body(()=>{if(hooks.relaunch)setTimeout(()=>hooks.relaunch(),300);});
     if(u.pathname==='/send')return json(async({text,targets})=>{const out={},tx=String(text||'').slice(0,190);for(const t of targets||[])out[t]=await extSend(t,tx);return out;});
     if(u.pathname==='/win')return body(({which,act})=>{if(hooks.winCtl)hooks.winCtl(which,act);});
     if(u.pathname==='/draft')return body(d=>emit('draft',d));

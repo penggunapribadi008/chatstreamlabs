@@ -1,0 +1,63 @@
+{
+  "name": "chatlivestream-labs",
+  "version": "14.0.0",
+  "description": "ChatLivestream Labs: gabungkan chat live YouTube dan TikTok, tampilkan sebagai overlay OBS, dan balas dari satu tempat.",
+  "private": true,
+  "main": "build/main.js",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win nsis --publish never",
+    "dist:dir": "npm run build && electron-builder --win dir --publish never",
+    "test": "npm run build && node test/smoke.js",
+    "rename": "node scripts/rename.js"
+  },
+  "dependencies": {
+    "tiktok-live-connector": "2.5.0",
+    "youtube-chat": "2.2.0",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.25.0",
+    "jsdom": "^26.0.0",
+    "resedit": "^2.0.0"
+  },
+  "build": {
+    "appId": "com.chatstreamlabs.app",
+    "productName": "ChatLivestream Labs",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "extension",
+        "to": "extension"
+      },
+      {
+        "from": "assets/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "ChatLivestream-Labs-Setup-${version}.exe"
+    }
+  },
+  "previousNames": [
+    "Chatstream Labs",
+    "Livechat Multi-platform"
+  ]
+}

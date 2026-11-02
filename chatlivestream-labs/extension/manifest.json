@@ -1,0 +1,4 @@
+{"manifest_version":3,"name":"ChatLivestream Labs - Pengirim Chat","version":"1.0","description":"Mengirim chat dari aplikasi ChatLivestream Labs ke halaman live YouTube / TikTok yang sedang kamu buka di Chrome.","icons":{"128":"icon.png"},
+"content_scripts":[
+{"matches":["https://www.youtube.com/live_chat*"],"js":["yt.js"],"all_frames":true,"run_at":"document_idle"},
+{"matches":["https://www.tiktok.com/*/live*"],"js":["tt.js"],"run_at":"document_idle"}]}

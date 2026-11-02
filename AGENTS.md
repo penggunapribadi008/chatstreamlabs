@@ -142,3 +142,12 @@ npm run dist:dir    # folder tanpa installer (untuk uji cepat)
 ## 10. Prompt awal yang disarankan untuk AI baru
 "Baca AGENTS.md dan README.md. Jalankan `npm install` lalu `npm test` dan pastikan lulus. Setelah itu kerjakan: <tugasmu>.
 Jangan mengubah hal lain, jalankan `npm test` lagi di akhir, dan laporkan apa yang sudah dan belum bisa kamu uji."
+
+## 6. Port lokal (bisa diubah pengguna)
+- Bawaan 3000. Pengguna mengubahnya di Pengaturan > Koneksi > "Port lokal" (hanya angka; awalan `http://localhost:` tetap). Disimpan di `config.json` (`port`), berlaku setelah mulai ulang (`POST /restart` memanggil `hooks.relaunch` di `main.js`).
+- `POST /port-set` menolak port di luar 1024-65535, port di daftar `AVOID` (server.js; juga dikirim ke UI lewat `init.cfg.avoid` untuk dialog "Hindari"), dan port yang sedang dipakai program lain (dites dengan `net`). Pesan: `localhost:XXXX telah digunakan ...`.
+- Kalau port pilihan bentrok saat startup, `tryListen` pindah ke port berikutnya; UI menampilkan peringatan (`cfg.port` = port berjalan, `cfg.wanted` = port pilihan).
+- Ekstensi Chrome mencari server di port tersimpan (`chrome.storage.local.port`, diisi lewat halaman Opsi ekstensi) lalu 3000-3010. Jangan hapus izin `storage`.
+
+## 7. Struktur "cozy" (struktur HTML keempat)
+CSS yang memuat `data-color=` atau `data-mode=` dideteksi sebagai `cozy` (`detectStruct`). Markup: wadah `#chat[data-mode=person]` > `.msg[data-platform=youtube|tiktok][data-color=1..N]` > `.avatar>img` + `.body` > `.row` (`.name`, `.tag`) + `.text`. `buildCozy` di `app.js`; N diambil dari angka terbesar `data-color` di CSS (minimal 5).

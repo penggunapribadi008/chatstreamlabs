@@ -184,6 +184,7 @@ const hooks={
   protect:on=>{protect=on;BrowserWindow.getAllWindows().forEach(w=>prot(w));applyLockedInput();},
   open:what=>{if(what==='ext')shell.openPath(app.isPackaged?path.join(process.resourcesPath,'extension'):path.join(__dirname,'..','extension'));else shell.openExternal(what);},
   window:(url,opt)=>openWin(url,opt||{}),
+  relaunch:()=>{quitting=true;app.relaunch();app.exit(0);},
   lock:on=>setLock(on),
   drag:on=>dragOn(on),
   openSettings,

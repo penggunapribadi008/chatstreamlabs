@@ -52,7 +52,7 @@ if(!isPrev&&!isCtl&&view==='dock'||isSet||isTpl||isAdd){
   $('tbt').textContent=isSet?'Pengaturan':isTpl?'Kelola gaya overlay':isAdd?'Gaya overlay':'ChatLivestream Labs';
   $('wmin').onclick=()=>post('/win',{which:WHICH,act:'min'});$('wclose').onclick=()=>post('/win',{which:WHICH,act:'close'});
 }
-const detectStruct=css=>/\.p5-msg/.test(css||'')?'p5':(/\.badge\b/.test(css||'')&&/\.p-(yt|tt)\b/.test(css||''))?'rv':'std';
+const detectStruct=css=>/data-color\s*=|data-mode\s*=/.test(css||'')?'cozy':/\.p5-msg/.test(css||'')?'p5':(/\.badge\b/.test(css||'')&&/\.p-(yt|tt)\b/.test(css||''))?'rv':'std';
 const customs=()=>((S.global&&S.global.templates)||[]);
 function tplOf(id){
   if(id==='__draft')return draftTpl?{custom:true,struct:detectStruct(draftTpl.css),css:draftTpl.css||''}:null;
@@ -72,7 +72,7 @@ function applyStyle(){
   b.className=[view,isPrev?'preview':'',isLocked?'locked':'',s.chatBg?'cb':'',s.order==='top'?'ot':'',(view==='overlay'&&s.align==='right')?'al-right':'',(view==='overlay'&&tpl.struct==='rv')?'s-rv':'','p-'+(tpl.custom?'custom':pid),'an-'+an,zm?'zm':'',(view==='overlay'&&s.gap!==DEF.overlay.gap)?'gap-set':'',booting?'noanim':'',s.viewers?'sv':'',s.time?'st':'',s.avatar?'':'na',s.botTag?'':'nobt',s.hideBots?'hb':'',(view==='dock'&&filt!=='all')?'f-'+filt:''].filter(Boolean).join(' ');
   if(view==='dock'&&!isLocked)applyUi(s);
   chatColors(s,pid);
-  if(view==='overlay'){wrap.id=curStruct==='rv'?'log':'msgs';}
+  if(view==='overlay'){wrap.id=curStruct==='rv'?'log':curStruct==='cozy'?'chat':'msgs';if(curStruct==='cozy')wrap.dataset.mode='person';else delete wrap.dataset.mode;}
   if(oldStruct!==curStruct&&view==='overlay')rebuild();
   trim();updBtn();
 }
@@ -115,6 +115,16 @@ function buildRV(m,src,pf){
   if(m.sc)tag(m.sc.amount);if(m.owner)tag('OWNER');else if(m.mod)tag('MOD');if(m.bot)tag('BOT');
   if(m.sc)d.style.setProperty('--sc',scColor(m));
   return d;}
+const cozyN=()=>{const css=(tplOf(forceId||cur(view).preset)||{}).css||'';const n=[...css.matchAll(/data-color\s*=\s*["']?(\d+)/g)].map(x=>+x[1]);return Math.max(5,...n);};
+function buildCozy(m,src,pf){
+  const d=document.createElement('div');d.className='msg'+FLAGS(m);d.dataset.platform=pf==='y'?'youtube':'tiktok';
+  let h=0;for(const ch of String(m.name||''))h=(h*31+ch.charCodeAt(0))>>>0;d.dataset.color=String(h%cozyN()+1);
+  d.innerHTML='<div class="avatar"></div><div class="body"><div class="row"><span class="name"></span></div><span class="text"></span></div>';
+  const row=d.querySelector('.row'),tag=(t,c)=>{const s=document.createElement('span');s.className='tag'+(c?' '+c:'');s.textContent=t;row.appendChild(s);};
+  d.querySelector('.name').textContent=m.name||'';d.querySelector('.text').textContent=m.text;
+  if(m.sc){tag(m.sc.amount,'sc');d.style.setProperty('--sc',scColor(m));}if(m.owner)tag('streamer','own');else if(m.mod)tag('mod');if(m.bot)tag('bot');
+  const av=d.querySelector('.avatar');if(m.avatar){const i=document.createElement('img');i.alt='';i.src=m.avatar;av.appendChild(i);}else av.textContent=(m.name||'?')[0].toUpperCase();
+  return d;}
 function rebuild(){[...wrap.children].forEach(x=>x.remove());const s=cur(view);msgsData.slice(-s.max).forEach(m=>add(m,true));}
 function add(m,re){
   const s=cur(view),stick=view!=='dock'||atLatest();
@@ -123,7 +133,7 @@ function add(m,re){
     put(j);trim();if(stick)toLatest();return; }
   if(!re&&view==='overlay'){msgsData.push(m);if(msgsData.length>80)msgsData.shift();}
   const pf=m.p==='youtube'?'y':'t',src=m.p==='youtube'?'/yt.png':'/tt.png';
-  const d=view!=='overlay'?buildStd(m,src,pf):curStruct==='p5'?buildP5(m,src,pf):curStruct==='rv'?buildRV(m,src,pf):buildStd(m,src,pf);
+  const d=view!=='overlay'?buildStd(m,src,pf):curStruct==='p5'?buildP5(m,src,pf):curStruct==='rv'?buildRV(m,src,pf):curStruct==='cozy'?buildCozy(m,src,pf):buildStd(m,src,pf);
   put(d);trim();if(stick)toLatest();
   if(s.fade>0&&!isPrev&&!m.sample&&!re)setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),450);},s.fade*(m.sc?3:1)*1000);
 }
@@ -268,12 +278,23 @@ $('cy').onclick=async()=>{const u=(await(await fetch('/urls')).json()).youtube;i
 $('ct').onclick=async()=>{const u=(await(await fetch('/urls')).json()).tiktok;if(!u)return alert('Isi username TikTok dulu di bagian Sambungkan live.');copyText(u);$('ct').textContent='Disalin';setTimeout(()=>$('ct').textContent='Salin alamat TikTok',1500);};
 $('prev').onclick=()=>openC('preview');$('tplMng').onclick=()=>openC('templates');
 $('test').onclick=()=>post('/test');
+function showPort(){const p=$('portIn');if(!p)return;if(document.activeElement!==p)p.value=conf.wanted||conf.port||'';const m=$('portmsg');
+  if(conf.port&&conf.wanted&&conf.port!==conf.wanted){m.className='hint no';m.textContent='Port '+conf.wanted+' sedang dipakai program lain, jadi aplikasi sementara memakai '+conf.port+'.';}
+  else{m.className='hint';m.textContent='Sedang berjalan di port '+(conf.port||location.port)+'.';}}
+$('portsave').onclick=async()=>{const m=$('portmsg');const r=await(await post('/port-set',{port:$('portIn').value})).json();
+  if(r.error){m.className='hint no';m.textContent=r.error;return;}
+  conf.wanted=+$('portIn').value;
+  if(r.restart){m.className='hint ok';m.textContent='Tersimpan. Mulai ulang aplikasi agar port baru berlaku.';$('portrestart').style.display='';}
+  else{m.className='hint ok';m.textContent='Port ini sudah dipakai sekarang.';$('portrestart').style.display='none';}};
+$('portrestart').onclick=()=>post('/restart');
+$('portavoid').onclick=()=>{$('avlist').innerHTML='';(conf.avoid||[]).forEach(a=>{const r=document.createElement('div');r.className='avrow';const b=document.createElement('b'),n=document.createElement('span');b.textContent=a.port;n.textContent=a.name;r.append(b,n);$('avlist').appendChild(r);});$('avmodal').hidden=false;};
+$('avclose').onclick=()=>{$('avmodal').hidden=true;};$('avmodal').onclick=e=>{if(e.target===$('avmodal'))$('avmodal').hidden=true;};
 $('u2').onclick=()=>{$('u2').select();try{document.execCommand('copy')}catch{}};
 $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textContent='Menghubungi OBS...';
   const r=await(await post('/obs-add',{width:+$('obsW').value||500,height:+$('obsH').value||900,password:$('obsPass').value})).json();
   if(r.error){m.className='hint no';m.textContent='Gagal: '+r.error;}else{m.className='hint ok';m.textContent='Berhasil. Overlay sudah ada di scene OBS yang sedang aktif (nama sumber: ChatLivestream Overlay).';}};
 }
-function initSettings(){fill('dock');fill('overlay');fillGlobal();applyUi(cur('dock'));$('yt').value=conf.youtube||'';$('tk').value=conf.tiktok||'';$('u2').value=location.origin+'/?view=overlay';
+function initSettings(){fill('dock');fill('overlay');fillGlobal();applyUi(cur('dock'));$('yt').value=conf.youtube||'';$('tk').value=conf.tiktok||'';$('u2').value=location.origin+'/?view=overlay';showPort();
   hk={...HK_DEF,...((S.global&&S.global.hotkeys)||{})};hkRender();setTab('k');acct();setInterval(acct,3000);
   addEventListener('beforeunload',()=>{fetch('/draft-clear',{method:'POST',body:'{}',keepalive:true});});}
 // ---- kelola gaya overlay (daftar kartu + pratinjau) ----
@@ -338,7 +359,7 @@ function initAdd(){
   $('tguide').onclick=async()=>{try{await navigator.clipboard.writeText(GUIDE);}catch{const ta=document.createElement('textarea');ta.value=GUIDE;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}alert('Panduan struktur disalin. Tempel ke AI bersama desain yang kamu mau, lalu minta dibuatkan CSS-nya.');};
   $('tcancel').onclick=()=>post('/win',{which:'tpladd',act:'close'});
   $('tsave').onclick=async()=>{const name=$('tn').value.trim(),css=$('tc').value;if(!name){alert('Isi nama gaya dulu.');return;}if(!css.trim()){alert('CSS-nya masih kosong.');return;}
-    const struct=/\.p5-msg/.test(css)?'p5':'std';let l=customs().slice();
+    const struct=detectStruct(css);let l=customs().slice();
     if(editId&&t)l=l.map(x=>x.id===editId?{...x,name,css,struct}:x);else l.push({id:'c_'+Date.now().toString(36),name,css,struct});
     await saveTpls(l);post('/win',{which:'tpladd',act:'close'});};
 }

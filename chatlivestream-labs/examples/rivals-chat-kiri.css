@@ -1,0 +1,84 @@
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;1,700;1,800&family=Barlow:wght@600&display=swap");
+
+:root{
+  color-scheme:dark;
+  --yellow:#ffd400; --white:#ffffff; --ink:#0a0a0d; --plate:rgba(10,10,13,.86);
+  --display:"Barlow Condensed","Arial Narrow",Impact,sans-serif;
+  --body:"Barlow",system-ui,sans-serif;
+  box-sizing:border-box;
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0;background:transparent;overflow:hidden}
+body{display:flex;flex-direction:column;justify-content:flex-end;font-family:var(--body);padding:12px}
+#log{
+  display:flex;flex-direction:column;gap:18px;justify-content:flex-end;
+  -webkit-mask-image:linear-gradient(to top,#000 70%,transparent);
+  mask-image:linear-gradient(to top,#000 70%,transparent)
+}
+.msg{
+  display:flex;align-items:stretch;max-width:100%;align-self:flex-start;
+  animation:slam .28s cubic-bezier(.2,1.3,.4,1) both;
+  filter:drop-shadow(0 3px 0 rgba(0,0,0,.45))
+}
+.msg.out{animation:out .4s ease-in forwards}
+@keyframes slam{from{opacity:0;transform:translateX(-40px) skewX(-14deg)}}
+@keyframes out{to{opacity:0;transform:translateX(-30px)}}
+
+/* badge platform */
+.badge{
+  flex:none;width:46px;display:grid;place-items:center;background:linear-gradient(115deg,transparent 52%,rgba(0,0,0,.22) 52% 70%,transparent 70%),var(--pc,var(--yellow));color:var(--pi,var(--ink));
+  clip-path:polygon(0 0,100% 0,calc(100% - 14px) 100%,0 100%);padding-right:8px
+}
+.badge svg{width:24px;height:24px;fill:currentColor}
+
+/* isi bubble */
+.body{
+  margin-left:-8px;padding:6px 22px 8px 20px;min-width:0;
+  background:var(--pp,var(--plate));color:var(--white);
+  clip-path:polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%);
+  border-width:0 0 3px;border-style:solid;border-image:var(--pl,linear-gradient(90deg,#ffd400,#ffd400)) 1;
+  position:relative
+}
+/* shape belakang bubble: bentuk beda (miring terbalik) */
+.msg{position:relative;isolation:isolate;margin-right:18px;max-width:calc(100% - 18px)}
+.msg::before{
+  content:"";position:absolute;z-index:-1;pointer-events:none;
+  top:-4px;bottom:-4px;left:28px;right:-18px;background:var(--white);
+  clip-path:polygon(0 45%,16px 0,100% 0,calc(100% - 22px) 100%,10px 100%)
+}
+.name{
+  display:flex;align-items:center;gap:8px;font:italic 800 19px/1 var(--display);
+  letter-spacing:.04em;color:var(--pa,var(--yellow));text-transform:uppercase
+}
+.tag{
+  font:italic 800 12px/1 var(--display);padding:2px 7px;background:var(--pa,var(--white));color:var(--ink);
+  transform:skewX(-18deg)
+}
+.text{font-size:16px;line-height:1.3;margin-top:3px;overflow-wrap:anywhere;letter-spacing:.01em}
+
+/* pesan sorot (sub / donasi) */
+.hl .body{background:var(--ph,var(--yellow));color:var(--pi,var(--ink))}
+
+.hl .name{color:var(--pi,var(--ink))}
+.hl .tag{background:var(--pi,var(--ink));color:var(--ph,var(--yellow))}
+
+/* warna per platform */
+.p-yt{--pc:#ff0033;--pi:#fff;--pa:#ff4d6a;--pp:#1d060b;--pd:#8f0020;--ph:#ff0033;--pl:linear-gradient(90deg,#ff0033,#ff0033)}
+.p-tw{--pc:#9146ff;--pi:#fff;--pa:#b78cff;--pp:#140b26;--pd:#4a22a0;--ph:#9146ff;--pl:linear-gradient(90deg,#9146ff,#9146ff)}
+.p-kk{--pc:#53fc18;--pi:#0a0a0d;--pa:#53fc18;--pp:#0b1807;--pd:#2c8a0b;--ph:#53fc18;--pl:linear-gradient(90deg,#53fc18,#53fc18)}
+.p-tt{--pc:#0a0a0d;--pi:#fff;--pa:#fff;--pp:#0a0a0d;--pd:#25f4ee;--ph:#fe2c55;--pl:linear-gradient(90deg,#fe2c55,#fe2c55)}
+/* efek distorsi RGB TikTok */
+.p-tt .badge svg{filter:drop-shadow(-2px -1px 0 #25f4ee) drop-shadow(2px 1px 0 #fe2c55)}
+.p-tt .body::after{content:"";position:absolute;left:18%;width:38%;bottom:0;height:3px;background:#25f4ee}
+/* bg di belakang badge platform */
+.msg::after{
+  content:"";position:absolute;z-index:-1;pointer-events:none;
+  left:-7px;top:-4px;bottom:-4px;width:58px;background:var(--pd,var(--yellow));
+  clip-path:polygon(0 0,100% 0,calc(100% - 16px) 100%,0 100%)
+}
+
+#test{display:none;gap:0;margin-top:10px}
+body.test #test{display:flex}
+#test input{flex:1;padding:8px 12px;border:2px solid var(--yellow);background:var(--ink);color:var(--white);font:600 14px var(--body)}
+#test button{padding:0 18px;border:0;background:var(--yellow);color:var(--ink);font:italic 800 18px var(--display);cursor:pointer}
+@media (prefers-reduced-motion:reduce){.msg,.msg.out{animation:none}}

@@ -27,6 +27,12 @@
         <li><div class="sn">3</div><div class="sb"><b>Buka halaman live-mu di Chrome</b><span>Pakai Chrome yang sudah login ke akun YouTube dan TikTok. Biarkan tabnya terbuka selama live. Status di atas berubah jadi "terhubung".</span><div class="btns"><button class="btn b3 sm" id="oy">Buka chat YouTube</button><button class="btn b3 sm" id="ot">Buka live TikTok</button></div><div class="btns"><button class="btn b4 sm" id="cy">Salin alamat YouTube</button><button class="btn b4 sm" id="ct">Salin alamat TikTok</button></div></div></li>
       </ol>
       <div class="hint">Kalau Chrome bukan browser utama, pakai tombol Salin alamat lalu tempel di Chrome. Pesan hanya terkirim saat live sedang berjalan.</div></div>
+    <div class="card"><h3>Port lokal</h3>
+      <div class="hint">Aplikasi berjalan di port ini di komputermu (alamat overlay OBS ikut berubah). Ganti kalau port-nya bentrok dengan program lain.</div>
+      <div style="display:flex;align-items:stretch;margin:8px 0;border:1px solid var(--line,#3a3f4b);border-radius:10px;overflow:hidden"><span style="padding:9px 4px 9px 12px;opacity:.65;white-space:nowrap;user-select:none">http://localhost:</span><input type="number" id="portIn" min="1024" max="65535" inputmode="numeric" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit;padding:9px 12px 9px 0"></div>
+      <div class="btns"><button class="btn b1 sm" id="portsave">Simpan port</button><button class="btn b4 sm" id="portavoid">Hindari</button><button class="btn b3 sm" id="portrestart" style="display:none">Mulai ulang sekarang</button></div>
+      <div id="portmsg" class="hint"></div>
+      <div class="hint">Sesudah ganti: mulai ulang aplikasi, lalu klik <b>Tambahkan overlay ke OBS</b> lagi (sumber lama otomatis diperbarui). Kalau port di luar 3000-3010, isi juga di ekstensi Chrome: chrome://extensions, Detail, Opsi ekstensi.</div></div>
     <div class="card"><h3>Nama bot tambahan</h3><input type="text" id="botNames" placeholder="pisahkan dengan koma, contoh: moobot, fossabot">
       <div class="btns"><button class="btn b1" id="sbot">Terapkan</button></div></div>
   </div>
@@ -65,3 +71,8 @@
   </div>
   <div class="foot"><button class="btn b3" id="tguide" style="margin-right:auto">Salin panduan struktur (untuk AI)</button><button class="btn b4" id="tcancel">Batal</button><button class="btn b1" id="tsave">Simpan</button></div>
 </div>
+<div id="avmodal" class="avm" hidden><div class="avbox"><h3>Port yang sebaiknya dihindari</h3>
+  <div class="hint">Port ini biasanya sudah dipakai program lain. Kalau dimasukkan, aplikasi menolaknya.</div>
+  <div id="avlist"></div>
+  <div class="hint">Port 3000 (bawaan) juga dipakai Gatito Stream Tool dan banyak tool developer. Kalau 3000 sedang terpakai, aplikasi otomatis pindah ke 3001, 3002, dst. Supaya alamat OBS tidak berubah-ubah, simpan port tetap yang jarang dipakai, misalnya 3456 atau 4600.</div>
+  <div class="btns"><button class="btn b1 sm" id="avclose">Tutup</button></div></div></div>
