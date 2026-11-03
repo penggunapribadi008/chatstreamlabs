@@ -136,7 +136,7 @@ function setLock(on){
   if(old&&old.isMinimized())old.restore();
   if(on){outerAtLock=old.getBounds();lockStart=old.getContentBounds();saveB({outer:outerAtLock});bounds=lockStart;}
   else{const nb=old.getBounds(),ls=lockStart||nb,oa=outerAtLock||nb;bounds={x:oa.x+(nb.x-ls.x),y:oa.y+(nb.y-ls.y),width:oa.width,height:oa.height};saveB({outer:bounds});}
-  locked=on;switching=true;
+  locked=on;lastRects=[];switching=true;
   makeMain(bounds);
   if(old&&!old.isDestroyed())old.destroy();
   switching=false;
@@ -153,6 +153,7 @@ async function askQuit(){
 }
 const trayMenu=()=>Menu.buildFromTemplate([
   {label:locked?'Buka kunci':'Kunci jendela',click:()=>setLock(!locked)},
+  {label:'Laporan penonton',click:()=>openReport()},
   {label:'Pengaturan',click:()=>openSettings()},
   {type:'separator'},{label:'Keluar',click:()=>askQuit()}]);
 const wins={};
@@ -169,12 +170,16 @@ function winCtl(which,act){
   if(act==='min')w.minimize();
   else if(act==='close'){if(which==='main')askQuit();else w.close();}
 }
+function openReport(){
+  if(wins.report&&!wins.report.isDestroyed()){wins.report.show();wins.report.focus();return;}
+  openWin('/?view=report',{width:1040,height:840,title:'Laporan penonton'});
+}
 function openSettings(){
   if(wins.settings&&!wins.settings.isDestroyed()){wins.settings.show();wins.settings.focus();return;}
   openWin('/?view=settings',{width:540,height:860,title:'Pengaturan - ChatStream Labs'});
 }
 // ===== hotkey =====
-const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S'};
+const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R'};
 const ACTIONS={
   lock:()=>setLock(!locked),
   hide:()=>{if(!main||main.isDestroyed())return;
@@ -182,7 +187,8 @@ const ACTIONS={
     else{if(locked){main.showInactive();if(ctlWin&&!ctlWin.isDestroyed())ctlWin.showInactive();}else main.show();}},
   obs:()=>{if(srv){protect=!protect;srv.setGlobal({protect});}},
   up:()=>srv&&srv.cmd('up'),down:()=>srv&&srv.cmd('down'),clear:()=>srv&&srv.cmd('clear'),filter:()=>srv&&srv.cmd('filter'),
-  settings:()=>openSettings()
+  settings:()=>openSettings(),
+  report:()=>openReport()
 };
 function setHotkeys(map){
   globalShortcut.unregisterAll();const res={};
@@ -218,6 +224,6 @@ app.whenReady().then(()=>{
     srv.ready.then(srvReady);
   },30);
 });
-app.on('before-quit',()=>{quitting=true;});
+app.on('before-quit',()=>{quitting=true;try{srv&&srv.flush&&srv.flush();}catch{}});
 app.on('will-quit',()=>globalShortcut.unregisterAll());
 app.on('window-all-closed',()=>{if(!switching)app.quit();});

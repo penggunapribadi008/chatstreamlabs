@@ -2,6 +2,7 @@ const http=require('http'),fs=require('fs'),path=require('path');
 const SEEDS=require('./seeds.json');
 const base=process.env.CG_DATA||__dirname;
 const CF=path.join(base,'config.json'),SF=path.join(base,'settings.json');
+const stats=require('./stats.js')(path.join(base,'analytics.json'));
 const read=(f,d)=>{try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch{return d}};
 let cfg=read(CF,{port:3000,youtube:'',tiktok:''});
 let settings=read(SF,{});settings.dock=settings.dock||{};settings.overlay=settings.overlay||{};settings.global=settings.global||{};
@@ -14,14 +15,16 @@ function chatUrl(p){
   const u=ttTarget(cfg.tiktok);return u?'https://www.tiktok.com/@'+u+'/live':'';}
 function cmd(name){if(name==='clear')history.length=0;emit('cmd',{name});}
 function setGlobal(v){settings.global={...settings.global,...v};fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);if(v.protect!==undefined&&hooks.protect)hooks.protect(settings.global.protect!==false);if(hooks.global)hooks.global(settings.global);}
-module.exports={hooks,ready,cmd,setGlobal,get port(){return PORT;}};
+module.exports={hooks,ready,cmd,setGlobal,flush:()=>stats.flush(),get port(){return PORT;}};
+process.on('exit',()=>{try{stats.flush();}catch{}});
 const AVOID=[[3306,'MySQL'],[3389,'Remote Desktop Windows'],[4200,'Angular'],[4455,'OBS WebSocket (dipakai tombol Tambahkan overlay ke OBS)'],[5000,'Flask / AirPlay'],[5173,'Vite'],[5432,'PostgreSQL'],[5500,'Live Server VS Code'],[5900,'VNC'],[6379,'Redis'],[8000,'server web lokal'],[8080,'server web / proxy'],[8888,'Jupyter'],[27017,'MongoDB']].map(([port,name])=>({port,name}));
 const BOTS=['nightbot','streamelements','streamlabs','moobot','fossabot','wizebot','soundalerts','restreambot','botrix','sery_bot','pretzelrocks','coebot','deepbot','phantombot','ankhbot','vivbot'];
 const isBot=n=>{n=(n||'').toLowerCase().trim();const c=(settings.global.botNames||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);return BOTS.includes(n)||c.includes(n);};
 function emit(type,data){const s=`data: ${JSON.stringify({type,data})}\n\n`;clients.forEach(r=>r.write(s));}
-function push(m){m.t=Date.now();m.id=++seq;if(m.kind!=='join')m.bot=isBot(m.name);history.push(m);if(history.length>300)history.shift();emit('msg',m);}
+function push(m){m.t=Date.now();m.id=++seq;if(!m.kind)m.bot=isBot(m.name);history.push(m);if(history.length>300)history.shift();emit('msg',m);if(m.kind!=='like'){try{stats.add(m);}catch{}}}
 function setStatus(k,v){status[k]=v;console.log(`[${k}] ${v}`);emit('status',status);}
-function setViewers(k,n){viewers[k]=n;emit('viewers',viewers);}
+function setViewers(k,n){viewers[k]=n;emit('viewers',viewers);if(n!=null&&!stats.active())stats.tick(viewers.youtube,viewers.tiktok);}
+setInterval(()=>{try{stats.tick(viewers.youtube,viewers.tiktok);}catch{}},15000).unref();
 const first=u=>{if(!u)return'';for(const k of['avatarThumb','avatarMedium','avatarLarge','profilePicture']){const i=u[k];if(i){const x=(i.urlList&&i.urlList[0])||(i.urls&&i.urls[0])||i.url;if(x)return x;}}return'';};
 
 const FILES={'/yt.png':'image/png','/tt.png':'image/png','/icon.png':'image/png'};
@@ -43,6 +46,8 @@ const srv=http.createServer((req,res)=>{
         if(!free)return{error:'localhost:'+p+' telah digunakan oleh program lain. Pilih port lain.'};}
       cfg.port=p;fs.writeFileSync(CF,JSON.stringify(cfg,null,1));return{ok:true,restart:p!==PORT};});
     if(u.pathname==='/export-css')return json(async({name,css})=>{if(!hooks.saveCss)return{error:'hanya di aplikasi desktop'};const n=String(name||'gaya-overlay').replace(/[\\/:*?"<>|]+/g,'-').slice(0,80)||'gaya-overlay';return await hooks.saveCss(n,String(css||'').slice(0,400000));});
+    if(u.pathname==='/analytics-new')return body(()=>stats.end());
+    if(u.pathname==='/analytics-del')return body(({id})=>stats.remove(String(id||'')));
     if(u.pathname==='/restart')return body(()=>{if(hooks.relaunch)setTimeout(()=>hooks.relaunch(),300);});
     if(u.pathname==='/send')return json(async({text,targets})=>{const out={},tx=String(text||'').slice(0,190);for(const t of targets||[])out[t]=await extSend(t,tx);return out;});
     if(u.pathname==='/win')return body(({which,act})=>{if(hooks.winCtl)hooks.winCtl(which,act);});
@@ -61,6 +66,7 @@ const srv=http.createServer((req,res)=>{
       if(what==='ext'){hooks.open('ext');return{ok:true};}
       if(what==='tpladd'){hooks.window('/?view=tpladd'+(id?'&id='+encodeURIComponent(id):''),{width:980,height:600,title:'Gaya baru'});return{ok:true};}
       if(what==='templates'){hooks.window('/?view=tpl',{width:980,height:820,title:'Kelola gaya overlay'});return{ok:true};}
+      if(what==='report'){hooks.window('/?view=report',{width:1040,height:840,title:'Laporan penonton'});return{ok:true};}
       if(what==='preview'){hooks.window('/?view=overlay&preview=1',{width:480,height:760,title:'Pratinjau overlay OBS'});return{ok:true};}
       if(what==='youtube'||what==='tiktok'){const u2=chatUrl(what);if(!u2)return{error:what==='youtube'?'Isi username YouTube dulu di Koneksi.':'Isi username TikTok dulu di Koneksi.'};hooks.open(u2);return{ok:true};}
       return{error:'tidak dikenal'};});
@@ -69,10 +75,12 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/connect')return body(({youtube,tiktok})=>{cfg.youtube=youtube||'';cfg.tiktok=tiktok||'';fs.writeFileSync(CF,JSON.stringify(cfg,null,1));startYT();startTT();});
     if(u.pathname==='/disconnect')return body(()=>stopAll());
     if(u.pathname==='/test')return body(()=>{
-      [['tiktok','dewi.anggraini','kak main game apa hari ini?'],['youtube','Budi Santoso','mantap bang, gas terus!'],['youtube','Nightbot','Jangan lupa subscribe dan follow ya!'],['youtube','Andi Pratama','selamat datang semuanya',{mod:true}],['tiktok','rizkyy_','seru banget live-nya!!'],['youtube','Sinta_Rahma','Terima kasih banyak kak, semangat terus!',{sc:{amount:'Rp50.000',color:'#ffca28'}}]]
+      [['tiktok','dewi.anggraini','kak main game apa hari ini?'],['youtube','Budi Santoso','mantap bang, gas terus!'],['youtube','Nightbot','Jangan lupa subscribe dan follow ya!'],['youtube','Andi Pratama','selamat datang semuanya',{mod:true}],['tiktok','rizkyy_','seru banget live-nya!!'],['youtube','Sinta_Rahma','Terima kasih banyak kak, semangat terus!',{sc:{amount:'Rp50.000',color:'#ffca28'}}],
+        ['tiktok','rizkyy_',undefined,{kind:'join'}],['tiktok','Budi',undefined,{kind:'gift',gift:'Rose',n:5,coins:5}],['tiktok','dewi.anggraini',undefined,{kind:'follow'}],['tiktok','Sinta_Rahma',undefined,{kind:'like',others:3,n:48}],['tiktok','Andi',undefined,{kind:'share'}],['tiktok','Rina',undefined,{kind:'sub'}]]
         .forEach(([p,name,text,x],i)=>setTimeout(()=>push({p,name,text,test:true,...(x||{})}),i*400));
     });
   }
+  if(u.pathname==='/analytics'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(stats.get(u.searchParams.get('id')||'cur',viewers)));}
   if(u.pathname==='/state'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({protect:settings.global.protect!==false}));}
   if(u.pathname==='/account'){res.writeHead(200,{'Content-Type':'application/json'});const has=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);return res.end(JSON.stringify({youtube:has('youtube'),tiktok:has('tiktok')}));}
   if(u.pathname==='/urls'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({youtube:chatUrl('youtube'),tiktok:chatUrl('tiktok')}));}
@@ -127,13 +135,15 @@ function startYT(){
     const retry=msg=>{if(dead)return;dead=true;try{lc.stop()}catch{}if(my!==genY)return;setStatus('youtube',msg+' - coba lagi 15 detik');setTimeout(attempt,15000);};
     stopY=()=>{dead=true;try{lc.stop()}catch{}};
     lc.on('start',id=>{setStatus('youtube','terhubung');if(id){ytLive=id;pollYT(id,my);}});
-    lc.on('chat',c=>push({p:'youtube',sc:c.superchat?{amount:String(c.superchat.amount||''),color:/^#?[0-9a-f]{6}$/i.test(c.superchat.color||'')?('#'+String(c.superchat.color).replace('#','')):'#ffca28'}:undefined,name:c.author.name,avatar:(c.author.thumbnail&&c.author.thumbnail.url)||'',mod:!!c.isModerator,owner:!!c.isOwner,text:(c.message||[]).map(x=>x.text||x.emojiText||x.alt||'').join('')}));
+    lc.on('chat',c=>push({p:'youtube',member:!!c.isMembership,sticker:!!(c.superchat&&c.superchat.sticker),sc:c.superchat?{amount:String(c.superchat.amount||''),color:/^#?[0-9a-f]{6}$/i.test(c.superchat.color||'')?('#'+String(c.superchat.color).replace('#','')):'#ffca28'}:undefined,name:c.author.name,avatar:(c.author.thumbnail&&c.author.thumbnail.url)||'',mod:!!c.isModerator,owner:!!c.isOwner,text:(c.message||[]).map(x=>x.text||x.emojiText||x.alt||'').join('')||((c.superchat&&c.superchat.sticker)?'[Super Sticker]':'')}));
     lc.on('error',e=>retry('gagal: '+(e&&e.message||e)));
     lc.on('end',()=>retry('live berakhir/terputus'));
     setStatus('youtube','menyambung...');
     lc.start().then(ok=>{if(!ok)retry('live tidak ditemukan (sudah mulai?)');}).catch(e=>retry('gagal: '+(e&&e.message||e)));
   };attempt();
 }
+let likeBuf=new Map(),likeT=null;
+function likeAdd(name,n){likeBuf.set(name,(likeBuf.get(name)||0)+n);if(!likeT)likeT=setTimeout(()=>{likeT=null;const a=[...likeBuf].sort((x,y)=>y[1]-x[1]);likeBuf=new Map();if(!a.length)return;push({p:'tiktok',kind:'like',name:a[0][0],others:a.length-1,n:a.reduce((s,x)=>s+x[1],0)});},5000);}
 function startTT(){
   const my=++genT;if(stopT){stopT();stopT=null;}setViewers('tiktok',null);
   if(!cfg.tiktok)return setStatus('tiktok','belum diisi');
@@ -146,8 +156,23 @@ function startTT(){
     const retry=msg=>{if(dead)return;dead=true;try{c.disconnect()}catch{}if(my!==genT)return;setViewers('tiktok',null);setStatus('tiktok',msg+' - coba lagi 15 detik');setTimeout(attempt,15000);};
     stopT=()=>{dead=true;try{c.disconnect()}catch{}};
     c.on(WebcastEvent.CHAT,d=>{const u=d.user||{};push({p:'tiktok',name:u.nickname||u.displayId||u.uniqueId||'?',avatar:first(u),mod:!!(u.isModerator||u.isModeratorOfAnchor||(u.userAttr&&u.userAttr.isAdmin)),text:String(d.content??d.comment??'')});});
-    c.on(WebcastEvent.MEMBER,d=>{const u=d.user||{};push({p:'tiktok',kind:'join',name:u.nickname||u.displayId||u.uniqueId||'?'});});
-    c.on(WebcastEvent.ROOM_USER,d=>{const n=[d.viewerCount,d.total,d.popularity,d.totalUser].map(Number).find(x=>Number.isFinite(x)&&x>=0);if(n!==undefined)setViewers('tiktok',n);});
+    // Semua handler aktivitas dibungkus safe(): bentuk payload bisa beda antar versi, dan tidak boleh sampai menjatuhkan aplikasi.
+    const E=WebcastEvent||{},safe=f=>(...a)=>{try{f(...a);}catch(e){console.log('[tiktok] '+(e&&e.message||e));}},nm=u=>(u&&(u.nickname||u.displayId||u.uniqueId))||'?';
+    c.on(E.MEMBER||'member',safe(d=>push({p:'tiktok',kind:'join',name:nm(d.user)})));
+    c.on(E.FOLLOW||'follow',safe(d=>push({p:'tiktok',kind:'follow',name:nm(d.user)})));
+    c.on(E.SHARE||'share',safe(d=>push({p:'tiktok',kind:'share',name:nm(d.user)})));
+    c.on(E.SUBSCRIBE||'subscribe',safe(d=>push({p:'tiktok',kind:'sub',name:nm(d.user)})));
+    c.on(E.GIFT||'gift',safe(d=>{
+      const gd=d.giftDetails||d.gift||{},type=gd.giftType!=null?gd.giftType:d.giftType;
+      if(type===1&&!d.repeatEnd)return; // streak masih berjalan: tunggu event akhir supaya tidak terhitung berkali-kali
+      const n=Number(d.repeatCount)||1,dia=Number(gd.diamondCount!=null?gd.diamondCount:d.diamondCount)||0;
+      push({p:'tiktok',kind:'gift',name:nm(d.user),gift:String(gd.giftName||gd.name||d.giftName||'hadiah'),n,coins:dia*n});}));
+    // like datang bertubi-tubi: dihitung semua untuk statistik, tapi ditampilkan sebagai satu baris per 5 detik
+    c.on(E.LIKE||'like',safe(d=>{const n=Number(d.likeCount)||1;stats.like(n);likeAdd(nm(d.user),n);}));
+    c.on(E.ROOM_USER||'roomUser',safe(d=>{
+      // hanya penonton yang sedang menonton (viewerCount/total); popularity & totalUser bersifat kumulatif, sengaja tidak dipakai
+      const a=[d.viewerCount,d.total].map(x=>x==null?NaN:Number(x)).filter(x=>Number.isFinite(x)&&x>=0);
+      const n=a.find(x=>x>0);if(n!==undefined)setViewers('tiktok',n);else if(a.length)setViewers('tiktok',0);}));
     c.on(ControlEvent.DISCONNECTED,()=>retry('terputus'));
     setStatus('tiktok','menyambung...');
     c.connect().then(()=>setStatus('tiktok','terhubung')).catch(e=>retry('gagal: '+(e&&e.message||e)));

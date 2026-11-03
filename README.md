@@ -16,6 +16,8 @@ Satu aplikasi untuk streamer YouTube + TikTok: gabungkan chat dua platform, tamp
 - Super Chat YouTube tampil menonjol (nominal + warna) di dock dan overlay
 - Kirim chat ke YouTube/TikTok lewat ekstensi Chrome
 - Enam tema tampilan aplikasi
+- Pengaturan per platform (Pribadi dan Overlay): TikTok (bergabung, hadiah, suka, ikuti, bagikan, langganan; masing-masing bisa diberi latar dan warna font) dan YouTube (Super Chat, Super Sticker, Member)
+- Kotak Total penonton (penonton yang sedang menonton, bukan puncak) dan tombol Laporan penonton: grafik, puncak, rata-rata, chat, hadiah, Super Chat, riwayat sesi
 
 ## Membuat installer lewat GitHub (tanpa Node.js di komputermu)
 Baca **`PANDUAN-GITHUB.md`**: unggah kode ke repositori, jalankan workflow *Build installer Windows*, unduh installer-nya.

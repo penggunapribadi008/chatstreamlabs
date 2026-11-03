@@ -23,7 +23,7 @@ Electron main (src/main.js)  ──require──▶  server lokal in-process (sr
   window lain: settings, tpl, tpladd, ctl, preview            dipilih lewat ?view=
 ```
 - **Satu `index.html`, banyak tampilan** (query `?view=`): `dock` (default), `overlay` (OBS & pratinjau), `settings`,
-  `tpl` (kelola gaya), `tpladd` (tambah/edit gaya), `ctl` (kotak gembok/mata/pindah). Parameter lain: `locked=1`,
+  `tpl` (kelola gaya), `tpladd` (tambah/edit gaya), `ctl` (kotak gembok/mata/pindah), `report` (laporan penonton). Parameter lain: `locked=1`,
   `preview=1`, `static=1` (pratinjau tanpa SSE, data dikirim induk lewat postMessage), `force=<idGaya>`, `id=`.
 - **Server** menyimpan semua keadaan: `settings.json` (`{dock, overlay, global}`), `config.json` (username YT/TikTok),
   `log.txt`. Lokasinya `CG_DATA` (= folder userData Electron). Semua halaman sinkron lewat SSE `/events`
@@ -41,6 +41,7 @@ Electron main (src/main.js)  ──require──▶  server lokal in-process (sr
 | Berkas | Isi |
 |---|---|
 | `src/main.js` | jendela, mode kunci, tray, hotkey global, konfirmasi keluar, single-instance, watchdog muat halaman |
+| `src/stats.js` | statistik sesi live (sampel penonton, chat, hadiah, Super Chat) + `analytics.json` |
 | `src/server.js` | HTTP/SSE/WebSocket, konektor YT/TikTok, jembatan ekstensi, OBS, seeding gaya, deteksi bot |
 | `src/seeds.json` | gaya overlay bawaan yang bisa diedit (Kartu, Persona 5, Neon, Retro) — CSS biasa |
 | `src/ui/style.css` | semua CSS (variabel tema, jendela, struktur standar "Default", animasi, jendela pengaturan) |
@@ -171,3 +172,22 @@ CSS yang memuat `data-color=` atau `data-mode=` dideteksi sebagai `cozy` (`detec
 
 ## 8. Ekspor gaya
 Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor). `POST /export-css` memanggil `hooks.saveCss` (dialog Simpan di `main.js`); kalau bukan di Electron, jatuh ke unduhan blob.
+
+## 9. Aktivitas, pengaturan per platform, dan laporan (v14.3)
+- **Pesan aktivitas** = `m.kind` (`join|gift|like|follow|share|sub`, semuanya TikTok). Dirender `addAct`/`actEl` sebagai `div.cs-act.cs-tt.cs-<kind>`
+  (BUKAN `.m`/`.msg`, supaya CSS gaya buatan pengguna tidak ikut mengenainya). Latar/warna font = gaya inline dari pengaturan `tt<Kind>Bg|BgC|BgOp|Fc`;
+  master `ttAct`; hadiah punya batas minimal koin `ttGiftMin`. `joins` lama dimigrasi ke `ttJoin` di `cur()`. Overlay: join mati bawaan.
+- **Server TikTok**: semua handler dibungkus `safe()` (bentuk payload antar versi pustaka bisa beda; belum diuji dengan live sungguhan).
+  Gift streak (`giftType===1 && !repeatEnd`) ditunda sampai akhir; like digabung per 5 dtk jadi satu baris (`likeAdd`) tapi dihitung penuh di statistik.
+  Penonton TikTok HANYA dari `viewerCount`/`total` (yang sedang menonton); `popularity`/`totalUser` kumulatif dan sengaja tidak dipakai.
+- **YouTube**: `m.member` (`isMembership`), `m.sticker` (`superchat.sticker`), pengaturan `ytSc*`, `ytSticker`, `ytMem*` (lihat `PLAT.yt`). `styleMsg()` menerapkan
+  latar/warna font Super Chat lewat variabel `--sc/--sco/--scf` dan kelas `sc-nobg/hasfc/noamt`; penuh hanya di struktur std, struktur lain mengikuti `--sc`.
+  Like/subscriber/Jewels/polling YouTube TIDAK tersedia dari `youtube-chat`.
+- **Halaman pengaturan platform** dibangun dari DSL kecil `PLAT` (`chk/col/sl/sel`, `dep` = bagian yang muncul bila dicentang/bernilai tertentu, `pv` = pratinjau hidup).
+  Kunci pengaturannya datar di `settings.dock` / `settings.overlay` (diisi `platDef()`), jadi `collect/fill/draft` yang lama tetap bekerja. Jendela pengaturan memakai `showPane(id,tab)`.
+- **Mode kunci + Sembunyikan dari OBS**: area klik (`setShape`) kini hanya kotak yang terlihat: tiap gelembung `#msgs>*` dan tiap kotak `#top>*` (YouTube, TikTok, Total).
+  Dulu seluruh bar `#top` ikut masuk sehingga ruang kosong di header memblokir klik. Kotak itu sendiri tetap menangkap klik (batasan jebakan 4); kalau mata OBS dimatikan jendela tembus-klik penuh.
+  Di mode kunci `#top` transparan dan tiap kotak punya latar sendiri (supaya tidak menyatu dengan game).
+- **Laporan** (`?view=report`, tanpa SSE: polling `GET /analytics?id=` tiap 5 dtk). `stats.js` mencatat sampel `[t,yt,tt]` tiap 15 dtk; puncak/rata-rata dihitung dari sampel itu.
+  Sesi berakhir lewat "Mulai sesi baru", aplikasi ditutup, atau 30 menit tanpa data penonton; disimpan di `analytics.json` (maks 20 sesi). Hotkey `report` (Ctrl+Alt+R) dan menu tray juga membukanya.
+  Durasi menonton per orang dan retensi TIDAK bisa dihitung (hanya jumlah penonton serentak yang terlihat).

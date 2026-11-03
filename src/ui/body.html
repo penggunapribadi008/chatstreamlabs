@@ -3,7 +3,7 @@
 <div id="tb"><div class="ttl"><img src="/icon.png" alt=""><span id="tbt">ChatStream Labs</span></div><div class="wbs"><button class="wb" id="wmin" title="Perkecil">&#8211;</button><button class="wb x" id="wclose" title="Tutup">&#10005;</button></div></div>
 <div id="ctl"><button class="cb2" id="eye" title="Sembunyikan dari OBS"><svg class="e-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--eyec,#ffd166)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="e-shut" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--eyec,#5eead4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11c2.5 4 5.5 6 9 6s6.5-2 9-6"/><path d="M12 17v3M7.5 15.5l-1.6 2.4M16.5 15.5l1.6 2.4"/><path d="M4 4l16 16"/></svg></button><button class="cb2" id="unlock" title="Buka kunci"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-1.5"/></svg></button><div class="cb2" id="mover" title="Tahan lalu geser untuk memindahkan"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></div></div>
 <div id="app">
-  <div id="top"><div class="vchip"><img src="/yt.png" alt=""><b id="vy">-</b></div><div class="vchip"><img src="/tt.png" alt=""><b id="vt">-</b></div><div id="tot"><small>Total penonton</small><b id="vs">-</b></div></div>
+  <div id="top"><div class="vchip"><img src="/yt.png" alt=""><b id="vy">-</b></div><div class="vchip"><img src="/tt.png" alt=""><b id="vt">-</b></div><div id="tot" class="vchip" title="Penonton yang sedang menonton sekarang (YouTube + TikTok), bukan puncak"><small>Total penonton</small><b id="vs">-</b></div><button id="anBtn" class="vchip anb" title="Laporan &amp; analisis penonton"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></button></div>
   <div id="lw"><div id="list"><div id="msgs"></div></div><button id="tobottom">&#8595; Chat terbaru</button></div>
   <div id="foot">
     <div class="fr"><select id="flt" title="Filter dan tujuan kirim"><option value="all">Semua</option><option value="youtube">YouTube</option><option value="tiktok">TikTok</option></select><input id="msg" type="text" placeholder="Ketik pesan untuk penonton…" maxlength="150"><button id="send">Kirim</button><button class="ib" id="lock" title="Kunci jendela">&#128274;</button><button class="ib" id="gear" title="Pengaturan">&#9881;</button></div>
@@ -36,12 +36,18 @@
     <div class="card"><h3>Nama bot tambahan</h3><input type="text" id="botNames" placeholder="pisahkan dengan koma, contoh: moobot, fossabot">
       <div class="btns"><button class="btn b1" id="sbot">Terapkan</button></div></div>
   </div>
-  <div class="pane" id="pp"><div id="pp_b"></div>
+  <div class="pane" id="pp"><div class="card"><h3>Aktivitas per platform</h3>
+      <button class="plat" data-pg="dock_yt"><img src="/yt.png" alt=""><span><b>YouTube</b><small>Super Chat, Super Sticker, Member</small></span><i>&#8250;</i></button>
+      <button class="plat" data-pg="dock_tt"><img src="/tt.png" alt=""><span><b>TikTok</b><small>Bergabung, hadiah, suka, ikuti, bagikan, langganan</small></span><i>&#8250;</i></button></div>
+  <div id="pp_b"></div>
     <div class="card"><h3>Jendela</h3><div class="row"><span>Sembunyikan dari OBS</span><input type="checkbox" id="protect"></div>
       <label><span>Posisi tombol saat terkunci</span></label><select id="ctrlPos"><option value="top-left">Kiri atas</option><option value="top-center">Tengah atas</option><option value="top-right">Kanan atas</option><option value="bottom-left">Kiri bawah</option><option value="bottom-center">Tengah bawah</option><option value="bottom-right">Kanan bawah</option></select>
       <div class="hint">Saat terkunci ada dua kotak di luar jendela chat: gembok untuk membuka kunci dan ikon empat arah untuk memindahkan jendela (tahan lalu geser). Jendela tidak ikut terekam OBS. Latar baru benar-benar transparan saat dikunci.</div></div>
     <div class="bar"><button class="btn b4" data-reset="dock">Reset</button><button class="btn b1" data-apply="dock">Terapkan</button></div></div>
-  <div class="pane" id="po"><div id="po_b"></div>
+  <div class="pane" id="po"><div class="card"><h3>Aktivitas per platform</h3>
+      <button class="plat" data-pg="overlay_yt"><img src="/yt.png" alt=""><span><b>YouTube</b><small>Super Chat, Super Sticker, Member</small></span><i>&#8250;</i></button>
+      <button class="plat" data-pg="overlay_tt"><img src="/tt.png" alt=""><span><b>TikTok</b><small>Bergabung, hadiah, suka, ikuti, bagikan, langganan</small></span><i>&#8250;</i></button></div>
+  <div id="po_b"></div>
     <div class="card"><h3>Pratinjau &amp; OBS</h3>
       <div class="btns" style="margin-top:0"><button class="btn b3" id="prev">Pratinjau overlay OBS</button><button class="btn b3" id="test">Kirim pesan tes</button></div>
       <div class="g2"><div style="flex:1"><label><span>Lebar (px)</span></label><input type="number" id="obsW" min="100" max="3840"></div><div style="flex:1"><label><span>Tinggi (px)</span></label><input type="number" id="obsH" min="100" max="2160"></div></div>
@@ -54,7 +60,19 @@
     <div class="hint">Klik kolom, lalu tekan tombol yang kamu mau. Boleh satu tombol saja (misalnya F9 atau tombol Numpad) atau kombinasi dengan Ctrl / Alt / Shift. Tombol tunggal akan terpakai di seluruh Windows selama aplikasi jalan. Tekan Backspace untuk mengosongkan, Esc untuk batal.</div>
     <div id="hkl"></div></div>
     <div class="bar"><button class="btn b4" id="hkdef">Kembalikan default</button><button class="btn b1" id="hkapply">Terapkan</button></div></div>
+  <div class="pane" id="pgdock_yt"><div class="pghead"><button class="btn b4 sm" data-back="p">&#8249; Kembali</button><b><img src="/yt.png" alt="">YouTube &middot; Pribadi</b></div><div id="pgb_dock_yt"></div>
+    <div class="bar"><button class="btn b4" data-resetp="dock:yt">Reset</button><button class="btn b1" data-apply="dock">Terapkan</button></div></div>
+  <div class="pane" id="pgdock_tt"><div class="pghead"><button class="btn b4 sm" data-back="p">&#8249; Kembali</button><b><img src="/tt.png" alt="">TikTok &middot; Pribadi</b></div><div id="pgb_dock_tt"></div>
+    <div class="bar"><button class="btn b4" data-resetp="dock:tt">Reset</button><button class="btn b1" data-apply="dock">Terapkan</button></div></div>
+  <div class="pane" id="pgoverlay_yt"><div class="pghead"><button class="btn b4 sm" data-back="o">&#8249; Kembali</button><b><img src="/yt.png" alt="">YouTube &middot; Overlay</b></div><div id="pgb_overlay_yt"></div>
+    <div class="bar"><button class="btn b4" data-resetp="overlay:yt">Reset</button><button class="btn b1" data-apply="overlay">Terapkan</button></div></div>
+  <div class="pane" id="pgoverlay_tt"><div class="pghead"><button class="btn b4 sm" data-back="o">&#8249; Kembali</button><b><img src="/tt.png" alt="">TikTok &middot; Overlay</b></div><div id="pgb_overlay_tt"></div>
+    <div class="bar"><button class="btn b4" data-resetp="overlay:tt">Reset</button><button class="btn b1" data-apply="overlay">Terapkan</button></div></div>
   </div>
+</div>
+<div id="rep">
+  <div class="rhead"><select id="rsess"></select><span id="rlive" hidden>&#9679; LIVE</span><span class="sp"></span><button class="btn b3 sm" id="rnew" title="Akhiri sesi sekarang dan mulai hitung dari nol">Mulai sesi baru</button><button class="btn b4 sm" id="rdel" hidden>Hapus sesi ini</button></div>
+  <div id="rbody"><div class="hint">Memuat laporan&hellip;</div></div>
 </div>
 <div id="tpl">
   <h1>Kelola gaya overlay</h1><div class="sub">Gaya dipilih lewat Pengaturan &gt; Overlay. Di sini kamu menambah gaya CSS buatanmu sendiri atau menghapusnya.</div>
