@@ -49,6 +49,19 @@ async function page(q,ov,dock,after){
   await sleep(350);const d=dom.window.document;
   await after(d,dom,posts);ok(errs.length===0,q+' tanpa error JavaScript'+(errs.length?': '+errs[0]:''));
 }
+function parserTests(){
+  console.log('\n[Twitch & Kick: pengurai pesan]');
+  const P=require(path.join(root,'src/platforms.js'));
+  const a=P.twitchLine('@badges=moderator/1,subscriber/6;bits=100;display-name=Rina\\sK;emotes=25:0-4;first-msg=1 :r!r@r.tmi.twitch.tv PRIVMSG #k :Kappa Cheer100 mantap');
+  ok(a.length===2&&a[0].kind==='first'&&a[1].text==='Kappa mantap'&&a[1].mod&&a[1].member&&a[1].sc.amount==='100 bits'&&a[1].emo[0][2].includes('/25/'),'Twitch: chat, badge, emote, Bits (cheermote dibuang), chatter baru');
+  ok(P.twitchLine('@msg-id=subgift;display-name=J;msg-param-community-gift-id=1 :tmi.twitch.tv USERNOTICE #k').length===0,'Twitch: subgift bagian hadiah massal tidak membanjiri baris');
+  const g=P.twitchLine('@msg-id=submysterygift;display-name=J;msg-param-mass-gift-count=10 :tmi.twitch.tv USERNOTICE #k')[0];ok(g.kind==='gift'&&g.n===10,'Twitch: hadiah massal = satu baris');
+  const r=P.twitchLine('@msg-id=raid;msg-param-displayName=Besar;msg-param-viewerCount=250 :tmi.twitch.tv USERNOTICE #k')[0];ok(r.kind==='raid'&&r.n===250&&r.name==='Besar','Twitch: raid');
+  const k=P.kickEvent('App\\Events\\ChatMessageEvent',JSON.stringify({content:'halo [emote:37226:KEKW] ya',sender:{username:'b',identity:{badges:[{type:'moderator'}]}}}))[0];
+  ok(k.text==='halo KEKW ya'&&k.mod&&k.emo[0][0]===5&&/37226/.test(k.emo[0][2]),'Kick: chat, badge, emote');
+  ok(P.kickEvent('KicksGifted',JSON.stringify({sender:{username:'z'},gift:{amount:100}}))[0].sc.amount==='100 Kicks','Kick: Kicks disorot seperti Super Chat');
+  ok(['GiftedSubscriptionsEvent','SubscriptionEvent','StreamHostEvent','RewardRedeemedEvent','FollowersUpdated'].every(n=>P.kickEvent('App\\Events\\'+n,JSON.stringify({username:'u',gifter_username:'u',gifted_usernames:['a'],host_username:'u',followed:true})).length===1),'Kick: sub, gift sub, raid, reward, follow dikenali');
+}
 async function uiTests(){
   console.log('\n[tampilan]');
   await page('?view=dock',{},{theme:'neo'},(d,dom)=>{
@@ -102,12 +115,21 @@ async function uiTests(){
     ok(m&&m.style.getPropertyValue('--sc')==='#00ff00'&&/hasfc/.test(m.className)&&/noamt/.test(m.className),'gaya Super Chat (latar, font, nominal) diterapkan');});
   await page('?view=overlay',{},{},(d)=>{ok(!d.querySelector('.cs-join')&&!!d.querySelector('.cs-gift'),'overlay: join mati bawaan, gift hidup bawaan');});
   await page('?view=settings',{},{},(d)=>{
-    ok(['dock','overlay'].every(v=>['yt','tt'].every(p=>d.getElementById('pg'+v+'_'+p)&&d.getElementById('pgb_'+v+'_'+p).children.length>0)),'pengaturan: halaman YouTube & TikTok ada di Pribadi dan Overlay');
+    ok(['dock','overlay'].every(v=>['yt','tt','tw','kk'].every(p=>d.getElementById('pg'+v+'_'+p)&&d.getElementById('pgb_'+v+'_'+p).children.length>0)),'pengaturan: halaman YouTube, TikTok, Twitch & Kick ada di Pribadi dan Overlay');
     d.querySelector('[data-pg="overlay_tt"]').click();ok(d.getElementById('pgoverlay_tt').classList.contains('on')&&d.querySelector('.tab[data-t="o"]').classList.contains('on'),'tombol platform membuka halamannya, tab Overlay tetap menyala');
     const dep=d.querySelector('[data-dep="overlay_ttJoin"]'),cb=d.getElementById('overlay_ttJoin');ok(dep.style.display==='none','pilihan latar/warna font tersembunyi sebelum dicentang');
     cb.checked=true;cb.dispatchEvent(new d.defaultView.Event('input',{bubbles:true}));ok(dep.style.display==='','pilihan muncul setelah dicentang');
     d.querySelector('[data-back="o"]').click();ok(d.getElementById('po').classList.contains('on'),'tombol Kembali');});
+  // ---- Twitch & Kick ----
+  await page('?view=dock',{},{},(d,dom)=>{
+    dom.window.eval("add({p:'twitch',name:'a',text:'x',t:Date.now(),vip:true});add({p:'kick',name:'b',text:'y',t:Date.now(),member:true});add({p:'twitch',kind:'raid',name:'c',n:5,t:Date.now()});add({p:'kick',kind:'follow',name:'d',t:Date.now()})");
+    ok(!!d.querySelector('#msgs .m.w.tw[data-platform="twitch"].isvip')&&!!d.querySelector('#msgs .m.k.kk[data-platform="kick"].ismem'),'dock: chat Twitch (.w) dan Kick (.k) punya kelas, data-platform dan badge sendiri');
+    ok(!!d.querySelector('.cs-act.cs-tw.cs-raid')&&!!d.querySelector('.cs-act.cs-kk.cs-follow'),'aktivitas Twitch (raid) dan Kick (follow) tampil');
+    ok(!!d.querySelector('#top #cw')&&!!d.querySelector('#top #ck'),'header penonton punya kotak Twitch dan Kick');});
+  await page('?view=overlay&preview=1&static=1&force=kartu',{},{},async(d)=>{await sleep(5200);
+    ok(d.querySelectorAll('#msgs .m,#msgs .cs-act').length>=4,'pratinjau overlay terus menerima pesan acak');
+    const pf=new Set([...d.querySelectorAll('#msgs [data-platform]')].map(x=>x.dataset.platform));ok(pf.size>=2,'pesan acak berasal dari beberapa platform');});
   await page('?view=report',{},{},async(d,dom)=>{await sleep(200);ok(/reportwin/.test(d.body.className)&&!!d.getElementById('rbody'),'jendela laporan dimuat');});
   await page('?view=ctl',{},{},(d)=>{ok(!!d.getElementById('eye')&&!!d.getElementById('unlock')&&!!d.getElementById('mover'),'jendela kecil gembok punya 3 kotak');});
 }
-(async()=>{await serverTests();await uiTests();console.log(fail?'\n'+fail+' pemeriksaan GAGAL':'\nsemua pemeriksaan lulus');process.exit(fail?1:0);})();
+(async()=>{parserTests();await serverTests();await uiTests();console.log(fail?'\n'+fail+' pemeriksaan GAGAL':'\nsemua pemeriksaan lulus');process.exit(fail?1:0);})();

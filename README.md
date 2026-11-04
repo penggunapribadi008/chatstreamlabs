@@ -1,13 +1,13 @@
 # ChatStream Labs
 
-Satu aplikasi untuk streamer YouTube + TikTok: gabungkan chat dua platform, tampilkan sebagai overlay di OBS dengan banyak gaya
+Satu aplikasi untuk streamer YouTube + TikTok + Twitch + Kick: gabungkan chat dua platform, tampilkan sebagai overlay di OBS dengan banyak gaya
 (bisa tambah CSS sendiri), lihat jumlah penonton, dan balas chat dari satu kolom. Dibuat dengan Electron.
 
 > Proyek ini dikembangkan bersama AI. Kalau kamu ingin melanjutkannya dengan AI-mu sendiri, minta AI itu membaca
 > **`AGENTS.md`** lebih dulu: isinya arsitektur, aturan, dan jebakan yang sudah pernah terjadi.
 
 ## Fitur
-- Chat YouTube + TikTok dalam satu jendela, filter platform, label BOT/MOD, notifikasi penonton bergabung, riwayat bisa di-scroll
+- Chat YouTube + TikTok + Twitch + Kick dalam satu jendela, filter platform, label BOT/MOD, notifikasi penonton bergabung, riwayat bisa di-scroll
 - Overlay OBS: gaya Default, Kartu, Persona 5, Neon, Retro, dan CSS buatan sendiri (tambah/edit/hapus, pratinjau langsung)
 - Pengaturan ukuran nama/chat, jarak, kiri/kanan, arah muncul, animasi masuk, latar chat
 - Tambah overlay ke OBS satu klik (lewat obs-websocket)
@@ -17,6 +17,8 @@ Satu aplikasi untuk streamer YouTube + TikTok: gabungkan chat dua platform, tamp
 - Kirim chat ke YouTube/TikTok lewat ekstensi Chrome
 - Enam tema tampilan aplikasi
 - Pengaturan per platform (Pribadi dan Overlay): TikTok (bergabung, hadiah, suka, ikuti, bagikan, langganan; masing-masing bisa diberi latar dan warna font) dan YouTube (Super Chat, Super Sticker, Member)
+- Twitch (Bits, subscribe, gift sub, raid, pengumuman, chatter baru, emote) dan Kick (Kicks, subscribe, gift sub, follow, raid, hadiah poin, emote), masing-masing punya halaman pengaturan di Pribadi dan Overlay (belum diuji dengan live sungguhan; kirim chat baru untuk YouTube dan TikTok)
+- Pratinjau overlay menampilkan pesan acak terus-menerus dari semua platform dan jenis aktivitas
 - Kotak Total penonton (penonton yang sedang menonton, bukan puncak) dan tombol Laporan penonton: grafik, puncak, rata-rata, chat, hadiah, Super Chat, riwayat sesi
 
 ## Membuat installer lewat GitHub (tanpa Node.js di komputermu)

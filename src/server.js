@@ -4,14 +4,20 @@ const base=process.env.CG_DATA||__dirname;
 const CF=path.join(base,'config.json'),SF=path.join(base,'settings.json');
 const stats=require('./stats.js')(path.join(base,'analytics.json'));
 const read=(f,d)=>{try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch{return d}};
-let cfg=read(CF,{port:3000,youtube:'',tiktok:''});
+let cfg=read(CF,{port:3000,youtube:'',tiktok:'',twitch:'',kick:'',kickRoom:''});
 let settings=read(SF,{});settings.dock=settings.dock||{};settings.overlay=settings.overlay||{};settings.global=settings.global||{};
 if(!settings.global.tplSeeded){settings.global.templates=[...SEEDS,...(settings.global.templates||[]).filter(t=>!SEEDS.some(x=>x.id===t.id))];settings.global.tplSeeded=true;try{fs.writeFileSync(SF,JSON.stringify(settings));}catch{}}
-let PORT=cfg.port||3000;const clients=new Set(),history=[],status={youtube:'',tiktok:''},viewers={youtube:null,tiktok:null};
+{const MARK='/* twitch-kick */';let ch=false;
+  (settings.global.templates||[]).forEach(t=>{const sd=SEEDS.find(x=>x.id===t.id);if(!sd||String(t.css||'').includes(MARK))return;const i=sd.css.indexOf(MARK);if(i>=0){t.css=String(t.css||'')+'\n'+sd.css.slice(i);ch=true;}});
+  if(ch)try{fs.writeFileSync(SF,JSON.stringify(settings));}catch{}}
+const P=require('./platforms.js');
+let PORT=cfg.port||3000;const clients=new Set(),history=[],status={youtube:'',tiktok:'',twitch:'',kick:''},viewers={youtube:null,tiktok:null,twitch:null,kick:null};
 let seq=0;const crypto=require('crypto');const hooks={};let ytLive='';let _ready;const ready=new Promise(r=>_ready=r);let autoStarted=false;
-function autoStart(){if(autoStarted)return;autoStarted=true;setTimeout(()=>{startYT();setTimeout(startTT,600);},2500);}
+function autoStart(){if(autoStarted)return;autoStarted=true;setTimeout(()=>{startYT();setTimeout(startTT,600);setTimeout(startTW,1000);setTimeout(startKK,1400);},2500);}
 function chatUrl(p){
   if(p==='youtube'){const t=ytTarget(cfg.youtube);if(!t)return '';if(t.liveId)return 'https://www.youtube.com/watch?v='+t.liveId;if(t.handle)return 'https://www.youtube.com/'+t.handle+'/live';if(t.channelId)return 'https://www.youtube.com/channel/'+t.channelId+'/live';return '';}
+  if(p==='twitch'){const u=twTarget(cfg.twitch);return u?'https://www.twitch.tv/'+u:'';}
+  if(p==='kick'){const u=kkTarget(cfg.kick);return u?'https://kick.com/'+u:'';}
   const u=ttTarget(cfg.tiktok);return u?'https://www.tiktok.com/@'+u+'/live':'';}
 function cmd(name){if(name==='clear')history.length=0;emit('cmd',{name});}
 function setGlobal(v){settings.global={...settings.global,...v};fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);if(v.protect!==undefined&&hooks.protect)hooks.protect(settings.global.protect!==false);if(hooks.global)hooks.global(settings.global);}
@@ -23,18 +29,18 @@ const isBot=n=>{n=(n||'').toLowerCase().trim();const c=(settings.global.botNames
 function emit(type,data){const s=`data: ${JSON.stringify({type,data})}\n\n`;clients.forEach(r=>r.write(s));}
 function push(m){m.t=Date.now();m.id=++seq;if(!m.kind)m.bot=isBot(m.name);history.push(m);if(history.length>300)history.shift();emit('msg',m);if(m.kind!=='like'){try{stats.add(m);}catch{}}}
 function setStatus(k,v){status[k]=v;console.log(`[${k}] ${v}`);emit('status',status);}
-function setViewers(k,n){viewers[k]=n;emit('viewers',viewers);if(n!=null&&!stats.active())stats.tick(viewers.youtube,viewers.tiktok);}
-setInterval(()=>{try{stats.tick(viewers.youtube,viewers.tiktok);}catch{}},15000).unref();
+function setViewers(k,n){viewers[k]=n;emit('viewers',viewers);if(n!=null&&!stats.active())stats.tick(viewers.youtube,viewers.tiktok,viewers.twitch,viewers.kick);}
+setInterval(()=>{try{stats.tick(viewers.youtube,viewers.tiktok,viewers.twitch,viewers.kick);}catch{}},15000).unref();
 const first=u=>{if(!u)return'';for(const k of['avatarThumb','avatarMedium','avatarLarge','profilePicture']){const i=u[k];if(i){const x=(i.urlList&&i.urlList[0])||(i.urls&&i.urls[0])||i.url;if(x)return x;}}return'';};
 
-const FILES={'/yt.png':'image/png','/tt.png':'image/png','/icon.png':'image/png'};
+const FILES={'/yt.png':'image/png','/tt.png':'image/png','/tw.png':'image/png','/kick.png':'image/png','/icon.png':'image/png'};
 const srv=http.createServer((req,res)=>{
   const u=new URL(req.url,'http://x');
   if(req.method==='POST'){const o=req.headers.origin;if(o&&o!==`http://localhost:${PORT}`&&o!==`http://127.0.0.1:${PORT}`){res.writeHead(403);return res.end('forbidden');}}
   const body=cb=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>{try{cb(b?JSON.parse(b):{})}catch(e){console.log(e)}res.end('ok')});};
   if(u.pathname==='/events'){
     res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache',Connection:'keep-alive'});
-    res.write(`data: ${JSON.stringify({type:'init',data:{history,settings,cfg:{youtube:cfg.youtube,tiktok:cfg.tiktok,port:PORT,wanted:cfg.port||3000,avoid:AVOID},status,viewers}})}\n\n`);
+    res.write(`data: ${JSON.stringify({type:'init',data:{history,settings,cfg:{youtube:cfg.youtube,tiktok:cfg.tiktok,twitch:cfg.twitch||'',kick:cfg.kick||'',kickRoom:cfg.kickRoom||'',port:PORT,wanted:cfg.port||3000,avoid:AVOID},status,viewers}})}\n\n`);
     clients.add(res);req.on('close',()=>clients.delete(res));return;
   }
   if(req.method==='POST'){
@@ -68,22 +74,26 @@ const srv=http.createServer((req,res)=>{
       if(what==='templates'){hooks.window('/?view=tpl',{width:980,height:820,title:'Kelola gaya overlay'});return{ok:true};}
       if(what==='report'){hooks.window('/?view=report',{width:1040,height:840,title:'Laporan penonton'});return{ok:true};}
       if(what==='preview'){hooks.window('/?view=overlay&preview=1',{width:480,height:760,title:'Pratinjau overlay OBS'});return{ok:true};}
-      if(what==='youtube'||what==='tiktok'){const u2=chatUrl(what);if(!u2)return{error:what==='youtube'?'Isi username YouTube dulu di Koneksi.':'Isi username TikTok dulu di Koneksi.'};hooks.open(u2);return{ok:true};}
+      if(['youtube','tiktok','twitch','kick'].includes(what)){const u2=chatUrl(what);if(!u2)return{error:'Isi username '+({youtube:'YouTube',tiktok:'TikTok',twitch:'Twitch',kick:'Kick'})[what]+' dulu di Koneksi.'};hooks.open(u2);return{ok:true};}
       return{error:'tidak dikenal'};});
     if(u.pathname==='/obs-add')return json(async o=>{await obsAdd({...o,url:`http://localhost:${PORT}/?view=overlay`});return{ok:true};});
     if(u.pathname==='/settings')return body(({view,values})=>{settings[view]=view==='global'?{...settings.global,...values}:values;fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);if(view==='global'){if(hooks.protect)hooks.protect(settings.global.protect!==false);if(hooks.global)hooks.global(settings.global);}});
-    if(u.pathname==='/connect')return body(({youtube,tiktok})=>{cfg.youtube=youtube||'';cfg.tiktok=tiktok||'';fs.writeFileSync(CF,JSON.stringify(cfg,null,1));startYT();startTT();});
+    if(u.pathname==='/connect')return body(({youtube,tiktok,twitch,kick,kickRoom})=>{cfg.youtube=youtube||'';cfg.tiktok=tiktok||'';cfg.twitch=twitch||'';cfg.kick=kick||'';cfg.kickRoom=String(kickRoom||'').replace(/\D/g,'');fs.writeFileSync(CF,JSON.stringify(cfg,null,1));startYT();startTT();startTW();startKK();});
     if(u.pathname==='/disconnect')return body(()=>stopAll());
     if(u.pathname==='/test')return body(()=>{
       [['tiktok','dewi.anggraini','kak main game apa hari ini?'],['youtube','Budi Santoso','mantap bang, gas terus!'],['youtube','Nightbot','Jangan lupa subscribe dan follow ya!'],['youtube','Andi Pratama','selamat datang semuanya',{mod:true}],['tiktok','rizkyy_','seru banget live-nya!!'],['youtube','Sinta_Rahma','Terima kasih banyak kak, semangat terus!',{sc:{amount:'Rp50.000',color:'#ffca28'}}],
-        ['tiktok','rizkyy_',undefined,{kind:'join'}],['tiktok','Budi',undefined,{kind:'gift',gift:'Rose',n:5,coins:5}],['tiktok','dewi.anggraini',undefined,{kind:'follow'}],['tiktok','Sinta_Rahma',undefined,{kind:'like',others:3,n:48}],['tiktok','Andi',undefined,{kind:'share'}],['tiktok','Rina',undefined,{kind:'sub'}]]
+        ['tiktok','rizkyy_',undefined,{kind:'join'}],['tiktok','Budi',undefined,{kind:'gift',gift:'Rose',n:5,coins:5}],['tiktok','dewi.anggraini',undefined,{kind:'follow'}],['tiktok','Sinta_Rahma',undefined,{kind:'like',others:3,n:48}],['tiktok','Andi',undefined,{kind:'share'}],['tiktok','Rina',undefined,{kind:'sub'}],
+        ['twitch','gamer_jaya','gas terus bang Kappa',{emo:[[19,24,'https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/2.0']],vip:true}],['twitch','Rina_K','nonton dari tadi, seru!',{member:true}],['twitch','BudiBits','mantap kontennya',{sc:{amount:'500 bits',color:'#9c3ee8',bits:500}}],
+        ['twitch','Joko',undefined,{kind:'sub',plan:'1000',months:12,text:'makasih bang!'}],['twitch','Sari',undefined,{kind:'gift',n:5,plan:'1000'}],['twitch','StreamerBesar',undefined,{kind:'raid',n:120}],['twitch','Mod1','Giveaway mulai jam 8 malam!',{kind:'announce'}],
+        ['kick','kick_fans','halo semuanya dari Kick!',{owner:false,mod:true}],['kick','Dimas','sini kak, GG',{member:true}],['kick','Putri','semangat live-nya',{sc:{amount:'100 Kicks',color:'#53fc18',kicks:100}}],
+        ['kick','Andre',undefined,{kind:'follow'}],['kick','Wulan',undefined,{kind:'sub',months:3}],['kick','Bayu',undefined,{kind:'gift',n:3}],['kick','Tono',undefined,{kind:'raid',n:80}],['kick','Lia',undefined,{kind:'reward',title:'Pilih lagu',text:'Dewa 19 - Pupus'}]]
         .forEach(([p,name,text,x],i)=>setTimeout(()=>push({p,name,text,test:true,...(x||{})}),i*400));
     });
   }
   if(u.pathname==='/analytics'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(stats.get(u.searchParams.get('id')||'cur',viewers)));}
   if(u.pathname==='/state'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({protect:settings.global.protect!==false}));}
   if(u.pathname==='/account'){res.writeHead(200,{'Content-Type':'application/json'});const has=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);return res.end(JSON.stringify({youtube:has('youtube'),tiktok:has('tiktok')}));}
-  if(u.pathname==='/urls'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({youtube:chatUrl('youtube'),tiktok:chatUrl('tiktok')}));}
+  if(u.pathname==='/urls'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({youtube:chatUrl('youtube'),tiktok:chatUrl('tiktok'),twitch:chatUrl('twitch'),kick:chatUrl('kick')}));}
   if(FILES[u.pathname]){res.writeHead(200,{'Content-Type':FILES[u.pathname],'Cache-Control':'max-age=3600'});return res.end(fs.readFileSync(path.join(__dirname,u.pathname)));}
   if(u.pathname==='/'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});
     let h=fs.readFileSync(path.join(__dirname,'index.html'),'utf8');
@@ -109,12 +119,16 @@ function ytTarget(s){s=(s||'').trim();let m;
   if(/^[\w.\-]{3,30}$/.test(s))return{handle:'@'+s};return null;}
 function ttTarget(s){const m=(s||'').trim().match(/tiktok\.com\/@([\w.]+)/)||(s||'').trim().match(/^@?([\w.]+)$/);return m?m[1]:null;}
 
-let genY=0,genT=0,stopY=null,stopT=null,vyTimer=null;
+function twTarget(s){s=(s||'').trim();const m=s.match(/twitch\.tv\/([A-Za-z0-9_]{3,25})/)||s.match(/^@?([A-Za-z0-9_]{3,25})$/);return m?m[1].toLowerCase():null;}
+// slug Kick = nama pengguna huruf kecil dengan garis bawah diganti tanda hubung
+function kkTarget(s){s=(s||'').trim();const m=s.match(/kick\.com\/([A-Za-z0-9_\-]{3,25})/)||s.match(/^@?([A-Za-z0-9_\-]{3,25})$/);return m?m[1].toLowerCase().replace(/_/g,'-'):null;}
+
+let genY=0,genT=0,genW=0,genK=0,stopY=null,stopT=null,stopW=null,stopK=null,vyTimer=null,vwTimer=null,vkTimer=null;
 function stopAll(){
-  genY++;genT++;
-  if(stopY){stopY();stopY=null;} if(stopT){stopT();stopT=null;}
-  ytLive='';clearTimeout(vyTimer);setViewers('youtube',null);setViewers('tiktok',null);
-  setStatus('youtube','terputus');setStatus('tiktok','terputus');
+  genY++;genT++;genW++;genK++;
+  if(stopY){stopY();stopY=null;} if(stopT){stopT();stopT=null;} if(stopW){stopW();stopW=null;} if(stopK){stopK();stopK=null;}
+  ytLive='';clearTimeout(vyTimer);clearTimeout(vwTimer);clearTimeout(vkTimer);['youtube','tiktok','twitch','kick'].forEach(k=>setViewers(k,null));
+  ['youtube','tiktok','twitch','kick'].forEach(k=>setStatus(k,'terputus'));
 }
 function pollYT(id,my){
   clearTimeout(vyTimer);
@@ -176,6 +190,98 @@ function startTT(){
     c.on(ControlEvent.DISCONNECTED,()=>retry('terputus'));
     setStatus('tiktok','menyambung...');
     c.connect().then(()=>setStatus('tiktok','terhubung')).catch(e=>retry('gagal: '+(e&&e.message||e)));
+  };attempt();
+}
+
+// ===== Twitch: IRC lewat WebSocket tanpa login (akun anonim "justinfan", hanya bisa membaca) =====
+function pollTW(login,my){
+  clearTimeout(vwTimer);
+  const run=async()=>{
+    if(my!==genW)return;
+    try{
+      const r=await fetch('https://gql.twitch.tv/gql',{method:'POST',headers:{'Client-ID':'kimne78kx3ncx6brgo4mv6wki5h1ko','Content-Type':'application/json'},body:JSON.stringify({query:'query{user(login:"'+login+'"){stream{viewersCount}}}'})});
+      const j=await r.json(),st=j&&j.data&&j.data.user&&j.data.user.stream;setViewers('twitch',st?Number(st.viewersCount)||0:null);
+    }catch{setViewers('twitch',null);}
+    vwTimer=setTimeout(run,30000);
+  };run();
+}
+function startTW(){
+  const my=++genW;if(stopW){stopW();stopW=null;}clearTimeout(vwTimer);setViewers('twitch',null);
+  if(!cfg.twitch)return setStatus('twitch','belum diisi');
+  const login=twTarget(cfg.twitch);if(!login)return setStatus('twitch','username tidak dikenali');
+  let WS;try{WS=require('ws');}catch(e){return setStatus('twitch','modul gagal dimuat: '+String(e&&e.message||e).split('\n')[0]);}
+  const attempt=()=>{
+    if(my!==genW)return;
+    let ws=null,dead=false;
+    const retry=msg=>{if(dead)return;dead=true;try{ws&&ws.close()}catch{}if(my!==genW)return;setViewers('twitch',null);setStatus('twitch',msg+' - coba lagi 10 detik');setTimeout(attempt,10000);};
+    stopW=()=>{dead=true;try{ws&&ws.close()}catch{}};
+    setStatus('twitch','menyambung...');
+    try{ws=new WS('wss://irc-ws.chat.twitch.tv:443');}catch(e){return retry('gagal: '+(e&&e.message||e));}
+    ws.on('open',()=>{ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');ws.send('PASS SCHMOOPIIE');ws.send('NICK justinfan'+(10000+Math.floor(Math.random()*80000)));ws.send('JOIN #'+login);});
+    ws.on('message',raw=>{
+      for(const line of String(raw).split('\r\n')){
+        if(!line)continue;
+        if(line.startsWith('PING')){try{ws.send('PONG'+line.slice(4));}catch{}continue;}
+        const m=P.parseIrc(line);if(!m)continue;
+        if(m.cmd==='JOIN'){setStatus('twitch','terhubung');pollTW(login,my);continue;}
+        if(m.cmd==='RECONNECT'){retry('Twitch meminta sambung ulang');return;}
+        try{P.twitchLine(m).forEach(push);}catch(e){console.log('[twitch] '+(e&&e.message||e));}
+      }
+    });
+    ws.on('error',e=>retry('gagal: '+(e&&e.message||e)));
+    ws.on('close',()=>retry('terputus'));
+  };attempt();
+}
+
+// ===== Kick: Pusher WebSocket (resmi dipakai situs Kick). Butuh ID chatroom, yang diambil dari API publik Kick =====
+const KUA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+async function kickGet(url){
+  let err='';
+  try{const r=await fetch(url,{headers:{'User-Agent':KUA,Accept:'application/json','Accept-Language':'en-US,en;q=0.9'}});if(r.ok)return await r.json();err='HTTP '+r.status;}catch(e){err=String(e&&e.message||e);}
+  // Kick dilindungi Cloudflare: cadangan lewat mesin jaringan Chromium milik Electron (lebih sering lolos daripada fetch Node)
+  if(hooks.netFetch){try{const r=await hooks.netFetch(url);if(r.status===200)return JSON.parse(r.text);err='HTTP '+r.status;}catch(e){err=String(e&&e.message||e);}}
+  throw new Error(err);
+}
+async function kickInfo(slug){
+  let j;try{j=await kickGet('https://kick.com/api/v2/channels/'+slug);}catch{j=await kickGet('https://kick.com/api/v1/channels/'+slug);}
+  return{room:j&&j.chatroom&&Number(j.chatroom.id)||0,channel:Number(j&&(j.id||(j.user&&j.user.id)))||0,viewers:j&&j.livestream?(Number(j.livestream.viewer_count)||0):null};
+}
+function pollKK(slug,my){
+  clearTimeout(vkTimer);
+  const run=async()=>{if(my!==genK)return;try{setViewers('kick',(await kickInfo(slug)).viewers);}catch{setViewers('kick',null);}vkTimer=setTimeout(run,30000);};
+  vkTimer=setTimeout(run,3000);
+}
+function startKK(){
+  const my=++genK;if(stopK){stopK();stopK=null;}clearTimeout(vkTimer);setViewers('kick',null);
+  if(!cfg.kick)return setStatus('kick','belum diisi');
+  const slug=kkTarget(cfg.kick);if(!slug)return setStatus('kick','username tidak dikenali');
+  let WS;try{WS=require('ws');}catch(e){return setStatus('kick','modul gagal dimuat: '+String(e&&e.message||e).split('\n')[0]);}
+  const attempt=async()=>{
+    if(my!==genK)return;
+    let ws=null,dead=false,room=Number(cfg.kickRoom)||0,chan=0;
+    const retry=msg=>{if(dead)return;dead=true;try{ws&&ws.close()}catch{}if(my!==genK)return;setViewers('kick',null);setStatus('kick',msg+' - coba lagi 15 detik');setTimeout(attempt,15000);};
+    stopK=()=>{dead=true;try{ws&&ws.close()}catch{}};
+    setStatus('kick','menyambung...');
+    try{const i=await kickInfo(slug);if(!room)room=i.room;chan=i.channel;}
+    catch(e){if(!room)return retry('gagal ambil info channel ('+(e&&e.message||e)+'); isi "ID chatroom Kick" manual di Koneksi bila terus begini');}
+    if(my!==genK||dead)return;
+    if(!room)return retry('channel Kick tidak ditemukan');
+    try{ws=new WS('wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false');}catch(e){return retry('gagal: '+(e&&e.message||e));}
+    const seen=new Set();
+    ws.on('message',raw=>{
+      let f;try{f=JSON.parse(String(raw));}catch{return;}
+      const ev=String(f.event||'');
+      if(ev==='pusher:connection_established'){
+        ['chatrooms.'+room+'.v2',...(chan?['channel.'+chan,'channel_'+chan]:[])].forEach(c=>ws.send(JSON.stringify({event:'pusher:subscribe',data:{auth:'',channel:c}})));
+      }else if(ev==='pusher_internal:subscription_succeeded'){if(/^chatrooms\.\d+\.v2$/.test(f.channel||'')){setStatus('kick','terhubung');pollKK(slug,my);}}
+      else if(ev==='pusher:ping'){try{ws.send(JSON.stringify({event:'pusher:pong',data:{}}));}catch{}}
+      else if(ev&&!ev.startsWith('pusher')){
+        const key=ev+'|'+f.data;if(seen.has(key))return;seen.add(key);if(seen.size>200)seen.delete(seen.values().next().value);
+        try{P.kickEvent(ev,f.data).forEach(push);}catch(e){console.log('[kick] '+(e&&e.message||e));}
+      }
+    });
+    ws.on('error',e=>retry('gagal: '+(e&&e.message||e)));
+    ws.on('close',()=>retry('terputus'));
   };attempt();
 }
 

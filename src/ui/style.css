@@ -1,6 +1,6 @@
 :root{--fs:16px;--fsn:16px;--fst:16px;--bg:.9;--gap:12px;--cbg:transparent;
 --base:14,18,20;--winbg:#0e1214;--card-bg:#151b1f;--sh-card:none;--blur:none;--line:#26323a;--ctl-bg:#0b0f11;--ctl-line:#26323a;--sh-in:none;--sh-btn:none;--rad:14px;--rad-c:10px;
---text:#e8eef0;--muted:#8ea1ab;--acc:#ff7a3d;--acc-t:#1a0e08;--acc2:#35d0ba;--bad:#ff6b6b;--good:#3ecf8e;--yc:#ff8f8a;--tcl:#6fe3ee;--btn2:#232d33}
+--text:#e8eef0;--muted:#8ea1ab;--acc:#ff7a3d;--acc-t:#1a0e08;--acc2:#35d0ba;--bad:#ff6b6b;--good:#3ecf8e;--yc:#ff8f8a;--tcl:#6fe3ee;--wc:#b794ff;--kc:#53fc18;--btn2:#232d33}
 *{box-sizing:border-box;scrollbar-width:none;-webkit-user-select:none;user-select:none}
 /* Hanya jendela aplikasi yang menghilangkan garis fokus. Overlay TIDAK boleh: CSS buatan pengguna (mis. jahitan putus-putus lewat outline) harus tampil apa adanya. */
 body:not(.overlay) *{outline:none!important}
@@ -8,8 +8,8 @@ body:not(.overlay) *{outline:none!important}
 input,textarea{-webkit-user-select:text;user-select:text}
 html,body{margin:0;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;color:var(--text);background:transparent}
 body.dock,body.settings,body.tplwin,body.addwin,body.reportwin{background:var(--winbg)}
-body.overlay{--text:#fff;--yc:#ff8f8a;--tcl:#6fe3ee}
-body.locked{background:transparent;--text:#fff;--yc:#ff8f8a;--tcl:#6fe3ee;--base:15,15,22}
+body.overlay{--text:#fff;--yc:#ff8f8a;--tcl:#6fe3ee;--wc:#b794ff;--kc:#53fc18}
+body.locked{background:transparent;--text:#fff;--yc:#ff8f8a;--tcl:#6fe3ee;--wc:#b794ff;--kc:#53fc18;--base:15,15,22}
 body.preview{background:repeating-conic-gradient(#2a2a35 0 25%,#1c1c25 0 50%) 0 0/24px 24px}
 #app{position:absolute;inset:0;display:flex;flex-direction:column;background:rgba(var(--base),var(--bg))}
 body.dock:not(.locked):not(.preview) #app{top:34px}
@@ -20,10 +20,10 @@ body.dock:not(.locked):not(.preview) #tb,body.settings #tb,body.tplwin #tb,body.
 #tb .wb{width:46px;height:34px;border:0;background:transparent;color:var(--text);cursor:pointer;font-size:14px;-webkit-app-region:no-drag}
 #tb .wb:hover{background:rgba(127,127,127,.2)}#tb .wb.x:hover{background:#e5484d;color:#fff}
 /* header penonton */
-#top{display:none;flex:none;align-items:center;gap:10px;padding:10px 14px;background:var(--card-bg);border-bottom:1px solid var(--line);backdrop-filter:var(--blur)}
+#top{display:none;flex:none;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 14px;background:var(--card-bg);border-bottom:1px solid var(--line);backdrop-filter:var(--blur)}
 body.sv #top{display:flex}
 .vchip{display:flex;align-items:center;gap:8px;background:var(--ctl-bg);border:1px solid var(--ctl-line);border-radius:var(--rad-c);padding:5px 12px;box-shadow:var(--sh-in)}
-.vchip img{width:20px;height:20px}.vchip b{font-size:16px}
+.vchip img{width:20px;height:20px}.vchip b{font-size:16px}.vchip.off{display:none!important}
 #tot{margin-left:auto;flex-direction:column;align-items:flex-end;gap:0;line-height:1.1;padding:4px 12px}#tot small{display:block;font-size:11px;color:var(--muted)}#tot b{font-size:20px}
 .anb{padding:0;width:38px;height:38px;justify-content:center;cursor:pointer;color:var(--acc);font:inherit}.anb:hover{filter:brightness(1.25)}
 body.overlay #top{position:absolute;top:12px;right:12px;border:0;background:#000a;border-radius:20px;padding:6px 10px;gap:8px;z-index:3;backdrop-filter:none}
@@ -47,14 +47,14 @@ body.locked #list{overflow:hidden}
 body.ot #tobottom{bottom:auto;top:10px}
 /* pesan (struktur standar = gaya Default) */
 .m{display:flex;gap:9px;line-height:1.35;color:var(--ctext,inherit)}
-.y{--c:var(--yc)}.t{--c:var(--tcl)}
+.y{--c:var(--yc)}.t{--c:var(--tcl)}.w{--c:var(--wc)}.k{--c:var(--kc)}
 .pl{display:block;width:calc(var(--fsn)*1.3);height:calc(var(--fsn)*1.3);flex:none;margin-top:.1em}.pl img{display:block;width:100%;height:100%}
 .pi,.av{display:none}
 .hd{font-size:var(--fsn)}.nm{color:var(--c);font-weight:700}.nm i{font-style:normal}.tx{font-size:var(--fst);word-break:break-word}.tm{display:none;font-size:.7em;color:#b4b4c8;margin-left:6px}
 body.st .tm{display:inline}
 .bd{display:none;font-size:.62em;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;background:#3b3b52;color:#fff;text-shadow:none}
 .mod.bd{background:#1f6f4a}.own.bd{background:#a8741a}
-.m.isbot .bd.bot,.m.ismod .bd.mod,.m.isown .bd.own{display:inline-block}
+.vip.bd{background:#b0306f}.m.isbot .bd.bot,.m.ismod .bd.mod,.m.isown .bd.own,.m.isvip .bd.vip{display:inline-block}
 body.nobt .m.isbot .bd.bot{display:none}.m.isbot{opacity:.82}body.hb .m.isbot{display:none}
 body.overlay.p-polos #list,body.locked #list,body.locked #top{text-shadow:0 1px 4px #000,0 0 2px #000}
 body.cb .m:not(.p5-msg){background:var(--cbg);padding:6px 10px;border-radius:10px}
@@ -64,7 +64,8 @@ body.na .av{display:none!important}
 .m.sc:not(.p5-msg){--sc:#ffca28;background:linear-gradient(90deg,color-mix(in srgb,var(--sc) var(--sco,38%),transparent),color-mix(in srgb,var(--sc) var(--sco2,8%),transparent));border-left:4px solid var(--sc);padding:6px 10px;border-radius:10px}
 .m.sc .amt{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:var(--sc);color:#1a1405;font-size:.78em;font-weight:800;vertical-align:middle;text-shadow:none}
 body.cb .m.sc:not(.p5-msg){background:linear-gradient(90deg,color-mix(in srgb,var(--sc) var(--sco,38%),transparent),color-mix(in srgb,var(--sc) var(--sco2,8%),transparent))}
-body.f-youtube .m.t,body.f-youtube .cs-act.cs-tt{display:none}body.f-tiktok .m.y{display:none}
+/* filter platform (dock): sembunyikan semua pesan dan aktivitas yang bukan dari platform terpilih */
+body.f-youtube :is(.m,.cs-act):not([data-platform="youtube"]),body.f-tiktok :is(.m,.cs-act):not([data-platform="tiktok"]),body.f-twitch :is(.m,.cs-act):not([data-platform="twitch"]),body.f-kick :is(.m,.cs-act):not([data-platform="kick"]){display:none}
 /* chat rata kanan (overlay) */
 body.al-right :is(#msgs,#chat){align-items:flex-end}
 body.al-right :is(.m,.cs-act){flex-direction:row-reverse;text-align:right}
@@ -164,9 +165,9 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600;font-size:13px}
 #addwin .foot{display:flex;gap:8px;justify-content:flex-end}#addwin .foot .btn{flex:none;min-width:120px}
 
 /* ===== tema aplikasi (hanya untuk jendela aplikasi, bukan overlay) ===== */
-body.th-neo{--base:227,232,239;--winbg:#e3e8ef;--card-bg:#e3e8ef;--sh-card:8px 8px 18px #c2c9d6,-8px -8px 18px #fff;--line:transparent;--ctl-bg:#e3e8ef;--ctl-line:transparent;--sh-in:inset 4px 4px 9px #c2c9d6,inset -4px -4px 9px #fff;--sh-btn:5px 5px 11px #c2c9d6,-5px -5px 11px #fff;--rad:22px;--rad-c:14px;--text:#364154;--muted:#76839a;--acc:#139a8c;--acc-t:#fff;--btn2:#e3e8ef;--yc:#c4262e;--tcl:#0b8f98}
+body.th-neo{--base:227,232,239;--winbg:#e3e8ef;--card-bg:#e3e8ef;--sh-card:8px 8px 18px #c2c9d6,-8px -8px 18px #fff;--line:transparent;--ctl-bg:#e3e8ef;--ctl-line:transparent;--sh-in:inset 4px 4px 9px #c2c9d6,inset -4px -4px 9px #fff;--sh-btn:5px 5px 11px #c2c9d6,-5px -5px 11px #fff;--rad:22px;--rad-c:14px;--text:#364154;--muted:#76839a;--acc:#139a8c;--acc-t:#fff;--btn2:#e3e8ef;--yc:#c4262e;--tcl:#0b8f98;--wc:#6d2fd0;--kc:#2a8a0c}
 body.th-glass{--base:8,16,30;--winbg:radial-gradient(800px 560px at 8% 0%,#0e7490aa,transparent),radial-gradient(700px 560px at 100% 100%,#be3a6bb0,transparent),radial-gradient(500px 400px at 80% 10%,#d9a40e55,transparent),#08101d;--card-bg:rgba(255,255,255,.075);--blur:blur(18px) saturate(140%);--line:rgba(255,255,255,.17);--ctl-bg:rgba(255,255,255,.07);--ctl-line:rgba(255,255,255,.18);--rad:18px;--rad-c:12px;--text:#f1f6fa;--muted:#a5b6c4;--acc:#5eead4;--acc-t:#062a27;--btn2:rgba(255,255,255,.1)}
-body.th-clay{--base:244,230,216;--winbg:#f4e6d8;--card-bg:#ffdcc8;--sh-card:10px 10px 22px #d6b6a0,-6px -6px 16px #fff4ec,inset -4px -4px 10px rgba(120,60,30,.08),inset 4px 4px 10px rgba(255,255,255,.7);--line:transparent;--ctl-bg:#fff1e7;--ctl-line:transparent;--sh-in:inset 3px 3px 7px #e1c5b4,inset -3px -3px 7px #fffaf5;--sh-btn:4px 4px 9px #d6b6a0,-3px -3px 8px #fff4ec,inset -2px -2px 5px rgba(0,0,0,.08),inset 2px 2px 5px rgba(255,255,255,.6);--rad:28px;--rad-c:18px;--text:#5a3d33;--muted:#9a7466;--acc:#ff6f61;--acc-t:#fff;--btn2:#ffe9dc;--yc:#c2332b;--tcl:#0e7f87}
+body.th-clay{--base:244,230,216;--winbg:#f4e6d8;--card-bg:#ffdcc8;--sh-card:10px 10px 22px #d6b6a0,-6px -6px 16px #fff4ec,inset -4px -4px 10px rgba(120,60,30,.08),inset 4px 4px 10px rgba(255,255,255,.7);--line:transparent;--ctl-bg:#fff1e7;--ctl-line:transparent;--sh-in:inset 3px 3px 7px #e1c5b4,inset -3px -3px 7px #fffaf5;--sh-btn:4px 4px 9px #d6b6a0,-3px -3px 8px #fff4ec,inset -2px -2px 5px rgba(0,0,0,.08),inset 2px 2px 5px rgba(255,255,255,.6);--rad:28px;--rad-c:18px;--text:#5a3d33;--muted:#9a7466;--acc:#ff6f61;--acc-t:#fff;--btn2:#ffe9dc;--yc:#c2332b;--tcl:#0e7f87;--wc:#6d2fd0;--kc:#2a8a0c}
 body.th-liquid{--base:7,26,46;--winbg:radial-gradient(700px 500px at 15% 10%,#22d3ee66,transparent),radial-gradient(700px 600px at 90% 90%,#34d39966,transparent),linear-gradient(140deg,#071a2e,#0b3a5b 55%,#0f5f73);--card-bg:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05));--blur:blur(26px) saturate(180%);--sh-card:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.1),0 12px 30px rgba(0,0,0,.35);--line:rgba(255,255,255,.3);--ctl-bg:rgba(255,255,255,.1);--ctl-line:rgba(255,255,255,.28);--sh-in:inset 0 1px 3px rgba(0,0,0,.25);--sh-btn:inset 0 1px 0 rgba(255,255,255,.5),0 4px 12px rgba(0,0,0,.25);--rad:26px;--rad-c:16px;--text:#f4fbff;--muted:#b3cde0;--acc:#7defff;--acc-t:#04222b;--btn2:rgba(255,255,255,.16)}
 body.th-spatial{--base:20,21,26;--winbg:radial-gradient(1100px 700px at 50% -15%,#343a4c,#0d0e12 62%);--card-bg:rgba(70,74,88,.42);--blur:blur(32px);--sh-card:0 22px 44px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.14);--line:rgba(255,255,255,.1);--ctl-bg:rgba(255,255,255,.08);--ctl-line:rgba(255,255,255,.1);--rad:30px;--rad-c:22px;--text:#f5f5f7;--muted:#a3a6b3;--acc:#f5f5f7;--acc-t:#101114;--btn2:rgba(255,255,255,.12)}
 body.th-neo .tcard .pv,body.th-clay .tcard .pv{background:#2a2a35}
@@ -206,7 +207,11 @@ body.overlay #boot,body.ctlwin #boot,body.locked #boot,body.preview #boot{displa
 .hasfc :is(.tx,.text,.p5-text){color:var(--scf)!important}
 .m.sc.sc-nobg:not(.p5-msg){background:none!important;border-left:0!important;padding:0!important}
 .m.noamt .amt{display:none!important}
-.mem.bd{background:#1f7a3a}.m.ismem .bd.mem{display:inline-block}body.nomem .bd.mem{display:none!important}
+.mem.bd{background:#1f7a3a}.m.ismem .bd.mem{display:inline-block}.m.nomem1 .bd.mem{display:none!important}
+/* emote (gambar kecil di dalam teks chat Twitch / Kick) */
+.cs-emo{display:inline-block;height:1.55em;width:auto;vertical-align:middle;margin:-.25em 1px}
+.m.isme .tx>span,.m.isme .text{font-style:italic}
+body:is(.dock,.p-polos) .m.ishl:not(.sc):not(.p5-msg){background:color-mix(in srgb,var(--c) 24%,transparent);border-left:4px solid var(--c);padding:6px 10px;border-radius:10px}
 .m.ismem.hasmc .nm{color:var(--mc)!important}
 /* ===== pengaturan per platform ===== */
 .plat{display:flex;align-items:center;gap:12px;width:100%;margin:8px 0 0;padding:10px 12px;background:var(--ctl-bg);border:1px solid var(--ctl-line);box-shadow:var(--sh-in);border-radius:var(--rad-c);color:var(--text);cursor:pointer;text-align:left;font:inherit}
@@ -225,7 +230,8 @@ body.reportwin #rep{display:flex;flex-direction:column;position:absolute;inset:3
 #rbody{flex:1;overflow:auto;padding:18px 20px 28px;display:flex;flex-direction:column;gap:14px}
 .rg{display:grid;gap:14px}.rg4{grid-template-columns:repeat(4,1fr)}.rg2{grid-template-columns:1fr 1fr}
 #rbody .card{margin:0}.kpi .lb{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}.kpi .vl{font-size:30px;font-weight:700;margin:4px 0 2px;line-height:1.1}.kpi .sb2{font-size:12px;color:var(--muted);line-height:1.5}
-.dy{color:var(--yc)}.dt{color:var(--tcl)}
+.dy{color:var(--yc)}.dt{color:var(--tcl)}.dw{color:var(--wc)}.dk{color:var(--kc)}
+.kkopt{margin:10px 0 2px}.kkopt summary{cursor:pointer;font-size:12px;color:var(--muted)}.kkopt input{width:100%;margin-top:6px}
 .chartbox{position:relative;margin-top:6px}.chartbox svg{display:block;width:100%;height:auto}
 .leg{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-top:4px}.leg i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
 .tip{position:absolute;pointer-events:none;background:var(--card-bg);border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,.4);border-radius:8px;padding:6px 10px;font-size:12px;line-height:1.5;white-space:nowrap;display:none;z-index:5}

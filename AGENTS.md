@@ -5,7 +5,7 @@ ada konteks, arsitektur, aturan, dan semua jebakan yang sudah pernah kejadian, s
 (Pengguna dan UI berbahasa Indonesia. Teks yang tampil ke pengguna HARUS bahasa Indonesia yang santai dan jelas.)
 
 ## 1. Produk
-Aplikasi desktop Windows untuk streamer multi-platform (YouTube + TikTok):
+Aplikasi desktop Windows untuk streamer multi-platform (YouTube + TikTok + Twitch + Kick):
 - Menggabungkan chat kedua platform dalam satu jendela ("dock") yang hanya dilihat streamer, dengan jumlah penonton,
   label BOT/MOD, notifikasi "bergabung" (TikTok), filter platform, riwayat yang bisa di-scroll.
 - Menyajikan **overlay** untuk OBS (Browser Source) dengan banyak gaya yang bisa diedit/ditambah pengguna lewat CSS.
@@ -191,3 +191,22 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
 - **Laporan** (`?view=report`, tanpa SSE: polling `GET /analytics?id=` tiap 5 dtk). `stats.js` mencatat sampel `[t,yt,tt]` tiap 15 dtk; puncak/rata-rata dihitung dari sampel itu.
   Sesi berakhir lewat "Mulai sesi baru", aplikasi ditutup, atau 30 menit tanpa data penonton; disimpan di `analytics.json` (maks 20 sesi). Hotkey `report` (Ctrl+Alt+R) dan menu tray juga membukanya.
   Durasi menonton per orang dan retensi TIDAK bisa dihitung (hanya jumlah penonton serentak yang terlihat).
+
+## 10. Twitch & Kick (v14.4)
+- **Konektor** ada di `server.js` (`startTW`, `startKK`), pengurai pesannya MURNI di `src/platforms.js` (`twitchLine`, `kickEvent`; diuji di `test/smoke.js`).
+  Twitch = IRC lewat WebSocket anonim (`justinfanNNNN`, hanya baca; tag `bits`, `emotes`, `badges`, USERNOTICE sub/resub/subgift/submysterygift/raid/announcement/ritual).
+  Penonton Twitch dari GQL publik (`gql.twitch.tv`, 30 dtk). Follow Twitch TIDAK tersedia tanpa login (EventSub).
+  Kick = Pusher WebSocket; butuh `chatroom.id` dari `kick.com/api/v2/channels/<slug>` (Cloudflare bisa memblokir; cadangan `hooks.netFetch` = `net.fetch` Electron;
+  cadangan terakhir kolom manual `kickRoom` di Koneksi). Event: ChatMessageEvent, KicksGifted, SubscriptionEvent, GiftedSubscriptionsEvent, StreamHostEvent, RewardRedeemedEvent, FollowersUpdated.
+  **Belum pernah diuji dengan live Twitch/Kick sungguhan** (sandbox pengembangan tanpa internet); nama event Kick dan bentuk payload bisa meleset.
+- **Pesan**: `m.p` = `youtube|tiktok|twitch|kick`. Kelas std: `.y/.yt`, `.t/.tt`, `.w/.tw`, `.k/.kk`; p5: `.p5-tw/.p5-kk`; rv: `.p-tw/.p-kk`; cozy: `data-platform=twitch|kick`.
+  Registri di `app.js`: `PK/PC/PN/PL`, `ACT` (aktivitas per platform), `SCK` (Super Chat / Bits / Kicks), `MEMK`, `VIPK`. Bits dan Kicks memakai mekanisme `m.sc` yang sama dengan Super Chat.
+  Bendera tambahan: `m.vip` (`.isvip`, `.bd.vip`), `m.me` (`.isme`), `m.hl` (`.ishl`), `m.emo=[[mulai,akhir,url]]` (emote, `fillText`, kelas `.cs-emo`). Member/VIP bisa dimatikan per pesan lewat kelas `nomem1`/`novip1` (bukan lagi `body.nomem`).
+- **Aktivitas** per platform: tiktok `join gift like follow share sub`, twitch `sub gift raid announce first`, kick `sub gift follow raid reward`. Kunci pengaturan = awalan (`tt`/`tw`/`kk`) + Kind
+  (`twRaid`, `twRaidBg`, `twRaidBgC`, `twRaidBgOp`, `twRaidFc`, master `twAct`, `twGiftMin`). Filter dock memakai `body.f-<platform>` + atribut `data-platform` (juga pada `.cs-act`).
+- **Gaya bawaan**: aturan Twitch/Kick ada di akhir tiap seed setelah penanda `/* twitch-kick */`; server menambahkannya sekali ke gaya bawaan lama yang sudah tersimpan di komputer pengguna (tidak menimpa suntingan).
+  CSS buatan pengguna sendiri tidak ikut diperbarui: warna nama Twitch/Kick jatuh ke `--wc`/`--kc` bawaan aplikasi, tapi struktur p5/rv/cozy perlu aturan platform baru.
+- **Pratinjau overlay** (`isPrev`): bukan lagi 6 contoh tetap yang diulang, melainkan pesan acak terus-menerus dari "dek acak" `SCEN` (tiap putaran semua skenario keluar sekali: 4 platform, badge, aktivitas,
+  Super Chat/Bits/Kicks, emote, nama & teks panjang). Tambah fitur baru = tambah skenario di `SCEN` (dan cek indeks `SHOW`, contoh langsung saat pratinjau dibuka).
+- Kirim chat ke Twitch/Kick BELUM ada (ekstensi Chrome hanya YouTube & TikTok); dock menolak dengan pesan jelas. Laporan penonton mencakup keempat platform (`stats.js`, sampel `[t,yt,tt,tw,kk]`, hitungan `s.o`).
+- Ikon aplikasi: `assets/icon.png|ico` + `extension/icon.png` dibuat dari logo ChatStream Labs (merah, gelembung chat). Logo platform: `assets/{yt,tt,tw,kick}.png`.

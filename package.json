@@ -1,6 +1,6 @@
 {
   "name": "chatstream-labs",
-  "version": "14.3.0",
+  "version": "14.4.0",
   "description": "ChatStream Labs: gabungkan chat live YouTube dan TikTok, tampilkan sebagai overlay OBS, dan balas dari satu tempat.",
   "private": true,
   "main": "build/main.js",

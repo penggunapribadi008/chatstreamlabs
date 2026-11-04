@@ -1,9 +1,21 @@
 const Q=new URLSearchParams(location.search),V=Q.get('view'),view=V==='overlay'?'overlay':'dock',isSet=V==='settings',isTpl=V==='tpl',isAdd=V==='tpladd',isCtl=V==='ctl',isRep=V==='report',isAdmin=isSet||isTpl||isAdd||isCtl||isRep,isPrev=!!Q.get('preview'),isStatic=!!Q.get('static'),isLocked=!!Q.get('locked'),forceId=Q.get('force');
 const COMMON={fsName:16,fsText:16,gap:12,bg:90,max:300,fade:0,time:false,viewers:true,botTag:true,hideBots:false,preset:'polos',anim:'slide',order:'bottom',chatBg:false,chatBgColor:'#000000',chatBgOp:60};
-// aktivitas TikTok: [kunci, label, ikon, warna font bawaan]
-const TT_ACTS=[['Join','Penonton bergabung','\u{1F44B}','#ffffff'],['Gift','Hadiah (gift)','\u{1F381}','#ffd166'],['Like','Suka (like)','\u2764\uFE0F','#ff9bb3'],['Follow','Mulai mengikuti','\u2795','#8be9a8'],['Share','Membagikan live','\u2197\uFE0F','#9fd3ff'],['Sub','Berlangganan','\u2B50','#ffe08a']];
-const platDef=dock=>{const o={ttAct:true,ttGiftMin:0,ytSc:true,ytScBg:'auto',ytScBgC:'#ffca28',ytScBgOp:38,ytScFcOn:false,ytScFc:'#ffffff',ytScAmt:true,ytScHold:3,ytSticker:true,ytMemBadge:true,ytMemNameOn:false,ytMemC:'#2ba640'};
-  TT_ACTS.forEach(([k,,,fc])=>{o['tt'+k]=k==='Join'?dock:(k==='Gift'||k==='Follow'||k==='Sub');o['tt'+k+'Bg']=true;o['tt'+k+'BgC']='#000000';o['tt'+k+'BgOp']=60;o['tt'+k+'Fc']=fc;});return o;};
+// registri platform: nama penuh -> huruf kelas (y/t/w/k), akhiran kelas (yt/tt/tw/kk), logo
+const PK={youtube:'y',tiktok:'t',twitch:'w',kick:'k'},PC={y:'yt',t:'tt',w:'tw',k:'kk'},PN={y:'youtube',t:'tiktok',w:'twitch',k:'kick'},PL={youtube:'/yt.png',tiktok:'/tt.png',twitch:'/tw.png',kick:'/kick.png'};
+const PNAME={youtube:'YouTube',tiktok:'TikTok',twitch:'Twitch',kick:'Kick'};
+// aktivitas per platform: [kunci, label, ikon, warna font bawaan, nyala bawaan: 'd' = hanya Pribadi, 'b' = Pribadi & Overlay, '' = mati]
+const TT_ACTS=[['Join','Penonton bergabung','\u{1F44B}','#ffffff','d'],['Gift','Hadiah (gift)','\u{1F381}','#ffd166','b'],['Like','Suka (like)','\u2764\uFE0F','#ff9bb3',''],['Follow','Mulai mengikuti','\u2795','#8be9a8','b'],['Share','Membagikan live','\u2197\uFE0F','#9fd3ff',''],['Sub','Berlangganan','\u2B50','#ffe08a','b']];
+const TW_ACTS=[['Sub','Subscribe / resub','\u2B50','#ffe08a','b'],['Gift','Gift sub','\u{1F381}','#ffd166','b'],['Raid','Raid masuk','\u{1F680}','#9fd3ff','b'],['Announce','Pengumuman moderator','\u{1F4E2}','#ffffff','b'],['First','Chatter baru pertama kali chat','\u{1F44B}','#ffffff','d']];
+const KK_ACTS=[['Sub','Subscribe','\u2B50','#ffe08a','b'],['Gift','Gift sub','\u{1F381}','#ffd166','b'],['Follow','Mulai mengikuti','\u2795','#8be9a8','b'],['Raid','Raid / host masuk','\u{1F680}','#9fd3ff','b'],['Reward','Hadiah poin (reward)','\u{1F3C6}','#ffffff','b']];
+const ACT={tiktok:{pre:'tt',list:TT_ACTS,logo:'/tt.png'},twitch:{pre:'tw',list:TW_ACTS,logo:'/tw.png'},kick:{pre:'kk',list:KK_ACTS,logo:'/kick.png'}};
+// chat berbayar yang disorot (Super Chat / Bits / Kicks): awalan kunci pengaturan; badge member/subscriber; label VIP
+const SCK={youtube:'ytSc',twitch:'twBits',kick:'kkKicks'},MEMK={youtube:'ytMem',twitch:'twMem',kick:'kkMem'},VIPK={twitch:'twVipBadge',kick:'kkVipBadge'};
+const platDef=dock=>{const o={ytSc:true,ytScBg:'auto',ytScBgC:'#ffca28',ytScBgOp:38,ytScFcOn:false,ytScFc:'#ffffff',ytScAmt:true,ytScHold:3,ytSticker:true,ytMemBadge:true,ytMemNameOn:false,ytMemC:'#2ba640',
+    twBits:true,twBitsBg:'auto',twBitsBgC:'#9c3ee8',twBitsBgOp:38,twBitsFcOn:false,twBitsFc:'#ffffff',twBitsAmt:true,twBitsHold:3,twHl:true,twMemBadge:true,twMemNameOn:false,twMemC:'#b794ff',twVipBadge:true,
+    kkKicks:true,kkKicksBg:'auto',kkKicksBgC:'#53fc18',kkKicksBgOp:38,kkKicksFcOn:false,kkKicksFc:'#ffffff',kkKicksAmt:true,kkKicksHold:3,kkMemBadge:true,kkMemNameOn:false,kkMemC:'#53fc18',kkVipBadge:true};
+  for(const pf in ACT){const {pre,list}=ACT[pf];o[pre+'Act']=true;o[pre+'GiftMin']=0;
+    list.forEach(([k,,,fc,on])=>{o[pre+k]=on==='b'||(on==='d'&&dock);o[pre+k+'Bg']=true;o[pre+k+'BgC']='#000000';o[pre+k+'BgOp']=60;o[pre+k+'Fc']=fc;});}
+  return o;};
 const DEF={dock:{...COMMON,...platDef(true),avatar:false,theme:'standar'},overlay:{...COMMON,...platDef(false),anim:'auto',align:'left',fsName:20,fsText:20,bg:0,max:8,fade:45,viewers:false,avatar:true}};
 const PRE=[['polos','Default']];
 const BUILT=PRE.map(x=>x[0]);
@@ -32,7 +44,7 @@ addEventListener('error',e=>bootFail((e&&e.message)||'error'));addEventListener(
 const lum=h=>{const n=parseInt((h||'#000000').slice(1),16);return(0.299*(n>>16&255)+0.587*(n>>8&255)+0.114*(n&255))/255;};
 const rgbOf=h=>{const n=parseInt((h||'#000000').slice(1),16);return[n>>16&255,n>>8&255,n&255];};
 const ink=h=>lum(h)>0.55?'#14110f':'#ffffff';
-const UIVARS=['--winbg','--card-bg','--ctl-bg','--ctl-line','--line','--muted','--text','--acc','--acc-t','--btn2','--base','--yc','--tcl'];
+const UIVARS=['--winbg','--card-bg','--ctl-bg','--ctl-line','--line','--muted','--text','--acc','--acc-t','--btn2','--base','--yc','--tcl','--wc','--kc'];
 function applyUi(s){
   const b=document.body,st=b.style;
   [...b.classList].forEach(c=>{if(c.startsWith('th-'))b.classList.remove(c);});UIVARS.forEach(k=>st.removeProperty(k));
@@ -48,7 +60,7 @@ function chatColors(s,pid){
   const base=(view==='dock'&&!isLocked)?(getComputedStyle(document.body).getPropertyValue('--base')||'14,18,20').split(',').map(Number):[20,20,26];
   const e=c.map((v,i)=>v*a+(base[i]||0)*(1-a)),L=(0.299*e[0]+0.587*e[1]+0.114*e[2])/255;
   st.setProperty('--ctext',L<.55?'#ffffff':'#14110f');
-  if(view==='dock'){st.setProperty('--yc',L<.55?'#ff8f8a':'#b3262c');st.setProperty('--tcl',L<.55?'#6fe3ee':'#0a7f88');}
+  if(view==='dock'){st.setProperty('--yc',L<.55?'#ff8f8a':'#b3262c');st.setProperty('--tcl',L<.55?'#6fe3ee':'#0a7f88');st.setProperty('--wc',L<.55?'#b794ff':'#5b21b6');st.setProperty('--kc',L<.55?'#53fc18':'#2a8a0c');}
 }
 // ---- judul jendela tanpa bingkai ----
 const WHICH=isSet?'settings':isTpl?'tpl':isAdd?'tpladd':isRep?'report':'main';
@@ -73,7 +85,7 @@ function applyStyle(){
   const usesVars=!!(tpl.custom&&/--fs[nt]\b|--p5-scale|--nr\b/.test(tpl.css||'')),zm=view==='overlay'&&tpl.custom&&!usesVars&&tpl.struct!=='p5'&&tpl.struct!=='cozy'&&/font(-size)?\s*:[^;}]*\d+(\.\d+)?px/.test(tpl.css||'');
   r.setProperty('--zn',(s.fsName/20).toFixed(3));r.setProperty('--zt',(s.fsText/20).toFixed(3));
   $('usercss').textContent=tpl.custom?tpl.css:'';
-  b.className=[view,isPrev?'preview':'',isLocked?'locked':'',s.chatBg?'cb':'',s.order==='top'?'ot':'',(view==='overlay'&&s.align==='right')?'al-right':'',(view==='overlay'&&tpl.struct==='rv')?'s-rv':'','p-'+(tpl.custom?'custom':pid),'an-'+an,zm?'zm':'',(view==='overlay'&&s.gap!==DEF.overlay.gap)?'gap-set':'',booting?'noanim':'',s.viewers?'sv':'',s.time?'st':'',s.avatar?'':'na',s.botTag?'':'nobt',s.ytMemBadge?'':'nomem',s.hideBots?'hb':'',(view==='dock'&&filt!=='all')?'f-'+filt:''].filter(Boolean).join(' ');
+  b.className=[view,isPrev?'preview':'',isLocked?'locked':'',s.chatBg?'cb':'',s.order==='top'?'ot':'',(view==='overlay'&&s.align==='right')?'al-right':'',(view==='overlay'&&tpl.struct==='rv')?'s-rv':'','p-'+(tpl.custom?'custom':pid),'an-'+an,zm?'zm':'',(view==='overlay'&&s.gap!==DEF.overlay.gap)?'gap-set':'',booting?'noanim':'',s.viewers?'sv':'',s.time?'st':'',s.avatar?'':'na',s.botTag?'':'nobt',s.hideBots?'hb':'',(view==='dock'&&filt!=='all')?'f-'+filt:''].filter(Boolean).join(' ');
   if(view==='dock'&&!isLocked)applyUi(s);
   chatColors(s,pid);
   if(view==='overlay'){wrap.id=curStruct==='rv'?'log':curStruct==='cozy'?'chat':'msgs';if(curStruct==='cozy')wrap.dataset.mode='person';else delete wrap.dataset.mode;}
@@ -87,36 +99,49 @@ function atLatest(){return isTop()?list.scrollTop<70:list.scrollHeight-list.scro
 function toLatest(){list.scrollTop=isTop()?0:list.scrollHeight;updBtn();}
 function updBtn(){const b=$('tobottom');b.textContent=isTop()?'↑ Chat terbaru':'↓ Chat terbaru';b.style.display=(view==='dock'&&!isLocked&&!isAdmin&&!atLatest())?'block':'none';}
 list.addEventListener('scroll',updBtn);$('tobottom').onclick=toLatest;
-function showViewers(){$('vy').textContent=fmt(viewers.youtube);$('vt').textContent=fmt(viewers.tiktok);
-  const a=[viewers.youtube,viewers.tiktok].filter(x=>x!=null);$('vs').textContent=a.length?fmt(a.reduce((x,y)=>x+y,0)):'-';}
-function showSt(s){status=s;$('st').textContent='YouTube: '+(s.youtube||'-')+'\nTikTok: '+(s.tiktok||'-');}
-const FLAGS=m=>(m.bot?' isbot':'')+(m.mod?' ismod':'')+(m.owner?' isown':'')+(m.sample?' sample':'')+(m.sc?' sc':'')+(m.member?' ismem':'');
+// kotak Twitch / Kick di header hanya muncul kalau platformnya dipakai (ada username / sedang tersambung)
+const used=p=>viewers[p]!=null||!!(status[p]&&!/^(belum diisi|terputus|username tidak dikenali)/.test(status[p]));
+function showViewers(){$('vy').textContent=fmt(viewers.youtube);$('vt').textContent=fmt(viewers.tiktok);$('vw').textContent=fmt(viewers.twitch);$('vk').textContent=fmt(viewers.kick);
+  $('cw').classList.toggle('off',!used('twitch'));$('ck').classList.toggle('off',!used('kick'));
+  const a=['youtube','tiktok','twitch','kick'].map(k=>viewers[k]).filter(x=>x!=null);$('vs').textContent=a.length?fmt(a.reduce((x,y)=>x+y,0)):'-';}
+function showSt(s){status=s;$('st').textContent=['youtube','tiktok','twitch','kick'].map(k=>PNAME[k]+': '+(s[k]||'-')).join('\n');showViewers();}
+const FLAGS=m=>(m.bot?' isbot':'')+(m.mod?' ismod':'')+(m.owner?' isown':'')+(m.vip?' isvip':'')+(m.me?' isme':'')+(m.sample?' sample':'')+(m.sc?' sc':'')+(m.member?' ismem':'');
+const memOn=(m,s)=>m.member&&s[(MEMK[m.p]||'ytMem')+'Badge'];
+// isi teks chat; emote (m.emo = [[mulai,akhir,url],...] dalam hitungan karakter) dirender sebagai gambar kecil, kalau gagal dimuat tampil sebagai namanya
+function fillText(el,m){const t=String(m.text==null?'':m.text);if(!m.emo||!m.emo.length){el.textContent=t;return;}
+  const cp=Array.from(t);let pos=0;el.textContent='';
+  m.emo.forEach(([a,b,u])=>{if(a<pos||b>cp.length||!/^https:\/\//.test(u))return;if(a>pos)el.appendChild(document.createTextNode(cp.slice(pos,a).join('')));
+    const im=document.createElement('img');im.className='cs-emo';im.alt=cp.slice(a,b).join('');im.referrerPolicy='no-referrer';im.onerror=()=>im.replaceWith(document.createTextNode(im.alt));im.src=u;el.appendChild(im);pos=b;});
+  if(pos<cp.length)el.appendChild(document.createTextNode(cp.slice(pos).join('')));}
 const scColor=m=>(m.sc&&/^#[0-9a-f]{6}$/i.test(m.sc.color||''))?m.sc.color:'#ffca28';
-const BADGES='<span class="bd bot">BOT</span><span class="bd mod">MOD</span><span class="bd own">OWNER</span><span class="bd mem">MEMBER</span>';
+const BADGES='<span class="bd bot">BOT</span><span class="bd mod">MOD</span><span class="bd own">OWNER</span><span class="bd vip">VIP</span><span class="bd mem">MEMBER</span>';
 function buildStd(m,src,pf){
-  const d=document.createElement('div');d.className='m msg '+pf+(pf==='y'?' yt':' tt')+FLAGS(m);d.dataset.platform=pf==='y'?'youtube':'tiktok';
+  const d=document.createElement('div');d.className='m msg '+pf+' '+PC[pf]+FLAGS(m);d.dataset.platform=PN[pf];
   d.innerHTML='<span class="pl logo"><img src="'+src+'" alt=""></span><div class="av avatar"></div><div class="body"><div class="hd head"><span class="tag"><img class="pi" src="'+src+'" alt=""><b class="nm name"></b></span><span class="tm time"></span><span class="amt"></span>'+BADGES+'</div><div class="tx text message"><span></span></div></div>';
   const nmEl=d.querySelector('.nm');for(const ch of [...(m.name||'')]){const i=document.createElement('i');i.textContent=ch===' '?'\u00a0':ch;if(ch===' ')i.className='sp';nmEl.appendChild(i);}
-  d.querySelector('.tx>span').textContent=m.text;d.querySelector('.tm').textContent=hhmm(m.t);
+  fillText(d.querySelector('.tx>span'),m);d.querySelector('.tm').textContent=hhmm(m.t);
   if(m.sc){d.style.setProperty('--sc',scColor(m));d.querySelector('.amt').textContent=m.sc.amount;}
   const av=d.querySelector('.av');if(m.avatar)av.style.backgroundImage='url("'+m.avatar.replace(/"/g,'')+'")';else av.textContent=(m.name||'?')[0].toUpperCase();
   return d;}
 function buildP5(m,src,pf){
-  const d=document.createElement('div');d.className='m p5-msg '+(pf==='y'?'y p5-yt':'t p5-tt')+FLAGS(m);
+  const d=document.createElement('div');d.className='m p5-msg '+pf+' p5-'+PC[pf]+FLAGS(m);d.dataset.platform=PN[pf];
   d.innerHTML='<div class="p5-head"><span class="p5-logo"><span class="p5-logo-in"><img src="'+src+'" alt=""></span></span><span class="p5-name"></span><span class="tm"></span><span class="p5-amt"></span>'+BADGES+'</div><div class="p5-bub"><div class="p5-l1"><div class="p5-l2"><div class="p5-text"></div></div></div></div>';
   const nm=d.querySelector('.p5-name');let nw=true;
   for(const ch of [...(m.name||'')]){if(ch===' '){const s=document.createElement('span');s.className='sp';nm.appendChild(s);nw=true;continue;}const c=document.createElement('span');c.className='ch'+(nw?' i':'');c.textContent=ch;nm.appendChild(c);nw=false;}
-  d.querySelector('.p5-text').textContent=m.text;d.querySelector('.tm').textContent=hhmm(m.t);
+  fillText(d.querySelector('.p5-text'),m);d.querySelector('.tm').textContent=hhmm(m.t);
   if(m.sc){d.style.setProperty('--sc',scColor(m));d.querySelector('.p5-amt').textContent=m.sc.amount;}
   return d;}
 const SVG_YT='<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M21.6 7.2c-.2-.9-.9-1.6-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4c-.9.2-1.6.9-1.8 1.8C2 8.8 2 12 2 12s0 3.2.4 4.8c.2.9.9 1.6 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4c.9-.2 1.6-.9 1.8-1.8.4-1.6.4-4.8.4-4.8s0-3.2-.4-4.8zM10 15V9l5.2 3L10 15z"/></svg>';
 const SVG_TT='<svg viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>';
+const SVG_TW='<svg viewBox="0 0 24 24"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>';
+const SVG_KK='<svg viewBox="0 0 24 24"><path d="M1.333 0h8v5.333H12V2.667h2.667V0h8v8H20v2.667h-2.667v2.666H20V16h2.667v8h-8v-2.667H12v-2.666H9.333V24h-8Z"/></svg>';
+const SVG_PF={y:SVG_YT,t:SVG_TT,w:SVG_TW,k:SVG_KK};
 function buildRV(m,src,pf){
-  const d=document.createElement('div');d.className='msg '+(pf==='y'?'p-yt':'p-tt')+FLAGS(m)+(m.sc?' hl':'');
-  d.innerHTML='<div class="badge">'+(pf==='y'?SVG_YT:SVG_TT)+'</div><div class="body"><div class="name"><span class="n"></span></div><div class="text"></div></div>';
-  d.querySelector('.n').textContent=m.name;d.querySelector('.text').textContent=m.text;
+  const d=document.createElement('div');d.className='msg p-'+PC[pf]+FLAGS(m)+(m.sc?' hl':'');d.dataset.platform=PN[pf];
+  d.innerHTML='<div class="badge">'+SVG_PF[pf]+'</div><div class="body"><div class="name"><span class="n"></span></div><div class="text"></div></div>';
+  d.querySelector('.n').textContent=m.name;fillText(d.querySelector('.text'),m);
   const nm=d.querySelector('.name'),tag=t=>{const s=document.createElement('span');s.className='tag';s.textContent=t;nm.appendChild(s);};
-  if(m.sc)tag(m.sc.amount);if(m.owner)tag('OWNER');else if(m.mod)tag('MOD');if(m.bot)tag('BOT');if(m.member&&cur(view).ytMemBadge)tag('MEMBER');
+  if(m.sc)tag(m.sc.amount);if(m.owner)tag('OWNER');else if(m.mod)tag('MOD');if(m.bot)tag('BOT');if(m.vip&&cur(view)[VIPK[m.p]||'x']!==false)tag('VIP');if(memOn(m,cur(view)))tag('MEMBER');
   if(m.sc)d.style.setProperty('--sc',scColor(m));
   return d;}
 const cozyN=()=>{const css=(tplOf(forceId||cur(view).preset)||{}).css||'';const n=[...css.matchAll(/data-color\s*=\s*["']?(\d+)/g)].map(x=>+x[1]);return Math.max(5,...n);};
@@ -124,62 +149,120 @@ const cozyN=()=>{const css=(tplOf(forceId||cur(view).preset)||{}).css||'';const 
 const avFallback=name=>{const ch=([...String(name||'?')][0]||'?').toUpperCase().replace(/[<>&"']/g,'?');
   return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text x="32" y="43" font-size="30" font-family="Segoe UI,Arial,sans-serif" font-weight="700" text-anchor="middle" fill="#fff">'+ch+'</text></svg>');};
 function buildCozy(m,src,pf){
-  const d=document.createElement('div');d.className='msg'+FLAGS(m);d.dataset.platform=pf==='y'?'youtube':'tiktok';
+  const d=document.createElement('div');d.className='msg'+FLAGS(m);d.dataset.platform=PN[pf];
   let h=0;for(const ch of String(m.name||''))h=(h*31+ch.charCodeAt(0))>>>0;const col=h%cozyN()+1;d.dataset.color=String(col);
-  d.dataset.type=m.sc?'event':'chat';d.dataset.role=m.owner?'streamer':m.mod?'mod':m.bot?'bot':'';
+  d.dataset.type=m.sc?'event':'chat';d.dataset.role=m.owner?'streamer':m.mod?'mod':m.vip?'vip':m.bot?'bot':'';
   d.innerHTML='<div class="avatar"><img alt=""></div><div class="body"><div class="row"><span class="name"></span></div><span class="text"></span></div>';
   const row=d.querySelector('.row'),tag=(t,k)=>{const s=document.createElement('span');s.className='tag';s.dataset.tag=k;s.textContent=t;row.appendChild(s);};
-  d.querySelector('.name').textContent=m.name||'';d.querySelector('.text').textContent=m.text;
-  if(m.sc){tag(m.sc.amount,'superchat');d.style.setProperty('--sc',scColor(m));}if(m.owner)tag('streamer','streamer');else if(m.mod)tag('mod','mod');if(m.bot)tag('bot','bot');if(m.member&&cur(view).ytMemBadge)tag('member','member');
+  d.querySelector('.name').textContent=m.name||'';fillText(d.querySelector('.text'),m);
+  if(m.sc){tag(m.sc.amount,'superchat');d.style.setProperty('--sc',scColor(m));}if(m.owner)tag('streamer','streamer');else if(m.mod)tag('mod','mod');if(m.bot)tag('bot','bot');if(m.vip&&cur(view)[VIPK[m.p]||'x']!==false)tag('vip','vip');if(memOn(m,cur(view)))tag('member','member');
   const img=d.querySelector('.avatar img'),fb=avFallback(m.name);img.referrerPolicy='no-referrer';img.onerror=()=>{img.onerror=null;img.src=fb;};img.src=m.avatar||fb;
   return d;}
 function rebuild(){[...wrap.children].forEach(x=>x.remove());const s=cur(view);msgsData.slice(-s.max).forEach(m=>add(m,true));}
-const ICON={join:'\u{1F44B}',gift:'\u{1F381}',like:'\u2764\uFE0F',follow:'\u2795',share:'\u2197\uFE0F',sub:'\u2B50'};
+const ICON={join:'\u{1F44B}',gift:'\u{1F381}',like:'\u2764\uFE0F',follow:'\u2795',share:'\u2197\uFE0F',sub:'\u2B50',raid:'\u{1F680}',announce:'\u{1F4E2}',first:'\u{1F44B}',reward:'\u{1F3C6}'};
 const cap=k=>k[0].toUpperCase()+k.slice(1);
-function actText(m){const n=m.name||'?';
+const PLAN={Prime:'Prime','1000':'Tier 1','2000':'Tier 2','3000':'Tier 3'},planTx=p=>PLAN[p]?' ('+PLAN[p]+')':'';
+// teks baris aktivitas: [nama tebal, keterangan]
+function actText(m){const n=m.name||'?',q=m.text?': \u201c'+m.text+'\u201d':'';
+  if(m.p==='twitch'){
+    if(m.kind==='sub')return[n,(m.months>1?' resub'+planTx(m.plan)+' \u00b7 '+m.months+' bulan':' berlangganan'+planTx(m.plan))+q];
+    if(m.kind==='gift')return[n,m.n>1?' membagikan '+fmt(m.n)+' gift sub'+planTx(m.plan):' memberi gift sub ke '+(m.to||'seseorang')+planTx(m.plan)];
+    if(m.kind==='raid')return[n,' me-raid dengan '+fmt(m.n||0)+' penonton'];
+    if(m.kind==='announce')return[n,': '+(m.text||'')];
+    if(m.kind==='first')return[n,' chat untuk pertama kalinya'];
+  }
+  if(m.p==='kick'){
+    if(m.kind==='sub')return[n,m.months>1?' berlangganan \u00b7 '+m.months+' bulan':' berlangganan'];
+    if(m.kind==='gift')return[n,' membagikan '+fmt(m.n||1)+' gift sub'];
+    if(m.kind==='follow')return[n,' mulai mengikuti'];
+    if(m.kind==='raid')return[n,m.n?' me-raid dengan '+fmt(m.n)+' penonton':' me-raid channel ini'];
+    if(m.kind==='reward')return[n,' menukar \u201c'+(m.title||'hadiah')+'\u201d'+q];
+  }
   if(m.kind==='gift')return[n,' mengirim '+(m.gift||'hadiah')+(m.n>1?' \u00d7'+m.n:'')+(m.coins?' ('+fmt(m.coins)+' koin)':'')];
   if(m.kind==='like')return[m.others?n+' +'+m.others+' lainnya':n,' menyukai live \u00d7'+fmt(m.n||1)];
   return[n,{join:' bergabung',follow:' mulai mengikuti',share:' membagikan live',sub:' berlangganan'}[m.kind]||''];}
-// baris aktivitas (bergabung, hadiah, dst.): latar dan warna font datang dari pengaturan TikTok
+// baris aktivitas (bergabung, hadiah, raid, dst.): latar dan warna font datang dari pengaturan platformnya
 function actEl(m,s){
-  const k=cap(m.kind),d=document.createElement('div'),[who,what]=actText(m);
-  d.className='cs-act cs-tt cs-'+m.kind+(m.sample?' sample':'');
-  d.style.color=s['tt'+k+'Fc'];
-  if(s['tt'+k+'Bg'])d.style.background=hexA(s['tt'+k+'BgC'],s['tt'+k+'BgOp']);else d.style.textShadow='0 1px 4px #000,0 0 2px #000';
-  d.innerHTML='<img class="lg" src="/tt.png" alt=""><span class="ai"></span><span class="at"><b></b><span></span></span>';
+  const A=ACT[m.p]||ACT.tiktok,k=cap(m.kind),pre=A.pre,d=document.createElement('div'),[who,what]=actText(m);
+  d.className='cs-act cs-'+PC[PK[m.p]||'t']+' cs-'+m.kind+(m.sample?' sample':'');d.dataset.platform=m.p||'tiktok';
+  d.style.color=s[pre+k+'Fc'];
+  if(s[pre+k+'Bg'])d.style.background=hexA(s[pre+k+'BgC'],s[pre+k+'BgOp']);else d.style.textShadow='0 1px 4px #000,0 0 2px #000';
+  d.innerHTML='<img class="lg" src="'+A.logo+'" alt=""><span class="ai"></span><span class="at"><b></b><span></span></span>';
   d.querySelector('.ai').textContent=ICON[m.kind]||'\u2022';d.querySelector('b').textContent=who;d.querySelector('.at>span').textContent=what;
   return d;}
-// gaya Super Chat & member (berlaku penuh di gaya Default; gaya buatan sendiri mengikuti variabel --sc)
+// gaya Super Chat / Bits / Kicks & member (berlaku penuh di gaya Default; gaya buatan sendiri mengikuti variabel --sc)
 function styleMsg(d,m,s){
+  const pre=SCK[m.p]||'ytSc',mk=MEMK[m.p]||'ytMem';
   if(m.sc){
-    if(s.ytScBg==='none')d.classList.add('sc-nobg');
-    if(s.ytScBg==='custom')d.style.setProperty('--sc',s.ytScBgC);
-    d.style.setProperty('--sco',s.ytScBgOp+'%');d.style.setProperty('--sco2',Math.round(s.ytScBgOp*.21)+'%');
-    if(s.ytScFcOn){d.classList.add('hasfc');d.style.setProperty('--scf',s.ytScFc);d.style.color=s.ytScFc;}
-    if(!s.ytScAmt)d.classList.add('noamt');}
-  if(m.member&&s.ytMemNameOn){d.classList.add('hasmc');d.style.setProperty('--mc',s.ytMemC);}}
+    if(s[pre+'Bg']==='none')d.classList.add('sc-nobg');
+    if(s[pre+'Bg']==='custom')d.style.setProperty('--sc',s[pre+'BgC']);
+    d.style.setProperty('--sco',s[pre+'BgOp']+'%');d.style.setProperty('--sco2',Math.round(s[pre+'BgOp']*.21)+'%');
+    if(s[pre+'FcOn']){d.classList.add('hasfc');d.style.setProperty('--scf',s[pre+'Fc']);d.style.color=s[pre+'Fc'];}
+    if(!s[pre+'Amt'])d.classList.add('noamt');}
+  if(m.member&&s[mk+'NameOn']){d.classList.add('hasmc');d.style.setProperty('--mc',s[mk+'C']);}
+  if(m.member&&!s[mk+'Badge'])d.classList.add('nomem1');
+  if(m.vip&&VIPK[m.p]&&!s[VIPK[m.p]])d.classList.add('novip1');
+  if(m.hl&&s.twHl)d.classList.add('ishl');}
 function addAct(m,re,s,stick){
-  if(m.p!=='tiktok'||!s.ttAct||!s['tt'+cap(m.kind)])return;
-  if(m.kind==='gift'&&(m.coins||0)<(s.ttGiftMin||0))return;
+  const A=ACT[m.p];if(!A||!s[A.pre+'Act']||!s[A.pre+cap(m.kind)])return;
+  if(m.kind==='gift'&&(m.p==='tiktok'?(m.coins||0):(m.n||1))<(s[A.pre+'GiftMin']||0))return;
   if(!re&&view==='overlay'){msgsData.push(m);if(msgsData.length>80)msgsData.shift();}
   const d=actEl(m,s);put(d);trim();if(stick)toLatest();
   if(s.fade>0&&!isPrev&&!m.sample&&!re)setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),450);},s.fade*1000);}
 function add(m,re){
   const s=cur(view),stick=view!=='dock'||atLatest();
   if(m.kind)return addAct(m,re,s,stick);
-  if(m.sticker){if(!s.ytSticker)return;}else if(m.sc&&!s.ytSc)return;
+  if(m.sticker){if(!s.ytSticker)return;}else if(m.sc&&!s[SCK[m.p]||'ytSc'])return;
   if(!re&&view==='overlay'){msgsData.push(m);if(msgsData.length>80)msgsData.shift();}
-  const pf=m.p==='youtube'?'y':'t',src=m.p==='youtube'?'/yt.png':'/tt.png';
+  const pf=PK[m.p]||'t',src=PL[m.p]||'/tt.png';
   const d=view!=='overlay'?buildStd(m,src,pf):curStruct==='p5'?buildP5(m,src,pf):curStruct==='rv'?buildRV(m,src,pf):curStruct==='cozy'?buildCozy(m,src,pf):buildStd(m,src,pf);
   styleMsg(d,m,s);put(d);trim();if(stick)toLatest();
-  if(s.fade>0&&!isPrev&&!m.sample&&!re)setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),450);},s.fade*(m.sc?(s.ytScHold||3):1)*1000);
+  if(s.fade>0&&!isPrev&&!m.sample&&!re)setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),450);},s.fade*(m.sc?(s[(SCK[m.p]||'ytSc')+'Hold']||3):1)*1000);
 }
+// ---- contoh pesan untuk pratinjau ----
+// Dock: sekali muncul beberapa contoh (saat pengaturan pribadi diubah dan belum ada chat).
 const SAMP=[['tiktok','dewi.anggraini','kak main game apa hari ini?'],['youtube','Budi Santoso','mantap bang, gas terus!'],['youtube','Nightbot','Jangan lupa subscribe dan follow ya!',{bot:true}],['youtube','Andi Pratama','selamat datang semuanya',{mod:true}],['tiktok','rizkyy_','seru banget live-nya!!'],['youtube','Sinta_Rahma','Terima kasih banyak kak, semangat terus!',{sc:{amount:'Rp50.000',color:'#ffca28'}}]];
+// Pratinjau overlay: pesan acak TERUS-MENERUS dari keempat platform, supaya semua fitur (badge, aktivitas, Super Chat / Bits / Kicks,
+// emote, nama dan teks panjang) tampil bergantian dan terlihat mana yang kurang cocok dengan gaya yang dipilih.
+const rnd=a=>a[Math.floor(Math.random()*a.length)],rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const FN=['dewi.anggraini','Budi Santoso','Andi Pratama','rizkyy_','Sinta_Rahma','Joko','Putri Ayu','gamer_jaya','Rina_K','Dimas','Wulan','Bayu_88','kak Nanda','Tono','Lia','Fajar','Citra Lestari','xX_NaufalPro_Xx','Dian','Agus','Maya','Eko','Nadia','Hendra','Salsa','Reza','Bagas','Ayu_Lestari'];
+const FLONGN=['Muhammad Abdurrahman Al-Fatih Hidayatullah','SuperDuperLongUsername_123456','\u0414\u043c\u0438\u0442\u0440\u0438\u0439','\u7530\u4e2d\u3055\u3093','Kiki\u{1F60E}'];
+const FT=['kak main game apa hari ini?','mantap bang, gas terus!','seru banget live-nya!!','halo dari Bekasi \u{1F44B}','lanjut kak, jangan berhenti','wkwkwk lucu banget','nonton dari tadi gak kerasa udah 2 jam','minta lagu dong kak','GG!','pertama kali nonton, langsung suka','bisa tolong ulangi yang tadi?','semangat terus ya kak, sehat selalu','ini map apa namanya?','audionya agak kecil kak','keren!!','sapa aku dong kak'];
+const FLONGT=['Kak, aku mau tanya soal setup streaming kamu, pakai kamera apa dan mic apa ya? Soalnya kualitasnya bagus banget dan aku lagi mau mulai live juga minggu depan','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','https://contoh.com/halaman/yang/sangat/panjang/sekali/dan/tidak/ada/spasinya/sama/sekali'];
+const TWEMO=[['Kappa',25],['LUL',425618],['Kreygasm',41],['4Head',354],['BibleThump',86]];
+const emoTx=()=>{const [w,id]=rnd(TWEMO),pre=rnd(['gas ','hahaha ','mantap ','']);return{text:pre+w,emo:[[Array.from(pre).length,Array.from(pre).length+w.length,'https://static-cdn.jtvnw.net/emoticons/v2/'+id+'/default/dark/2.0']]};};
+const bitCol=n=>n>=10000?'#f43021':n>=5000?'#0099fe':n>=1000?'#1db2a5':n>=100?'#9c3ee8':'#979797';
+const YTSC=[['Rp5.000','#1e88e5'],['Rp20.000','#00bfa5'],['Rp50.000','#ffca28'],['Rp100.000','#ff7043'],['Rp500.000','#e91e63'],['Rp1.000.000','#e62117']];
+const fNm=()=>rnd(FN),fTx=()=>rnd(FT),fY=x=>({p:'youtube',name:fNm(),text:fTx(),...(x||{})}),fT=x=>({p:'tiktok',name:fNm(),text:fTx(),...(x||{})}),fW=x=>({p:'twitch',name:fNm(),text:fTx(),...(x||{})}),fK=x=>({p:'kick',name:fNm(),text:fTx(),...(x||{})});
+const fAct=(p,kind,x)=>({p,kind,name:fNm(),...(x||{})});
+const fBits=n=>({sc:{amount:fmt(n)+' bits',color:bitCol(n),bits:n}});
+const SCEN=[
+  ()=>fY(),()=>fY(),()=>fY({mod:true}),()=>fY({owner:true,name:'Si Streamer',text:'makasih semuanya yang udah mampir!'}),()=>fY({bot:true,name:'Nightbot',text:'Jangan lupa subscribe dan follow ya!'}),()=>fY({member:true}),
+  ()=>{const [a,c]=rnd(YTSC);return fY({sc:{amount:a,color:c},text:'Terima kasih banyak kak, semangat terus!'});},()=>fY({sc:{amount:'Rp1.000.000',color:'#e62117'},text:'Sukses terus kontennya, ini buat jajan kopi \u2615'}),()=>fY({sticker:true,sc:{amount:'Rp20.000',color:'#00bfa5'},text:'[Super Sticker]'}),
+  ()=>fT(),()=>fT(),()=>fT({mod:true}),()=>fAct('tiktok','join'),()=>fAct('tiktok','gift',{gift:rnd(['Rose','Heart Me','GG','Finger Heart']),n:rint(1,10),coins:rint(1,99)}),()=>fAct('tiktok','gift',{gift:'Lion',n:1,coins:29999}),
+  ()=>fAct('tiktok','like',{others:rint(0,6),n:rint(10,200)}),()=>fAct('tiktok','follow'),()=>fAct('tiktok','share'),()=>fAct('tiktok','sub'),
+  ()=>fW(),()=>fW(emoTx()),()=>fW(emoTx()),()=>fW({owner:true,name:'Si Streamer',text:'ayo kita mulai ronde berikutnya'}),()=>fW({mod:true}),()=>fW({vip:true}),()=>fW({member:true}),
+  ()=>fW({...fBits(100),text:'mantap kontennya'}),()=>fW({...fBits(rnd([500,1000,5000,10000])),text:'ini buat kamu kak'}),()=>fW({hl:true,text:'Pesan sorotan dari poin channel!'}),()=>fW({me:true,text:'lagi ngopi sambil nonton'}),
+  ()=>({...fAct('twitch','first'),name:fNm()}),()=>fAct('twitch','sub',{plan:rnd(['Prime','1000','2000','3000']),months:1}),()=>fAct('twitch','sub',{plan:'1000',months:rint(2,36),text:'udah lama banget di sini, makasih kak!'}),
+  ()=>fAct('twitch','gift',{plan:'1000',n:1,to:fNm()}),()=>fAct('twitch','gift',{plan:'1000',n:rnd([5,10,20,50])}),()=>fAct('twitch','raid',{n:rint(8,900)}),()=>fAct('twitch','announce',{text:'Giveaway dimulai jam 8 malam, jangan lupa ikut!'}),
+  ()=>fK(),()=>fK(),()=>fK({mod:true}),()=>fK({owner:true,name:'Si Streamer',text:'halo Kick, makasih udah nongol!'}),()=>fK({vip:true}),()=>fK({member:true}),
+  ()=>fK({sc:{amount:fmt(rnd([50,100,500,1000]))+' Kicks',color:'#53fc18',kicks:100},text:'gas terus bang!'}),()=>fAct('kick','sub',{months:rint(1,12)}),()=>fAct('kick','gift',{n:rint(1,25)}),()=>fAct('kick','follow'),()=>fAct('kick','raid',{n:rint(5,400)}),()=>fAct('kick','reward',{title:rnd(['Pilih lagu','Minum air','Salam untuk teman']),text:rnd(['Dewa 19 - Pupus','','buat Sinta ya'])||undefined}),
+  ()=>fY({name:rnd(FLONGN),text:rnd(FLONGT)}),()=>fW({name:rnd(FLONGN),text:rnd(FLONGT)}),()=>fK({text:FLONGT[1]}),()=>fT({name:rnd(FLONGN),text:rnd(FLONGT)}),()=>fW({text:'\u{1F602}\u{1F602}\u{1F602}\u{1F525}\u{1F525}'}),()=>fY({name:'\u7530\u4e2d\u3055\u3093',text:'\u3053\u3093\u306b\u3061\u306f\uff01'})];
+// "dek acak": tiap putaran semua skenario keluar tepat sekali dalam urutan acak, jadi tidak ada fitur yang terlewat
+const SHOW=[6,5,13,26,35,31,43,48,24,46];
+let deck=[];
+const nextScen=()=>{if(!deck.length){deck=SCEN.map((_,i)=>i);for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}}return SCEN[deck.pop()]();};
+let feedT=null;
+const feedStop=()=>{clearTimeout(feedT);feedT=null;};
+const feedOne=()=>{if(draftEmpty())return;add({...nextScen(),t:Date.now(),sample:true});};
+function feedLoop(){feedStop();const [a,b]=isStatic?[2200,3600]:[800,1500];const go=()=>{feedOne();feedT=setTimeout(go,rint(a,b));};feedT=setTimeout(go,rint(a,b));}
 // jendela "Gaya baru": CSS masih kosong = pratinjau dibiarkan kosong (tidak menampilkan tampilan bawaan aplikasi)
 const draftEmpty=()=>forceId==='__draft'&&!(draftTpl&&String(draftTpl.css||'').trim());
-const SAMPACT=[['join','rizkyy_'],['gift','Budi',{gift:'Rose',n:5,coins:5}],['follow','dewi.anggraini'],['like','Sinta_Rahma',{others:3,n:48}]];
-function samples(clear){if(clear){wrap.innerHTML='';msgsData=[];applyStyle();}if(draftEmpty())return;
-  if(view==='overlay'&&isPrev&&!isStatic&&!forceId)SAMPACT.forEach((x,i)=>setTimeout(()=>add({p:'tiktok',kind:x[0],name:x[1],t:Date.now(),sample:true,...(x[2]||{})}),(SAMP.length+i)*450));
+function samples(clear){if(clear){wrap.innerHTML='';msgsData=[];applyStyle();}feedStop();if(draftEmpty())return;
+  if(view==='overlay'&&isPrev){
+    // beberapa contoh langsung (satu dari tiap jenis utama) supaya pratinjau tidak kosong, lalu dilanjutkan pesan acak terus-menerus
+    SHOW.slice().sort(()=>Math.random()-.5).slice(0,isStatic?4:7).forEach((i,k)=>setTimeout(()=>{if(!draftEmpty())add({...SCEN[i](),t:Date.now(),sample:true});},k*(isStatic?450:380)));
+    setTimeout(feedLoop,(isStatic?4:7)*(isStatic?450:380)+300);return;}
   SAMP.forEach((x,i)=>setTimeout(()=>{if(!draftEmpty())add({p:x[0],name:x[1],text:x[2],t:Date.now(),sample:true,...(x[3]||{})});},i*450));}
 let tmS=null;function resample(){clearTimeout(tmS);tmS=setTimeout(()=>samples(true),250);}
 const live=!isAdmin&&(view==='dock'||isPrev)&&!isStatic;
@@ -187,7 +270,7 @@ function doCmd(n){
   if(n==='up')list.scrollBy({top:-list.clientHeight*.8,behavior:'smooth'});
   else if(n==='down')list.scrollBy({top:list.clientHeight*.8,behavior:'smooth'});
   else if(n==='clear'){[...wrap.children].forEach(x=>x.remove());msgsData=[];updBtn();}
-  else if(n==='filter'){const o=['all','youtube','tiktok'];filt=o[(o.indexOf(filt)+1)%3];$('flt').value=filt;try{localStorage.setItem('flt',filt)}catch{};applyStyle();toLatest();}
+  else if(n==='filter'){const o=['all','youtube','tiktok','twitch','kick'];filt=o[(o.indexOf(filt)+1)%o.length];$('flt').value=filt;try{localStorage.setItem('flt',filt)}catch{};applyStyle();toLatest();}
 }
 // ---- pratinjau statis (dalam iframe): tanpa koneksi SSE, data dikirim induknya ----
 if(isStatic){
@@ -195,7 +278,7 @@ if(isStatic){
   addEventListener('message',e=>{const d=e.data||{};
     if(d.type==='cfg'){S=copy(d.settings);S.global=S.global||{};applyStyle();resample();}
     else if(d.type==='tpldraft'){draftTpl={css:d.css};applyStyle();resample();}});
-  setInterval(()=>samples(true),9000);
+  setTimeout(()=>{if(!wrap.children.length&&!feedT)resample();},1500);
   parent.postMessage({type:'ready'},'*');bootDone();
 }else if(!isCtl&&!isRep){
   if(isPrev)applyStyle();
@@ -204,7 +287,7 @@ if(isStatic){
     if(type==='init'){S=data.settings;S.global=S.global||{};saved=copy(S);conf=data.cfg;viewers=data.viewers||{};showSt(data.status);
       if(isSet){initSettings();bootDone();return;}if(isTpl){initTpl();bootDone();return;}if(isAdd){initAdd();bootDone();return;}
       applyStyle();showViewers();
-      if(isPrev){samples(true);setInterval(()=>samples(true),9000);bootDone();return;}
+      if(isPrev){samples(true);bootDone();return;}
       const s=cur(view),lim=Date.now()-(s.fade>0?s.fade*1000:1e12);
       data.history.filter(m=>m.t>lim).slice(view==='overlay'?-s.max:-300).forEach(m=>add(m));if(view==='dock')toLatest();bootDone();}
     else if(type==='settings'){saved=copy(data);S=copy(data);S.global=S.global||{};
@@ -250,24 +333,36 @@ const FIELDS={
   ['Isi chat',[C('viewers','Tampilkan jumlah penonton'),C('time','Tampilkan jam'),C('avatar','Foto profil (gaya Kartu)'),C('botTag','Label BOT pada chat bot'),C('hideBots','Sembunyikan chat bot')]]]};
 const BOX={dock:'pp_b',overlay:'po_b'};
 // ---- DSL kecil untuk halaman pengaturan per platform: ['chk'|'col'|'sl'|'sel',...] , ['dep',kunci,nilai|null,[anak]] (tampil bila dicentang / bernilai itu), ['box',[..]], ['hint',teks], ['pv',jenis,kunci]
-const ACTDSL=([k,l,ic])=>['box',[['chk','tt'+k,ic+' '+l],['dep','tt'+k,null,[
-  ...(k==='Gift'?[['sl','ttGiftMin','Tampilkan hadiah minimal',0,500,'koin']]:[]),
-  ['chk','tt'+k+'Bg','Beri latar'],['dep','tt'+k+'Bg',null,[['col','tt'+k+'BgC','Warna latar'],['sl','tt'+k+'BgOp','Kepekatan latar',10,100,'%']]],
-  ['col','tt'+k+'Fc','Warna font'],['pv','act','tt'+k]]]]];
+const ACTDSL=pre=>([k,l,ic])=>['box',[['chk',pre+k,ic+' '+l],['dep',pre+k,null,[
+  ...(k==='Gift'?[pre==='tt'?['sl','ttGiftMin','Tampilkan hadiah minimal',0,500,'koin']:['sl',pre+'GiftMin','Tampilkan gift sub minimal',0,100,'sub']]:[]),
+  ['chk',pre+k+'Bg','Beri latar'],['dep',pre+k+'Bg',null,[['col',pre+k+'BgC','Warna latar'],['sl',pre+k+'BgOp','Kepekatan latar',10,100,'%']]],
+  ['col',pre+k+'Fc','Warna font'],['pv','act',pre+k]]]]];
+// halaman "chat berbayar yang disorot": Super Chat (YouTube), Bits (Twitch), Kicks (Kick)
+const SCDSL=(pre,pf,what)=>[['chk',pre,'Tampilkan '+what],['dep',pre,null,[
+  ['sel',pre+'Bg','Latar sorotan',[['auto','Ikut warna '+what],['custom','Warna sendiri'],['none','Tanpa latar']]],
+  ['dep',pre+'Bg','custom',[['col',pre+'BgC','Warna latar']]],
+  ['dep',pre+'Bg','auto,custom',[['sl',pre+'BgOp','Kepekatan latar',10,100,'%']]],
+  ['chk',pre+'FcOn','Atur warna font'],['dep',pre+'FcOn',null,[['col',pre+'Fc','Warna font']]],
+  ['chk',pre+'Amt','Tampilkan nominal'],['sl',pre+'Hold','Tahan lebih lama di overlay',1,10,'\u00d7'],
+  ['pv','sc',pf],['hint','Latar, warna font dan nominal berlaku penuh di gaya Default. Gaya buatan sendiri mengikuti warna sorotan lewat variabel --sc.']]]];
+const MEMDSL=(pre,pf,vip,who,vipKey)=>[['chk',pre+'Badge','Label MEMBER pada chat '+who],['chk',pre+'NameOn','Warnai nama '+who],['dep',pre+'NameOn',null,[['col',pre+'C','Warna nama '+who]]],['chk',vipKey,'Label VIP pada chat VIP'],['pv','mem',pf],['hint','Warna nama berlaku di gaya Default.']];
 const PLAT={
- tt:[['Aktivitas TikTok',[['chk','ttAct','Tampilkan aktivitas'],['hint','Aktivitas muncul di sela chat. Centang jenis yang mau ditampilkan; kalau terlalu menyatu dengan latar, beri latar atau ganti warna font (ada pratinjaunya).'],['dep','ttAct',null,TT_ACTS.map(ACTDSL)]]]],
- yt:[['Super Chat',[['chk','ytSc','Tampilkan Super Chat'],['dep','ytSc',null,[
-      ['sel','ytScBg','Latar sorotan',[['auto','Ikut warna Super Chat'],['custom','Warna sendiri'],['none','Tanpa latar']]],
-      ['dep','ytScBg','custom',[['col','ytScBgC','Warna latar']]],
-      ['dep','ytScBg','auto,custom',[['sl','ytScBgOp','Kepekatan latar',10,100,'%']]],
-      ['chk','ytScFcOn','Atur warna font'],['dep','ytScFcOn',null,[['col','ytScFc','Warna font']]],
-      ['chk','ytScAmt','Tampilkan nominal'],['sl','ytScHold','Tahan lebih lama di overlay',1,10,'\u00d7'],
-      ['pv','sc'],['hint','Latar, warna font dan nominal berlaku penuh di gaya Default. Gaya buatan sendiri mengikuti warna Super Chat lewat variabel --sc.']]]]],
+ tt:[['Aktivitas TikTok',[['chk','ttAct','Tampilkan aktivitas'],['hint','Aktivitas muncul di sela chat. Centang jenis yang mau ditampilkan; kalau terlalu menyatu dengan latar, beri latar atau ganti warna font (ada pratinjaunya).'],['dep','ttAct',null,TT_ACTS.map(ACTDSL('tt'))]]]],
+ tw:[['Aktivitas Twitch',[['chk','twAct','Tampilkan aktivitas'],['hint','Subscribe, gift sub, raid, dan pengumuman moderator muncul sebagai baris di sela chat. Centang jenis yang mau ditampilkan; beri latar atau ganti warna font kalau terlalu menyatu (ada pratinjaunya).'],['dep','twAct',null,TW_ACTS.map(ACTDSL('tw'))]]],
+  ['Bits',SCDSL('twBits','twitch','chat Bits')],
+  ['Pesan sorotan',[['chk','twHl','Beri latar pada pesan sorotan (Highlight My Message)']]],
+  ['Subscriber & VIP',MEMDSL('twMem','twitch',true,'subscriber','twVipBadge')],
+  ['Belum bisa ditampilkan',[['hint','Follow baru, hype train, polling/prediksi, dan penukaran poin channel tanpa pesan tidak terbaca tanpa login Twitch, jadi belum ada pengaturannya. Jumlah penonton Twitch diambil dari data publik tiap 30 detik.']]]],
+ kk:[['Aktivitas Kick',[['chk','kkAct','Tampilkan aktivitas'],['hint','Subscribe, gift sub, follow, raid/host, dan hadiah poin (reward) muncul sebagai baris di sela chat. Centang jenis yang mau ditampilkan; beri latar atau ganti warna font kalau terlalu menyatu (ada pratinjaunya).'],['dep','kkAct',null,KK_ACTS.map(ACTDSL('kk'))]]],
+  ['Kicks',SCDSL('kkKicks','kick','chat Kicks')],
+  ['Subscriber & VIP',MEMDSL('kkMem','kick',true,'subscriber','kkVipBadge')],
+  ['Catatan',[['hint','Kick belum punya API chat resmi untuk umum, jadi cara baca chatnya tidak resmi dan bisa berhenti bekerja kapan saja. Nama event Kicks, follow, dan reward belum diuji dengan live Kick sungguhan.']]]],
+ yt:[['Super Chat',SCDSL('ytSc','youtube','Super Chat')],
   ['Super Sticker',[['chk','ytSticker','Tampilkan Super Sticker'],['hint','Stiker berbayar muncul sebagai chat bertanda [Super Sticker] lengkap dengan nominalnya.']]],
-  ['Member',[['chk','ytMemBadge','Label MEMBER pada chat anggota'],['chk','ytMemNameOn','Warnai nama anggota'],['dep','ytMemNameOn',null,[['col','ytMemC','Warna nama anggota']]],['pv','mem'],['hint','Warna nama anggota berlaku di gaya Default.']]],
+  ['Member',[['chk','ytMemBadge','Label MEMBER pada chat anggota'],['chk','ytMemNameOn','Warnai nama anggota'],['dep','ytMemNameOn',null,[['col','ytMemC','Warna nama anggota']]],['pv','mem','youtube'],['hint','Warna nama anggota berlaku di gaya Default.']]],
   ['Belum bisa ditampilkan',[['hint','Jumlah like, subscriber baru, Jewels/gift, dan polling YouTube tidak ikut terbaca oleh cara pengambilan chat tanpa API key yang dipakai aplikasi ini, jadi belum ada pengaturannya.']]]]};
 const dflat=l=>l.flatMap(it=>it[0]==='box'?dflat(it[1]):it[0]==='dep'?dflat(it[3]):['hint','pv'].includes(it[0])?[]:[it]);
-const PKEYS={tt:PLAT.tt.flatMap(g=>dflat(g[1])),yt:PLAT.yt.flatMap(g=>dflat(g[1]))},PITEMS=[...PKEYS.tt,...PKEYS.yt];
+const PKEYS={},PITEMS=[];['tt','tw','kk','yt'].forEach(p=>{PKEYS[p]=PLAT[p].flatMap(g=>dflat(g[1]));PITEMS.push(...PKEYS[p]);});
 const items=v=>[...FIELDS[v].flatMap(g=>g[1]),...PITEMS];
 function ctlHtml(v,it){const [ty,k,l,a,b,u]=it,id=v+'_'+k;
   if(ty==='sel'){const opts='<select id="'+id+'">'+a.map(x=>'<option value="'+x[0]+'">'+x[1]+'</option>').join('')+'</select>';
@@ -284,16 +379,17 @@ function dslHtml(v,l){return l.map(it=>{const t=it[0];
 if(isSet){for(const v in FIELDS){let h='';
   FIELDS[v].forEach(([t,its])=>{h+='<div class="card"><h3>'+t+'</h3>'+its.map(it=>ctlHtml(v,it)).join('')+'</div>';});
   $(BOX[v]).innerHTML=h;
-  ['yt','tt'].forEach(p=>{$('pgb_'+v+'_'+p).innerHTML=PLAT[p].map(([t,its])=>'<div class="card"><h3>'+t+'</h3>'+dslHtml(v,its)+'</div>').join('');});}}
+  ['yt','tt','tw','kk'].forEach(p=>{$('pgb_'+v+'_'+p).innerHTML=PLAT[p].map(([t,its])=>'<div class="card"><h3>'+t+'</h3>'+dslHtml(v,its)+'</div>').join('');});}}
 // bagian yang tampil hanya kalau kotak pengaturannya dicentang / bernilai tertentu
 function syncDeps(v){document.querySelectorAll('[data-dep^="'+v+'_"]').forEach(d=>{const e=$(d.dataset.dep);if(!e)return;const val=e.type==='checkbox'?e.checked:e.value;
   d.style.display=d.dataset.val?(d.dataset.val.split(',').includes(val)?'':'none'):(val?'':'none');});}
 // pratinjau hidup di halaman pengaturan platform
-function pvAll(v){const s=collect(v);document.querySelectorAll('.pv[data-v="'+v+'"]').forEach(box=>{box.innerHTML='';const t=box.dataset.pv;
-  if(t==='act'){const k=box.dataset.k.slice(2).toLowerCase();box.appendChild(actEl({p:'tiktok',kind:k,name:'Budi',gift:'Rose',n:5,coins:5,others:3},s));}
-  else{const m={p:'youtube',name:t==='sc'?'Sinta_Rahma':'Andi_Member',text:t==='sc'?'Terima kasih kak, semangat terus!':'halo kak, salam dari member',t:Date.now()};
-    if(t==='sc')m.sc={amount:'Rp50.000',color:'#ffca28'};else m.member=true;
-    const d=buildStd(m,'/yt.png','y');d.classList.add('ismem');styleMsg(d,m,s);if(t==='sc')d.classList.remove('ismem');box.appendChild(d);}});}
+function pvAll(v){const s=collect(v);document.querySelectorAll('.pv[data-v="'+v+'"]').forEach(box=>{box.innerHTML='';const t=box.dataset.pv,k=box.dataset.k;
+  if(t==='act'){const pf=({tt:'tiktok',tw:'twitch',kk:'kick'})[k.slice(0,2)],kind=k.slice(2).toLowerCase();
+    box.appendChild(actEl({p:pf,kind,name:'Budi',gift:'Rose',n:5,coins:5,others:3,plan:'1000',months:3,to:'Sari',title:'Pilih lagu',text:'Terima kasih kak!'},s));}
+  else{const p=k||'youtube',sc=t==='sc',m={p,name:sc?'Sinta_Rahma':'Andi_Member',text:sc?'Terima kasih kak, semangat terus!':'halo kak, salam dari subscriber',t:Date.now()};
+    if(sc)m.sc=({youtube:{amount:'Rp50.000',color:'#ffca28'},twitch:{amount:'500 bits',color:'#9c3ee8',bits:500},kick:{amount:'100 Kicks',color:'#53fc18',kicks:100}})[p];else m.member=true;
+    const d=buildStd(m,PL[p],PK[p]);d.classList.add('ismem');styleMsg(d,m,s);if(sc)d.classList.remove('ismem');box.appendChild(d);}});}
 function lbl(v,it){const e=$(v+'_'+it[1]),el=$(v+'_v_'+it[1]);if(!e)return;if(el)el.textContent=e.value+(it[5]?' '+it[5]:'');e.style.setProperty('--pct',((e.value-e.min)/(e.max-e.min)*100)+'%');}
 function refreshPresets(){const sel=$('overlay_preset');if(!sel)return;const keep=sel.value;
   const all=[...PRE,...customs().map(t=>[t.id,t.name])];
@@ -322,7 +418,7 @@ async function acct(){try{const a=await(await fetch('/account')).json();accState
 const copyText=async t=>{try{await navigator.clipboard.writeText(t);}catch{try{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}catch{}}};
 // hotkey
 const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R'};
-const HK_LBL={lock:'Kunci / buka kunci jendela',hide:'Sembunyikan / tampilkan jendela',obs:'Sembunyikan dari OBS (on/off)',up:'Gulir chat ke atas',down:'Gulir chat ke bawah',clear:'Bersihkan chat',filter:'Ganti filter (Semua / YouTube / TikTok)',settings:'Buka pengaturan',report:'Buka laporan penonton'};
+const HK_LBL={lock:'Kunci / buka kunci jendela',hide:'Sembunyikan / tampilkan jendela',obs:'Sembunyikan dari OBS (on/off)',up:'Gulir chat ke atas',down:'Gulir chat ke bawah',clear:'Bersihkan chat',filter:'Ganti filter (Semua / YouTube / TikTok / Twitch / Kick)',settings:'Buka pengaturan',report:'Buka laporan penonton'};
 let hk={},hkErr={};
 const KEYMAP={ArrowUp:'Up',ArrowDown:'Down',ArrowLeft:'Left',ArrowRight:'Right',PageUp:'PageUp',PageDown:'PageDown',Home:'Home',End:'End',Space:'Space',Insert:'Insert',Delete:'Delete',Backquote:'`',Minus:'-',Equal:'=',Comma:',',Period:'.',Slash:'/',Semicolon:';',Quote:"'",BracketLeft:'[',BracketRight:']',Backslash:'\\',Tab:'Tab',Enter:'Return',NumpadAdd:'numadd',NumpadSubtract:'numsub',NumpadMultiply:'nummult',NumpadDivide:'numdiv',NumpadDecimal:'numdec'};
 function combo(e){
@@ -351,7 +447,7 @@ $('hkdef').onclick=()=>{hk={...HK_DEF};hkErr={};hkRender();};
 $('hkapply').onclick=async()=>{const dups=Object.keys(hk).filter(a=>hk[a]&&Object.keys(hk).some(x=>x!==a&&hk[x]===hk[a]));
   if(dups.length){dups.forEach(a=>hkErr[a]='Kombinasi ini dipakai lebih dari satu aksi');hkRender();return;}
   const r=await(await post('/hotkeys',{hotkeys:hk})).json();hkErr={};Object.keys(r).forEach(a=>{if(r[a]===false)hkErr[a]='Tidak bisa dipakai (sudah dipakai program lain)';});hkRender();};
-$('conn').onclick=()=>post('/connect',{youtube:$('yt').value,tiktok:$('tk').value});
+$('conn').onclick=()=>post('/connect',{youtube:$('yt').value,tiktok:$('tk').value,twitch:$('twu').value,kick:$('kku').value,kickRoom:$('kkroom').value});
 $('disc').onclick=()=>post('/disconnect');
 $('sbot').onclick=()=>post('/settings',{view:'global',values:{botNames:$('botNames').value}});
 $('oe').onclick=()=>openC('ext');$('oy').onclick=()=>openC('youtube');$('ot').onclick=()=>openC('tiktok');
@@ -376,7 +472,7 @@ $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textConte
   const r=await(await post('/obs-add',{width:+$('obsW').value||500,height:+$('obsH').value||900,password:$('obsPass').value})).json();
   if(r.error){m.className='hint no';m.textContent='Gagal: '+r.error;}else{m.className='hint ok';m.textContent='Berhasil. Overlay sudah ada di scene OBS yang sedang aktif (nama sumber: ChatStream Overlay).';}};
 }
-function initSettings(){fill('dock');fill('overlay');fillGlobal();applyUi(cur('dock'));$('yt').value=conf.youtube||'';$('tk').value=conf.tiktok||'';$('u2').value=location.origin+'/?view=overlay';showPort();
+function initSettings(){fill('dock');fill('overlay');fillGlobal();applyUi(cur('dock'));$('yt').value=conf.youtube||'';$('tk').value=conf.tiktok||'';$('twu').value=conf.twitch||'';$('kku').value=conf.kick||'';$('kkroom').value=conf.kickRoom||'';$('u2').value=location.origin+'/?view=overlay';showPort();
   hk={...HK_DEF,...((S.global&&S.global.hotkeys)||{})};hkRender();setTab('k');acct();setInterval(acct,3000);
   addEventListener('beforeunload',()=>{fetch('/draft-clear',{method:'POST',body:'{}',keepalive:true});});}
 // ---- kelola gaya overlay (daftar kartu + pratinjau) ----
@@ -408,22 +504,22 @@ function initTpl(){
 const GUIDE=`Buatkan CSS untuk overlay chat live streaming. CSS saja, tanpa JavaScript dan tanpa mengubah HTML.
 Struktur HTML tiap chat (sudah tetap, jangan diubah):
 
-<div class="m msg y yt" data-platform="youtube">   <!-- TikTok: class "t tt". Bot: .isbot, moderator: .ismod, pemilik: .isown -->
+<div class="m msg y yt" data-platform="youtube">   <!-- TikTok: class "t tt". Twitch: "w tw". Kick: "k kk". Bot: .isbot, moderator: .ismod, pemilik: .isown, VIP: .isvip, member/subscriber: .ismem, chat /me: .isme, Super Chat/Bits/Kicks: .sc (warna di variabel --sc) -->
   <span class="pl logo"><img src="logo-platform.png"></span>   <!-- logo platform -->
   <div class="av avatar"></div>                                  <!-- foto profil (background-image) -->
   <div class="body">
     <div class="hd head">
       <span class="tag"><img class="pi" src="logo-platform.png"><b class="nm name"><i>R</i><i>I</i><i>O</i></b></span>  <!-- nama, tiap huruf dibungkus <i> -->
       <span class="tm time">20:45</span>
-      <span class="bd bot">BOT</span><span class="bd mod">MOD</span><span class="bd own">OWNER</span>
+      <span class="bd bot">BOT</span><span class="bd mod">MOD</span><span class="bd own">OWNER</span><span class="bd vip">VIP</span><span class="bd mem">MEMBER</span>
     </div>
-    <div class="tx text message"><span>isi chat</span></div>
+    <div class="tx text message"><span>isi chat (bisa berisi <img class="cs-emo"> untuk emote Twitch/Kick)</span></div>
   </div>
 </div>
 
 Wadah semua chat: <div id="msgs"> di dalam <div id="list"> (list = area overlay penuh). Chat terbaru ada di bawah.
 Variabel yang boleh dipakai: --fsn (ukuran nama), --fst (ukuran chat), --gap (jarak antar chat).
-Platform: .y / .yt = YouTube (merah), .t / .tt = TikTok (cyan dan pink).
+Platform: .y / .yt = YouTube (merah), .t / .tt = TikTok (cyan dan pink), .w / .tw = Twitch (ungu), .k / .kk = Kick (hijau). Beri tiap platform warnanya sendiri lewat --c, misalnya .w{--c:#b794ff} .k{--c:#53fc18}.
 Kalau chat dibuat rata kanan, <body> mendapat class "al-right" (tulis versi kanan: body.al-right .m {...}).
 Latar halaman transparan. Jangan beri background pada body.
 Gaya yang saya mau: [JELASKAN DESAINNYA DI SINI]`;
@@ -461,6 +557,7 @@ function flash(m){const i=$('msg');if(!i.dataset.ph)i.dataset.ph=i.placeholder;i
 async function doSend(){
   const text=$('msg').value.trim();if(!text)return;
   const nm={youtube:'YouTube',tiktok:'TikTok'},targets=filt==='all'?['youtube','tiktok']:[filt];
+  if(filt==='twitch'||filt==='kick'){flash('Kirim chat ke '+PNAME[filt]+' belum tersedia. Pilih Semua, YouTube, atau TikTok.');return;}
   $('send').disabled=true;
   try{const r=await(await post('/send',{text,targets})).json();
     if(r.error)flash('Gagal: '+r.error);
@@ -476,10 +573,10 @@ $('send').onclick=doSend;$('msg').onkeydown=e=>{if(e.key==='Enter')doSend();};
 // ---- jendela laporan penonton ----
 const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fdur=ms=>{const m=Math.floor(ms/60000),h=Math.floor(m/60);return h?h+' j '+(m%60)+' m':m+' m '+Math.floor(ms/1000)%60+' d';};
-const sumN=(a,b)=>(a==null&&b==null)?null:(a||0)+(b||0);
+const sumN=(...a)=>a.every(x=>x==null)?null:a.reduce((t,x)=>t+(x||0),0);
 function chartHtml(r){
   const S=r.series;if(S.length<2)return '<div class="hint">Grafik muncul setelah ada beberapa sampel (dicatat tiap 15 detik selama ada data penonton).</div>';
-  const W=900,H=260,L=50,R=14,TP=12,B=26,t0=S[0][0],t1=Math.max(S[S.length-1][0],t0+1),tot=S.map(x=>sumN(x[1],x[2]));
+  const W=900,H=260,L=50,R=14,TP=12,B=26,t0=S[0][0],t1=Math.max(S[S.length-1][0],t0+1),tot=S.map(x=>sumN(x[1],x[2],x[3],x[4]));
   const mx=Math.max(1,r.total.peak?r.total.peak.v:0,...tot.filter(x=>x!=null)),p=Math.pow(10,Math.floor(Math.log10(mx))),f=mx/p,ym=Math.max(4,(f<=1?1:f<=2?2:f<=5?5:10)*p);
   const X=t=>L+(t-t0)/(t1-t0)*(W-L-R),Y=v=>TP+(1-v/ym)*(H-TP-B);
   const path=a=>{let d='',on=false;a.forEach((v,i)=>{if(v==null){on=false;return;}d+=(on?'L':'M')+X(S[i][0]).toFixed(1)+' '+Y(v).toFixed(1);on=true;});return d;};
@@ -487,48 +584,52 @@ function chartHtml(r){
   for(let i=0;i<=5;i++){const t=t0+(t1-t0)*i/5;g+='<text x="'+X(t)+'" y="'+(H-6)+'" text-anchor="middle" font-size="11" style="fill:var(--muted)">'+hhmm(t)+'</text>';}
   const pk=r.total.peak;
   const ln=(a,c,w)=>'<path d="'+path(a)+'" fill="none" stroke-width="'+w+'" stroke-linejoin="round" style="stroke:var('+c+')"/>';
-  return '<div class="chartbox"><svg viewBox="0 0 '+W+' '+H+'" id="rchart">'+g+ln(S.map(x=>x[1]),'--yc',1.6)+ln(S.map(x=>x[2]),'--tcl',1.6)+ln(tot,'--acc',2.4)
+  return '<div class="chartbox"><svg viewBox="0 0 '+W+' '+H+'" id="rchart">'+g+ln(S.map(x=>x[1]),'--yc',1.6)+ln(S.map(x=>x[2]),'--tcl',1.6)+(r.tw.n?ln(S.map(x=>x[3]),'--wc',1.6):'')+(r.kk.n?ln(S.map(x=>x[4]),'--kc',1.6):'')+ln(tot,'--acc',2.4)
    +(pk?'<circle cx="'+X(pk.t)+'" cy="'+Y(pk.v)+'" r="5" style="fill:var(--acc);stroke:var(--winbg)" stroke-width="2"/>':'')
    +'<line id="rvl" y1="'+TP+'" y2="'+(H-B)+'" style="stroke:var(--muted);display:none" stroke-dasharray="3 3"/></svg><div class="tip" id="rtip"></div></div>'
-   +'<div class="leg"><span><i style="background:var(--acc)"></i>Total</span><span><i style="background:var(--yc)"></i>YouTube</span><span><i style="background:var(--tcl)"></i>TikTok</span><span style="margin-left:auto">Titik besar = puncak</span></div>';}
+   +'<div class="leg"><span><i style="background:var(--acc)"></i>Total</span><span><i style="background:var(--yc)"></i>YouTube</span><span><i style="background:var(--tcl)"></i>TikTok</span>'+(r.tw.n?'<span><i style="background:var(--wc)"></i>Twitch</span>':'')+(r.kk.n?'<span><i style="background:var(--kc)"></i>Kick</span>':'')+'<span style="margin-left:auto">Titik besar = puncak</span></div>';}
 function chartHover(r){
   const svg=$('rchart');if(!svg)return;const S=r.series,tip=$('rtip'),vl=$('rvl'),W=900,L=50,R=14,t0=S[0][0],t1=Math.max(S[S.length-1][0],t0+1);
   svg.onmousemove=e=>{const rc=svg.getBoundingClientRect(),px=(e.clientX-rc.left)/rc.width*W,t=t0+(px-L)/(W-L-R)*(t1-t0);let b=0;
     S.forEach((x,i)=>{if(Math.abs(x[0]-t)<Math.abs(S[b][0]-t))b=i;});const x=S[b],xx=L+(x[0]-t0)/(t1-t0)*(W-L-R);
     vl.setAttribute('x1',xx);vl.setAttribute('x2',xx);vl.style.display='';
-    tip.innerHTML='<b>'+hhmm(x[0])+'</b> &middot; menit ke-'+Math.round((x[0]-r.start)/60000)+'<br>Total: <b>'+fmt(sumN(x[1],x[2]))+'</b><br><span class="dy">YouTube: '+fmt(x[1])+'</span><br><span class="dt">TikTok: '+fmt(x[2])+'</span>';
+    tip.innerHTML='<b>'+hhmm(x[0])+'</b> &middot; menit ke-'+Math.round((x[0]-r.start)/60000)+'<br>Total: <b>'+fmt(sumN(x[1],x[2],x[3],x[4]))+'</b><br><span class="dy">YouTube: '+fmt(x[1])+'</span><br><span class="dt">TikTok: '+fmt(x[2])+'</span>'+(r.tw.n?'<br><span class="dw">Twitch: '+fmt(x[3])+'</span>':'')+(r.kk.n?'<br><span class="dk">Kick: '+fmt(x[4])+'</span>':'');
     tip.style.display='block';const bx=svg.parentNode.getBoundingClientRect();let lx=e.clientX-bx.left+14;if(lx>bx.width-150)lx=e.clientX-bx.left-150;tip.style.left=lx+'px';tip.style.top='8px';};
   svg.onmouseleave=()=>{tip.style.display='none';vl.style.display='none';};}
 function drawRep(r){
   const box=$('rbody');
   if(!r){box.innerHTML='<div class="card"><h3>Belum ada data</h3><div class="hint">Laporan terisi otomatis begitu ada data penonton atau chat. Sambungkan live di Pengaturan &gt; Koneksi, lalu buka laporan ini lagi.</div></div>';return;}
-  const T=r.total,Y=r.yt,K=r.tt,last=r.series[r.series.length-1]||[0,null,null];
-  const nY=r.now?r.now.yt:last[1],nK=r.now?r.now.tt:last[2],nT=sumN(nY,nK);
+  const T=r.total,Y=r.yt,K=r.tt,W=r.tw,KK=r.kk,last=r.series[r.series.length-1]||[0,null,null,null,null];
+  const nY=r.now?r.now.yt:last[1],nK=r.now?r.now.tt:last[2],nW=r.now?r.now.tw:last[3],nKk=r.now?r.now.kk:last[4],nT=sumN(nY,nK,nW,nKk);
   const when=p=>p?hhmm(p.t)+' &middot; menit ke-'+p.min:'-';
-  const rows=[['YouTube','dy',Y,nY],['TikTok','dt',K,nK],['Total','',T,nT]].map(([n,c,x,nv])=>'<tr><td class="'+c+'"><b>'+n+'</b></td><td class="n">'+fmt(nv)+'</td><td class="n">'+(x.peak?fmt(x.peak.v):'-')+'</td><td class="n">'+when(x.peak)+'</td><td class="n">'+fmt(x.avg)+'</td><td class="n">'+(x.low?fmt(x.low.v):'-')+'</td><td class="n">'+(x.online?fdur(x.online):'-')+'</td></tr>').join('');
+  const rows=[['YouTube','dy',Y,nY],['TikTok','dt',K,nK],...(W.n||nW!=null?[['Twitch','dw',W,nW]]:[]),...(KK.n||nKk!=null?[['Kick','dk',KK,nKk]]:[]),['Total','',T,nT]].map(([n,c,x,nv])=>'<tr><td class="'+c+'"><b>'+n+'</b></td><td class="n">'+fmt(nv)+'</td><td class="n">'+(x.peak?fmt(x.peak.v):'-')+'</td><td class="n">'+when(x.peak)+'</td><td class="n">'+fmt(x.avg)+'</td><td class="n">'+(x.low?fmt(x.low.v):'-')+'</td><td class="n">'+(x.online?fdur(x.online):'-')+'</td></tr>').join('');
   const mxA=Math.max(1,...r.blocks.map(b=>b.avg||0));
   const blk=r.blocks.map(b=>'<tr><td>'+b.from+'&ndash;'+b.to+' menit</td><td>'+hhmm(b.at)+'</td><td class="n">'+fmt(b.avg)+'</td><td class="n">'+fmt(b.peak)+'</td><td class="n">'+fmt(b.chat)+'</td><td style="width:26%"><div class="rbar" style="width:'+Math.round((b.avg||0)/mxA*100)+'%"></div></td></tr>').join('');
   const C=r.chat,tt=r.tiktok,yt=r.youtube;
   const rl=(a,b)=>'<div class="rl"><span>'+a+'</span><b>'+b+'</b></div>';
   const top=l=>l.length?l.map((x,i)=>rl((i+1)+'. '+esc(x.name),fmt(x.n))).join(''):'<div class="hint">Belum ada.</div>';
   const kp=(lb,v,sb)=>'<div class="card kpi"><div class="lb">'+lb+'</div><div class="vl">'+v+'</div><div class="sb2">'+sb+'</div></div>';
-  const split=(a,b)=>'<span class="dy">YouTube '+fmt(a)+'</span> &middot; <span class="dt">TikTok '+fmt(b)+'</span>';
+  const split=(a,b,c,d)=>'<span class="dy">YouTube '+fmt(a)+'</span> &middot; <span class="dt">TikTok '+fmt(b)+'</span>'+(c!=null?' &middot; <span class="dw">Twitch '+fmt(c)+'</span>':'')+(d!=null?' &middot; <span class="dk">Kick '+fmt(d)+'</span>':'');
+  const pk=x=>x.peak?x.peak.v:null,w0=W.n?1:0,k0=KK.n?1:0;
   box.innerHTML=
-   '<div class="rg rg4">'+kp(r.live?'Penonton aktif sekarang':'Penonton terakhir',fmt(nT),split(nY,nK))
-   +kp('Puncak penonton',T.peak?fmt(T.peak.v):'-',T.peak?'pukul '+when(T.peak)+'<br>'+split(Y.peak&&Y.peak.v,K.peak&&K.peak.v):'-')
-   +kp('Rata-rata penonton',fmt(T.avg),split(Y.avg,K.avg))
+   '<div class="rg rg4">'+kp(r.live?'Penonton aktif sekarang':'Penonton terakhir',fmt(nT),split(nY,nK,w0||nW!=null?nW:null,k0||nKk!=null?nKk:null))
+   +kp('Puncak penonton',T.peak?fmt(T.peak.v):'-',T.peak?'pukul '+when(T.peak)+'<br>'+split(pk(Y),pk(K),w0?pk(W):null,k0?pk(KK):null):'-')
+   +kp('Rata-rata penonton',fmt(T.avg),split(Y.avg,K.avg,w0?W.avg:null,k0?KK.avg:null))
    +kp('Durasi sesi',fdur(r.dur),'mulai '+hhmm(r.start)+(r.end?' &middot; selesai '+hhmm(r.end):' &middot; masih berjalan'))+'</div>'
    +'<div class="card"><h3>Penonton dari waktu ke waktu</h3>'+chartHtml(r)+'</div>'
    +'<div class="card"><h3>Per platform</h3><table class="rt"><tr><th>Platform</th><th class="n">Sekarang</th><th class="n">Puncak</th><th class="n">Waktu puncak</th><th class="n">Rata-rata</th><th class="n">Terendah</th><th class="n">Lama terpantau</th></tr>'+rows+'</table></div>'
    +'<div class="card"><h3>Rata-rata penonton tiap '+r.block+' menit</h3><table class="rt"><tr><th>Menit ke</th><th>Pukul</th><th class="n">Rata-rata</th><th class="n">Puncak</th><th class="n">Chat</th><th></th></tr>'+blk+'</table></div>'
    +'<div class="rg rg2"><div class="card"><h3>Chat</h3>'+rl('Total pesan',fmt(C.total))+rl('<img src="/yt.png" alt="">YouTube',fmt(C.y)+' pesan &middot; '+fmt(C.uy)+' orang')+rl('<img src="/tt.png" alt="">TikTok',fmt(C.t)+' pesan &middot; '+fmt(C.ut)+' orang')
+   +(C.w||W.n?rl('<img src="/tw.png" alt="">Twitch',fmt(C.w)+' pesan &middot; '+fmt(C.uw)+' orang'):'')+(C.k||KK.n?rl('<img src="/kick.png" alt="">Kick',fmt(C.k)+' pesan &middot; '+fmt(C.uk)+' orang'):'')
    +rl('Rata-rata per menit',fmt(C.perMin))+rl('Paling ramai',C.peak?fmt(C.peak.v)+' pesan/menit &middot; '+hhmm(C.peak.t):'-')
-   +'<h3 style="margin-top:14px">Paling aktif chat &middot; YouTube</h3>'+top(C.topY)+'<h3 style="margin-top:14px">Paling aktif chat &middot; TikTok</h3>'+top(C.topT)+'</div>'
+   +'<h3 style="margin-top:14px">Paling aktif chat &middot; YouTube</h3>'+top(C.topY)+'<h3 style="margin-top:14px">Paling aktif chat &middot; TikTok</h3>'+top(C.topT)+(C.w?'<h3 style="margin-top:14px">Paling aktif chat &middot; Twitch</h3>'+top(C.topW):'')+(C.k?'<h3 style="margin-top:14px">Paling aktif chat &middot; Kick</h3>'+top(C.topK):'')+'</div>'
    +'<div style="display:flex;flex-direction:column;gap:14px"><div class="card"><h3>Aktivitas TikTok</h3>'+rl('Hadiah diterima',fmt(tt.gifts))+rl('Total koin',fmt(tt.coins))+rl('Suka (like)',fmt(tt.likes))+rl('Pengikut baru',fmt(tt.follows))+rl('Live dibagikan',fmt(tt.shares))+rl('Penonton bergabung',fmt(tt.joins))+rl('Langganan',fmt(tt.subs))
    +(tt.gifters.length?'<h3 style="margin-top:14px">Pengirim hadiah terbanyak</h3>'+tt.gifters.slice(0,5).map((x,i)=>rl((i+1)+'. '+esc(x.name),fmt(x.coins)+' koin')).join(''):'')+'</div>'
+   +(()=>{const q=r.twitch,any=Object.values(q).some(x=>x>0);return any?'<div class="card"><h3>Aktivitas Twitch</h3>'+rl('Subscribe / resub',fmt(q.subs))+rl('Chat subscriber',fmt(q.subChat))+rl('Gift sub (kali dibagikan)',fmt(q.gifts))+rl('Total gift sub',fmt(q.giftSubs))+rl('Raid masuk',fmt(q.raids)+' &middot; '+fmt(q.raiders)+' penonton')+rl('Chat Bits',fmt(q.bitMsgs)+' &middot; '+fmt(q.bits)+' bits')+rl('Pengumuman moderator',fmt(q.announces))+rl('Chatter baru',fmt(q.firsts))+'</div>':'';})()
+   +(()=>{const q=r.kick,any=Object.values(q).some(x=>x>0);return any?'<div class="card"><h3>Aktivitas Kick</h3>'+rl('Subscribe',fmt(q.subs))+rl('Chat subscriber',fmt(q.subChat))+rl('Gift sub (kali dibagikan)',fmt(q.gifts))+rl('Total gift sub',fmt(q.giftSubs))+rl('Pengikut baru',fmt(q.follows))+rl('Raid / host masuk',fmt(q.raids)+' &middot; '+fmt(q.raiders)+' penonton')+rl('Chat Kicks',fmt(q.kickMsgs)+' &middot; '+fmt(q.kicks)+' Kicks')+rl('Hadiah poin (reward)',fmt(q.rewards))+'</div>':'';})()
    +'<div class="card"><h3>Aktivitas YouTube</h3>'+rl('Super Chat',fmt(yt.sc))+(yt.totals.length?yt.totals.map(x=>rl('Total '+esc(x.cur),fmt(Math.round(x.sum*100)/100))).join(''):'')+rl('Super Sticker',fmt(yt.stickers))+rl('Chat dari member',fmt(yt.members))
    +(yt.top.length?'<h3 style="margin-top:14px">Super Chat terbesar</h3>'+yt.top.map((x,i)=>rl((i+1)+'. '+esc(x.name),esc(x.amount))).join(''):'')+'</div></div></div>'
-   +'<div class="hint">Penonton = yang sedang menonton saat sampel diambil (YouTube tiap 20 detik, TikTok tiap ada pembaruan; disimpan tiap 15 detik), bukan jumlah kumulatif. Puncak adalah nilai tertinggi dari sampel itu. Durasi menonton per orang dan data seperti subscriber/like YouTube tidak bisa dibaca aplikasi ini; untuk itu pakai YouTube Studio / TikTok LIVE Center. Total koin dihitung dari hadiah yang tertangkap aplikasi selama terhubung.</div>';
+   +'<div class="hint">Penonton = yang sedang menonton saat sampel diambil (YouTube tiap 20 detik, TikTok tiap ada pembaruan, Twitch dan Kick tiap 30 detik; disimpan tiap 15 detik), bukan jumlah kumulatif. Puncak adalah nilai tertinggi dari sampel itu. Durasi menonton per orang dan data seperti subscriber/like YouTube tidak bisa dibaca aplikasi ini; untuk itu pakai YouTube Studio / TikTok LIVE Center. Total koin dihitung dari hadiah yang tertangkap aplikasi selama terhubung.</div>';
   chartHover(r);}
 function initReport(){
   let sel='cur',busy=false;const dd=$('rsess');

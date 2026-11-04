@@ -10,5 +10,5 @@ fs.writeFileSync(path.join(out,'index.html'),
 esbuild.buildSync({entryPoints:[path.join(root,'src/server.js')],bundle:true,platform:'node',target:'node22',format:'cjs',outfile:path.join(out,'server.js'),
   external:['bufferutil','utf-8-validate'],minifyWhitespace:true,minifySyntax:true,logLevel:'error'});
 fs.copyFileSync(path.join(root,'src/main.js'),path.join(out,'main.js'));
-for(const f of['yt.png','tt.png','icon.png'])fs.copyFileSync(path.join(root,'assets',f),path.join(out,f));
+for(const f of['yt.png','tt.png','tw.png','kick.png','icon.png'])fs.copyFileSync(path.join(root,'assets',f),path.join(out,f));
 console.log('build/ siap');

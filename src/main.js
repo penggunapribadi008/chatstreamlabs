@@ -204,6 +204,8 @@ const hooks={
   window:(url,opt)=>openWin(url,opt||{}),
   saveCss:async(name,css)=>{const w=BrowserWindow.getFocusedWindow();const r=await dialog.showSaveDialog(w||undefined,{title:'Ekspor gaya (.css)',defaultPath:path.join(app.getPath('documents'),name+'.css'),filters:[{name:'CSS',extensions:['css']}]});
     if(r.canceled||!r.filePath)return{canceled:true};fs.writeFileSync(r.filePath,css,'utf8');return{ok:true,path:r.filePath};},
+  // dipakai konektor Kick: mesin jaringan Chromium lebih sering lolos Cloudflare daripada fetch Node biasa
+  netFetch:async url=>{const {net}=require('electron');const r=await net.fetch(url,{headers:{Accept:'application/json'}});return{status:r.status,text:await r.text()};},
   relaunch:()=>{quitting=true;app.relaunch();app.exit(0);},
   lock:on=>setLock(on),
   drag:on=>dragOn(on),
