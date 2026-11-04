@@ -1,0 +1,26 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><title>ChatStream Labs</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-user-select:none;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1c;font-family:'Segoe UI',system-ui,sans-serif;-webkit-app-region:drag}
+#bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#logo{position:absolute;left:20.9%;top:34.1%;width:61.5%;height:auto}
+#st{position:absolute;left:0;right:0;top:53.6%;display:flex;align-items:center;justify-content:center;gap:10px;color:#d9d4f7;font-size:2.1vw;letter-spacing:.04em;height:6%}
+#st span{transition:opacity .35s}
+#ring{width:2.2vw;height:2.2vw;min-width:14px;min-height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.22);border-top-color:#fff;animation:sp .8s linear infinite;transition:opacity .35s,width .35s,margin .35s}
+body.s2 #ring{opacity:0;width:0;min-width:0;border-width:0;margin-left:-10px}
+@keyframes sp{to{transform:rotate(360deg)}}
+#bar{position:absolute;left:31.4%;width:38.8%;top:62%;height:2.6%;min-height:8px;border-radius:99px;background:#241c5e;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.04) inset}
+#fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:99px;background:linear-gradient(90deg,#ff4a68,#ff7d93);box-shadow:0 0 18px rgba(255,74,104,.6);transition:width .25s ease-out}
+body:not(.s2) #fill{width:30%!important;animation:ind 1.3s ease-in-out infinite;transition:none}
+@keyframes ind{0%{left:-30%}100%{left:100%}}
+</style></head><body>
+<img id="bg" src="splash-bg.webp" alt=""><img id="logo" src="splash-logo.png" alt="ChatStream Labs">
+<div id="st"><i id="ring"></i><span id="tx">Checking for updates...</span></div>
+<div id="bar"><div id="fill"></div></div>
+<script>
+// Tahap 1: cek update. Tahap 2: menyambungkan; bar naik pelan sampai aplikasi memanggil finish().
+const tx=document.getElementById('tx'),fill=document.getElementById('fill');let p=0,done=false;
+setTimeout(()=>{tx.style.opacity=0;setTimeout(()=>{tx.textContent='Connecting your streaming universe...';tx.style.opacity=1;document.body.classList.add('s2');},350);
+  setInterval(()=>{if(done)return;p+=(0.9-p)*0.025;fill.style.width=(p*100).toFixed(1)+'%';},60);},1900);
+window.finish=()=>{done=true;document.body.classList.add('s2');fill.style.width='100%';};
+</script></body></html>

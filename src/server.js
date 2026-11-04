@@ -69,6 +69,7 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/lock')return body(({on})=>{if(hooks.lock)hooks.lock(!!on);});
     if(u.pathname==='/settings-window')return body(()=>{if(hooks.openSettings)hooks.openSettings();});
     if(u.pathname==='/open')return json(async({what,id})=>{if(!hooks.open)return{error:'hanya di aplikasi desktop'};
+      if(what==='chat'){if(hooks.openChat)hooks.openChat();return{ok:true};}
       if(what==='ext'){hooks.open('ext');return{ok:true};}
       if(what==='tpladd'){hooks.window('/?view=tpladd'+(id?'&id='+encodeURIComponent(id):''),{width:980,height:600,title:'Gaya baru'});return{ok:true};}
       if(what==='templates'){hooks.window('/?view=tpl',{width:980,height:820,title:'Kelola gaya overlay'});return{ok:true};}

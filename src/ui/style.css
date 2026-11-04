@@ -240,3 +240,25 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px}.rt th{text-align:le
 .rbar{height:6px;border-radius:3px;background:var(--acc);opacity:.75;min-width:2px}
 .rl{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}.rl:last-child{border-bottom:0}.rl span:first-child{color:var(--muted)}.rl b{font-variant-numeric:tabular-nums}
 .rl img{width:14px;height:14px;vertical-align:-2px;margin-right:6px}
+
+/* ===== Dashboard (sidebar + beranda + pratinjau kanan) ===== */
+#sb,#dpv,#wmax{display:none}
+body.dashboard #wmax{display:block}
+body.dashboard .tabs{display:none}
+body.dashboard #sb{display:flex;flex-direction:column;gap:4px;position:absolute;left:0;top:34px;bottom:0;width:190px;padding:12px 10px;background:var(--card-bg);border-right:1px solid var(--line);font-size:13px}
+.sbi{width:100%;text-align:left;padding:10px 12px;border:0;border-radius:var(--rad-c);background:transparent;color:var(--text);font:600 13px 'Segoe UI',sans-serif;cursor:pointer}
+.sbi:hover{background:rgba(127,127,127,.14)}.sbi.on{background:var(--btn2)}
+.sbl{height:1px;background:var(--line);margin:8px 4px}.sbsp{flex:1}
+body.dashboard #panel{left:190px}
+body.dashboard.split #panel{right:auto;width:calc((100% - 190px) / 2)}
+body.dashboard.split #dpv{display:block;position:absolute;top:34px;bottom:0;right:0;left:calc(190px + (100% - 190px) / 2);border-left:1px solid var(--line);background:#14141c}
+#dpv iframe{display:none;width:100%;height:100%;border:0;pointer-events:none}
+body[data-pv=p] #pvD,body[data-pv=o] #pvO{display:block}
+body.dock.preview{background:var(--winbg)}
+body.dock.preview #app{top:0}
+.dwel h2{margin:0 0 6px;font-size:20px}
+.dsr{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.dsr:first-child{border-top:0}.dsr span:first-child{display:flex;align-items:center;gap:8px;font-weight:600}.dsr img{width:18px;height:18px}
+.dsr span:last-child{color:var(--muted)}
+body.dashboard .wbs{display:flex;flex:none}
+#sb .btn{flex:none;width:100%}

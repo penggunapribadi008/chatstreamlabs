@@ -32,7 +32,7 @@ const G=()=>readJ(SFILE).global||{};
 let protect=G().protect!==false,ctrlPos=G().ctrlPos||'top-right';
 function prot(w){const f=()=>{try{if(w&&!w.isDestroyed())w.setContentProtection(protect);}catch{}};f();[150,600,2000].forEach(t=>setTimeout(f,t));}
 app.on('browser-window-created',(e,w)=>{prot(w);w.on('show',()=>prot(w));w.webContents.on('did-finish-load',()=>prot(w));});
-let srv=null,main=null,ctlWin=null,locked=false,switching=false,tray=null,dragT=null,quitting=false,asking=false;
+let srv=null,main=null,dash=null,splashWin=null,ctlWin=null,locked=false,switching=false,tray=null,dragT=null,quitting=false,asking=false;
 let outerAtLock=null,lockStart=null,lastRects=[];
 let srvReady;const srvP=new Promise(r=>srvReady=r);
 const base=()=>'http://localhost:'+(srv&&srv.port||3000);
@@ -44,7 +44,7 @@ const splash=()=>{const bg=themeBg();return 'data:text/html;charset=utf-8,'+enco
 const LOGF=()=>path.join(app.getPath('userData'),'log.txt');
 const log=t=>{try{fs.appendFileSync(LOGF(),new Date().toISOString()+' '+t+'\n');}catch{}};
 app.on('second-instance',()=>{
-  if(main&&!main.isDestroyed()){if(main.isMinimized())main.restore();if(!main.isVisible())main.show();if(!locked)main.focus();}
+  showDash();
 });
 // ===== dua kotak (gembok + pindah) = jendela kecil di LUAR jendela chat =====
 const CW=120,CH=36,CG=6;
@@ -125,13 +125,14 @@ function makeMain(bounds){
   w.webContents.on('console-message',(...a)=>{const e=a[0],lv=(e&&e.level!==undefined)?e.level:a[1],msg=(e&&e.message)||a[2];if(lv===3||lv==='error')log('tampilan: '+msg);});
   const keep=()=>{if(!L&&!w.isDestroyed()&&!w.isMinimized())saveB({outer:w.getBounds()});};
   w.on('moved',keep);w.on('resized',keep);
-  w.on('close',e=>{if(!quitting&&!switching){e.preventDefault();askQuit();}});
-  w.on('closed',()=>{if(main===w&&!switching)app.quit();});
+  // menutup jendela chat tidak menutup aplikasi (Dashboard tetap ada)
+  w.on('closed',()=>{if(main===w&&!switching){main=null;locked=false;hideCtl();if(tray)tray.setContextMenu(trayMenu());}});
   main=w;
   return w;
 }
 function setLock(on){
   if(on===locked&&main)return;
+  if(!main||main.isDestroyed()){if(!on)return;openChat();}
   const old=main;let bounds;
   if(old&&old.isMinimized())old.restore();
   if(on){outerAtLock=old.getBounds();lockStart=old.getContentBounds();saveB({outer:outerAtLock});bounds=lockStart;}
@@ -146,7 +147,7 @@ function setLock(on){
 async function askQuit(){
   if(quitting||asking)return;asking=true;
   try{
-    const parent=(main&&!main.isDestroyed()&&main.isVisible()&&!locked)?main:undefined;
+    const parent=(dash&&!dash.isDestroyed()&&dash.isVisible())?dash:undefined;
     const r=await dialog.showMessageBox(parent,{type:'question',buttons:['Keluar','Batal'],defaultId:1,cancelId:1,noLink:true,title:'Keluar',message:'Keluar dari ChatStream Labs?',detail:'Koneksi ke live YouTube dan TikTok akan terputus, dan overlay di OBS berhenti menampilkan chat.'});
     if(r.response===0){quitting=true;app.quit();}
   }finally{asking=false;}
@@ -166,17 +167,59 @@ function openWin(url,opt){
   return w;
 }
 function winCtl(which,act){
-  const w=which==='main'?main:wins[which];if(!w||w.isDestroyed())return;
+  const w=which==='main'?main:which==='dash'?dash:wins[which];if(!w||w.isDestroyed())return;
   if(act==='min')w.minimize();
-  else if(act==='close'){if(which==='main')askQuit();else w.close();}
+  else if(act==='max'){if(w.isMaximized())w.unmaximize();else w.maximize();}
+  else if(act==='close'){if(which==='dash')askQuit();else w.close();}
 }
 function openReport(){
   if(wins.report&&!wins.report.isDestroyed()){wins.report.show();wins.report.focus();return;}
   openWin('/?view=report',{width:1040,height:840,title:'Laporan penonton'});
 }
-function openSettings(){
-  if(wins.settings&&!wins.settings.isDestroyed()){wins.settings.show();wins.settings.focus();return;}
-  openWin('/?view=settings',{width:540,height:860,title:'Pengaturan - ChatStream Labs'});
+// Pengaturan sekarang ada di Dashboard
+function openSettings(){showDash();}
+function showDash(){
+  if(!dash||dash.isDestroyed())return;
+  if(dash.isMinimized())dash.restore();if(!dash.isVisible())dash.show();dash.focus();
+}
+// jendela chat (dulu jendela utama), dibuka dari tombol di Dashboard
+function openChat(){
+  if(main&&!main.isDestroyed()){if(main.isMinimized())main.restore();if(!main.isVisible())showWin(main,locked);if(!locked)main.focus();return;}
+  locked=false;hideCtl();makeMain();
+}
+// Dashboard = jendela pertama yang terbuka setelah splash
+function makeDash(){
+  const b=readJ(BF).dash||{};
+  const w=new BrowserWindow({x:b.x,y:b.y,width:b.width||1100,height:b.height||700,minWidth:860,minHeight:540,title:'ChatStream Labs - Dashboard',icon:ICON,frame:false,autoHideMenuBar:true,backgroundColor:themeBg(),show:false});
+  const go=()=>{if(!w.isDestroyed())w.loadURL(base()+'/?view=dashboard');};
+  go();watchLoad(w,go);
+  w.webContents.on('did-fail-load',(e,c,d,u)=>{if(c!==-3&&u&&u.startsWith('http://localhost'))setTimeout(go,1000);});
+  w.webContents.on('render-process-gone',()=>{log('proses tampilan Dashboard berhenti, memuat ulang');setTimeout(go,500);});
+  const keep=()=>{if(!w.isDestroyed()&&!w.isMinimized()&&!w.isMaximized())saveB({dash:w.getBounds()});};
+  w.on('moved',keep);w.on('resized',keep);
+  w.on('close',e=>{if(!quitting){e.preventDefault();askQuit();}});
+  w.on('closed',()=>{if(dash===w)dash=null;});
+  dash=w;return w;
+}
+// splash: cek update -> menyambungkan; ditutup setelah Dashboard siap
+function startUp(){
+  const t0=Date.now();let finished=false;
+  const sp=new BrowserWindow({width:640,height:480,frame:false,resizable:false,maximizable:false,fullscreenable:false,center:true,title:'ChatStream Labs',icon:ICON,backgroundColor:'#0a0a1c',show:false});
+  splashWin=sp;sp.loadFile(path.join(__dirname,'splash.html'));
+  sp.once('ready-to-show',()=>{if(!sp.isDestroyed())sp.show();});
+  sp.on('closed',()=>{splashWin=null;if(!finished&&!quitting)app.quit();});
+  srvP.then(()=>{
+    const w=makeDash();
+    const t=setInterval(async()=>{
+      if(w.isDestroyed()){clearInterval(t);return;}
+      let ok=false;try{ok=await w.webContents.executeJavaScript('window.__ready===true');}catch{}
+      if(!ok&&Date.now()-t0<30000)return;
+      if(Date.now()-t0<3800)return; // beri waktu tampil kedua teks splash
+      clearInterval(t);finished=true;
+      try{if(!sp.isDestroyed())await sp.webContents.executeJavaScript('window.finish&&window.finish()');}catch{}
+      setTimeout(()=>{if(!w.isDestroyed())w.show();if(!sp.isDestroyed())sp.destroy();},500);
+    },250);
+  });
 }
 // ===== hotkey =====
 const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R'};
@@ -210,6 +253,7 @@ const hooks={
   lock:on=>setLock(on),
   drag:on=>dragOn(on),
   openSettings,
+  openChat,
   setHotkeys,
   winCtl,
   shape:rects=>{lastRects=rects;applyLockedInput();},
@@ -218,7 +262,7 @@ const hooks={
 app.whenReady().then(()=>{
   if(!gotLock)return;
   Menu.setApplicationMenu(null);
-  makeMain();
+  startUp();
   try{tray=new Tray(nativeImage.createFromPath(ICON).resize({width:16,height:16}));tray.setToolTip('ChatStream Labs');tray.setContextMenu(trayMenu());tray.on('click',()=>setLock(!locked));}catch{}
   setTimeout(()=>{
     srv=require('./server.js');Object.assign(srv.hooks,hooks);
