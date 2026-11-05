@@ -32,7 +32,7 @@ const G=()=>readJ(SFILE).global||{};
 let protect=G().protect!==false,ctrlPos=G().ctrlPos||'top-right';
 function prot(w){const f=()=>{try{if(w&&!w.isDestroyed())w.setContentProtection(protect);}catch{}};f();[150,600,2000].forEach(t=>setTimeout(f,t));}
 app.on('browser-window-created',(e,w)=>{prot(w);w.on('show',()=>prot(w));w.webContents.on('did-finish-load',()=>prot(w));});
-let srv=null,main=null,dash=null,splashWin=null,ctlWin=null,locked=false,switching=false,tray=null,dragT=null,quitting=false,asking=false;
+let srv=null,main=null,dash=null,splashWin=null,locked=false,switching=false,tray=null,dragT=null,quitting=false,asking=false;
 let outerAtLock=null,lockStart=null,lastRects=[];
 let srvReady;const srvP=new Promise(r=>srvReady=r);
 const base=()=>'http://localhost:'+(srv&&srv.port||3000);
@@ -46,42 +46,32 @@ const log=t=>{try{fs.appendFileSync(LOGF(),new Date().toISOString()+' '+t+'\n');
 app.on('second-instance',()=>{
   showDash();
 });
-// ===== dua kotak (gembok + pindah) = jendela kecil di LUAR jendela chat =====
-const CW=162,CH=36,CG=6;
-function ctlPlace(){return(!main||main.isDestroyed())?null:ctlPlaceB(main.getBounds());}
-function ctlPlaceB(b){
-  const wa=screen.getDisplayMatching(b).workArea,P=ctrlPos,top=P.startsWith('top');
-  let x=P.endsWith('left')?b.x:P.endsWith('right')?b.x+b.width-CW:b.x+Math.round((b.width-CW)/2);
-  let y=top?b.y-CH-CG:b.y+b.height+CG;
-  const fits=yy=>yy>=wa.y&&yy+CH<=wa.y+wa.height;
-  if(!fits(y)){const alt=top?b.y+b.height+CG:b.y-CH-CG;y=fits(alt)?alt:(top?b.y+CG:b.y+b.height-CH-CG);}
-  x=Math.min(Math.max(x,wa.x),wa.x+wa.width-CW);
-  return{x,y,width:CW,height:CH};
+// ===== kotak tombol (mata, gembok, pindah, tutup) = DI DALAM jendela chat terkunci / Donate Dock, transparan rendah =====
+const CW=162,CH=36,CM=4;
+const hideToTray=w=>{try{if(w&&!w.isDestroyed()){if(w.isMinimized())w.restore();w.hide();}}catch{}}; // diperkecil lewat taskbar: kembalikan dulu ke normal baru sembunyi, supaya saat dibuka lagi tombolnya bisa diklik
+function ctlRect(w,h){ // posisi kotak tombol relatif ke isi jendela (harus sama dengan CSS di app.js / style.css)
+  const P=ctrlPos||'top-right',top=P.startsWith('top');
+  const x=P.endsWith('left')?CM:P.endsWith('right')?w-CW-CM:Math.round((w-CW)/2),y=top?CM:h-CH-CM;
+  return{x:Math.max(0,x),y:Math.max(0,y),width:Math.min(CW,w),height:Math.min(CH,h)};
 }
-// jendela kecil tombol (mata, gembok, pindah, tutup) di luar jendela chat / Donate Dock
-function newCtl(q,pl,onClosed){
-  const w=new BrowserWindow({...pl,frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,alwaysOnTop:true,resizable:false,skipTaskbar:true,focusable:false,show:false,thickFrame:false,useContentSize:true});
-  w.setAlwaysOnTop(true,'screen-saver');
-  w.loadURL(base()+'/?view=ctl'+q);
-  w.once('ready-to-show',()=>{if(!w.isDestroyed())w.showInactive();});
-  w.on('closed',onClosed);
-  return w;
+function setIgn(w,v){if(!w||w.isDestroyed()||w.__ig===v)return;w.__ig=v;try{w.setIgnoreMouseEvents(v);}catch{}}
+function overCtl(w){
+  try{const c=screen.getCursorScreenPoint(),b=w.getContentBounds(),r=ctlRect(b.width,b.height),x=c.x-b.x,y=c.y-b.y;return x>=r.x&&x<r.x+r.width&&y>=r.y&&y<r.y+r.height;}catch{return false;}
 }
-function showCtl(){
-  const pl=ctlPlace();if(!pl)return;
-  if(ctlWin&&!ctlWin.isDestroyed()){ctlWin.setBounds(pl);return;}
-  ctlWin=newCtl('&t=chat',pl,()=>{ctlWin=null;});
-}
-function hideCtl(){if(dragT){clearInterval(dragT);dragT=null;}if(ctlWin&&!ctlWin.isDestroyed())ctlWin.destroy();ctlWin=null;}
+// Jendela tembus-klik penuh tidak menerima klik sama sekali, jadi selama kursor ada di atas kotak tombol, tembus-klik dimatikan sebentar.
+setInterval(()=>{
+  if(protect)return;
+  if(locked&&main&&!main.isDestroyed())setIgn(main,!overCtl(main));
+  docks.forEach(D=>{if(D.locked&&donOpen(D))setIgn(D.win,!overCtl(D.win));});
+},80);
 function dragOn(on){
-  if(!on){if(dragT){clearInterval(dragT);dragT=null;ctlPlace()&&showCtl();}return;}
+  if(!on){if(dragT){clearInterval(dragT);dragT=null;}return;}
   if(dragT||!main||main.isDestroyed()||!locked)return;
-  const c0=screen.getCursorScreenPoint(),m0=main.getBounds(),k0=(ctlWin&&!ctlWin.isDestroyed())?ctlWin.getBounds():null,t0=Date.now();
+  const c0=screen.getCursorScreenPoint(),m0=main.getBounds(),t0=Date.now();
   dragT=setInterval(()=>{
     if(!main||main.isDestroyed()){clearInterval(dragT);dragT=null;return;}
-    const c=screen.getCursorScreenPoint(),dx=c.x-c0.x,dy=c.y-c0.y;
-    main.setPosition(m0.x+dx,m0.y+dy);
-    if(k0&&ctlWin&&!ctlWin.isDestroyed())ctlWin.setPosition(k0.x+dx,k0.y+dy);
+    const c=screen.getCursorScreenPoint();
+    main.setPosition(m0.x+c.x-c0.x,m0.y+c.y-c0.y);
     if(Date.now()-t0>25000)dragOn(false);
   },16);
 }
@@ -92,13 +82,14 @@ function dragOn(on){
 function applyLockedInput(){
   if(!locked||!main||main.isDestroyed())return;
   try{
+    const b=main.getBounds(),cr=ctlRect(b.width,b.height);
     if(protect){
-      main.setIgnoreMouseEvents(false);
-      const b=main.getBounds(),r=(lastRects&&lastRects.length?lastRects:[{x:0,y:0,width:1,height:1}]).map(q=>({x:Math.max(0,Math.round(q.x)),y:Math.max(0,Math.round(q.y)),width:Math.max(1,Math.round(q.width)),height:Math.max(1,Math.round(q.height))}));
-      main.setShape(r);
+      setIgn(main,false);
+      const r=(lastRects||[]).map(q=>({x:Math.max(0,Math.round(q.x)),y:Math.max(0,Math.round(q.y)),width:Math.max(1,Math.round(q.width)),height:Math.max(1,Math.round(q.height))}));
+      main.setShape(r.concat([cr])); // kotak tombol selalu ikut menerima klik
     }else{
-      main.setShape([{x:0,y:0,width:main.getBounds().width,height:main.getBounds().height}]);
-      main.setIgnoreMouseEvents(true);
+      main.setShape([{x:0,y:0,width:b.width,height:b.height}]);
+      setIgn(main,!overCtl(main));
     }
   }catch{}
 }
@@ -130,9 +121,9 @@ function makeMain(bounds){
   w.webContents.on('console-message',(...a)=>{const e=a[0],lv=(e&&e.level!==undefined)?e.level:a[1],msg=(e&&e.message)||a[2];if(lv===3||lv==='error')log('tampilan: '+msg);});
   const keep=()=>{if(!L&&!w.isDestroyed()&&!w.isMinimized())saveB({outer:w.getBounds()});};
   w.on('moved',keep);w.on('resized',keep);
-  if(!L)w.on('minimize',()=>{if(!quitting&&!w.isDestroyed())w.hide();}); // diperkecil = masuk tray
+  if(!L)w.on('minimize',()=>{if(!quitting)hideToTray(w);}); // diperkecil = masuk tray
   // menutup jendela chat tidak menutup aplikasi (Dashboard tetap ada)
-  w.on('closed',()=>{if(main===w&&!switching){const was=locked;main=null;locked=false;hideCtl();if(tray)tray.setContextMenu(trayMenu());}});
+  w.on('closed',()=>{if(main===w&&!switching){const was=locked;main=null;locked=false;if(tray)tray.setContextMenu(trayMenu());}});
   main=w;
   return w;
 }
@@ -147,7 +138,6 @@ function setLock(on){
   makeMain(bounds);
   if(old&&!old.isDestroyed())old.destroy();
   switching=false;
-  if(on)showCtl();else hideCtl();
   if(tray)tray.setContextMenu(trayMenu());
 }
 async function askQuit(){
@@ -198,7 +188,7 @@ function showDash(){
 // jendela chat (dulu jendela utama), dibuka dari tombol di Dashboard
 function openChat(){
   if(main&&!main.isDestroyed()){if(main.isMinimized())main.restore();if(!main.isVisible())showWin(main,locked);if(!locked)main.focus();return;}
-  locked=false;hideCtl();makeMain();
+  locked=false;makeMain();
 }
 // Dashboard = jendela pertama yang terbuka setelah splash
 function makeDash(){
@@ -210,7 +200,7 @@ function makeDash(){
   w.webContents.on('render-process-gone',()=>{log('proses tampilan Dashboard berhenti, memuat ulang');setTimeout(go,500);});
   const keep=()=>{if(!w.isDestroyed()&&!w.isMinimized()&&!w.isMaximized())saveB({dash:w.getBounds()});};
   w.on('moved',keep);w.on('resized',keep);
-  w.on('minimize',()=>{if(!quitting&&!w.isDestroyed())w.hide();}); // diperkecil = masuk tray
+  w.on('minimize',()=>{if(!quitting)hideToTray(w);}); // diperkecil = masuk tray
   w.on('close',e=>{if(!quitting){e.preventDefault();askQuit();}});
   w.on('closed',()=>{if(dash===w)dash=null;});
   dash=w;return w;
@@ -238,7 +228,7 @@ function startUp(){
 }
 // ===== Donate Dock (bisa lebih dari satu) =====
 // Tiap dock memuat satu URL widget donasi (alert / media share) di jendelanya sendiri. Tidak ada integrasi API: aplikasi hanya menampilkan halamannya.
-// Jendela selalu tanpa bingkai dan tanpa bilah judul. Tombol (mata, gembok, pindah, tutup) ada di jendela kecil terpisah (?view=ctl&t=<id>).
+// Jendela selalu tanpa bingkai dan tanpa bilah judul. Tombol (mata, gembok, pindah, tutup) ada DI DALAM jendela (WebContentsView kecil ?view=ctl&t=<id>, transparan rendah).
 // Mode biasa (belum dikunci): jendela berlatar, bisa diubah ukurannya. Mode gembok: transparan, selalu di atas, tidak mencuri fokus.
 // Isi widget otomatis diskalakan (zoom) supaya muat di jendela: skala = min(lebar jendela / lebar acuan, tinggi jendela / tinggi acuan).
 const DON_MAX=5,docks=new Map(); // id -> D
@@ -256,48 +246,51 @@ const donLockSaved=id=>!!(readJ(BF).donLocked||{})[id];
 const donSaveLock=(id,on)=>saveB({donLocked:{...(readJ(BF).donLocked||{}),[id]:!!on}});
 const donSavedBounds=id=>(readJ(BF).donates||{})[id]||readJ(BF).donate||{};
 const donSaveBounds=D=>{try{if(donOpen(D))saveB({donates:{...(readJ(BF).donates||{}),[D.id]:D.win.getBounds()}});}catch{}};
-// tombol di luar jendela dock
-function dockCtlShow(D){
-  if(!donOpen(D))return;const pl=ctlPlaceB(D.win.getBounds());
-  if(D.ctl&&!D.ctl.isDestroyed()){D.ctl.setBounds(pl);return;}
-  const c=newCtl('&t='+encodeURIComponent(D.id),pl,()=>{if(D.ctl===c)D.ctl=null;});D.ctl=c;
-}
-function dockCtlHide(D){if(D.ctl&&!D.ctl.isDestroyed())D.ctl.destroy();D.ctl=null;}
 // Jendela tembus-klik penuh tidak bisa disembunyikan Windows dari tangkapan layar (lihat komentar applyLockedInput).
 // Saat terkunci + "Sembunyikan dari OBS" aktif: jendela tidak tembus-klik, tetapi bentuknya (setShape) hanya sebesar isi widget yang sedang terlihat
-// (dibaca dari halaman widget tiap 0,7 dtk). Selama belum ada donasi masuk, bentuknya nyaris kosong jadi tidak menghalangi game.
+// (dibaca dari halaman widget tiap 0,7 dtk). Selama belum ada donasi masuk, bentuknya hanya kotak tombol jadi tidak menghalangi game.
 // Saat tidak disembunyikan dari OBS: tembus-klik penuh.
 function applyDockInput(D){
   if(!D||!D.locked||!donOpen(D))return;
   try{
-    if(protect){D.win.setIgnoreMouseEvents(false);D.win.setShape(D.rects&&D.rects.length?D.rects:[{x:0,y:0,width:1,height:1}]);}
-    else{const b=D.win.getBounds();D.win.setShape([{x:0,y:0,width:b.width,height:b.height}]);D.win.setIgnoreMouseEvents(true);}
+    const b=D.win.getBounds(),cr=ctlRect(b.width,b.height);
+    if(protect){setIgn(D.win,false);D.win.setShape((D.rects||[]).concat([cr]));} // kotak tombol selalu ikut menerima klik
+    else{D.win.setShape([{x:0,y:0,width:b.width,height:b.height}]);setIgn(D.win,!overCtl(D.win));}
   }catch{}
 }
 function applyDonateInput(){docks.forEach(applyDockInput);}
 // dijalankan DI DALAM halaman widget: daftar kotak [x,y,lebar,tinggi] (px CSS) dari bagian yang benar-benar terlihat
 function scanFn(){
-  const W=innerWidth,H=innerHeight,out=[];
-  const vis=e=>{for(let n=e;n&&n.nodeType===1;n=n.parentElement){const c=getComputedStyle(n);if(c.display==='none'||c.visibility==='hidden'||parseFloat(c.opacity)<0.02)return false;}return true;};
-  const add=r=>{if(r.width>1&&r.height>1&&r.right>0&&r.bottom>0&&r.left<W&&r.top<H)out.push([r.left,r.top,r.width,r.height]);};
-  const root=document.body||document.documentElement;let n=0;
-  for(const e of root.querySelectorAll('*')){
-    if(++n>1500)break;
-    if(/^(SCRIPT|STYLE|NOSCRIPT|META|LINK|HEAD)$/.test(e.tagName))continue;
-    const c=getComputedStyle(e),bg=c.backgroundColor;
-    const paint=/^(IMG|VIDEO|CANVAS|IFRAME|SVG|OBJECT|EMBED)$/i.test(e.tagName)||c.backgroundImage!=='none'||(bg!=='transparent'&&!/,\s*0\)$/.test(bg))||(c.borderTopStyle!=='none'&&c.borderTopWidth!=='0px');
-    if(paint&&vis(e))add(e.getBoundingClientRect());
-  }
-  const tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let k=0;
-  for(let t;(t=tw.nextNode())&&k<400;k++){
-    if(!t.nodeValue.trim())continue;const p=t.parentElement;
-    if(!p||/^(SCRIPT|STYLE|NOSCRIPT)$/.test(p.tagName)||!vis(p))continue;
-    const g=document.createRange();g.selectNodeContents(t);add(g.getBoundingClientRect());
-  }
-  return out.slice(0,300);
+  const out=[],PAINT=/^(IMG|VIDEO|CANVAS|IFRAME|SVG|OBJECT|EMBED|PICTURE)$/i,SKIP=/^(SCRIPT|STYLE|NOSCRIPT|META|LINK|HEAD|TEMPLATE)$/;
+  let n=0,k=0;
+  const walk=(doc,ox,oy,W,H)=>{
+    const win=doc.defaultView;if(!win)return;
+    const vis=e=>{for(let x=e;x&&x.nodeType===1;x=x.parentElement||(x.getRootNode&&x.getRootNode().host)){const c=win.getComputedStyle(x);if(c.display==='none'||c.visibility==='hidden'||parseFloat(c.opacity)<0.02)return false;}return true;};
+    const add=r=>{if(r.width>1&&r.height>1&&r.right>0&&r.bottom>0&&r.left<W&&r.top<H)out.push([r.left+ox,r.top+oy,r.width,r.height]);};
+    const visit=root=>{
+      for(const e of root.querySelectorAll('*')){
+        if(++n>2500)return;
+        if(SKIP.test(e.tagName))continue;
+        if(e.shadowRoot)visit(e.shadowRoot);
+        const c=win.getComputedStyle(e),bg=c.backgroundColor;
+        const paint=PAINT.test(e.tagName)||c.backgroundImage!=='none'||(bg!=='transparent'&&!/,\s*0\)$/.test(bg))||(c.borderTopStyle!=='none'&&c.borderTopWidth!=='0px');
+        if(paint&&vis(e)){const r=e.getBoundingClientRect();add(r);
+          if(e.tagName==='IFRAME'){try{const d=e.contentDocument;if(d&&d.documentElement)walk(d,ox+r.left,oy+r.top,r.width,r.height);}catch{}}}
+      }
+    };
+    const root=doc.body||doc.documentElement;visit(root);
+    const tw=doc.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+    for(let t;(t=tw.nextNode())&&k<600;k++){
+      if(!t.nodeValue.trim())continue;const p=t.parentElement;
+      if(!p||/^(SCRIPT|STYLE|NOSCRIPT)$/.test(p.tagName)||!vis(p))continue;
+      const g=doc.createRange();g.selectNodeContents(t);add(g.getBoundingClientRect());
+    }
+  };
+  walk(document,0,0,innerWidth,innerHeight);
+  return out.slice(0,400);
 }
 async function dockScan(D){
-  if(!D.locked||!protect||!donOpen(D)||!D.view||D.view.webContents.isDestroyed()||D.view.webContents.isLoading())return;
+  if(!D.locked||!protect||!donOpen(D)||!D.view||D.view.webContents.isDestroyed())return;
   let a;try{a=await D.view.webContents.executeJavaScript('('+scanFn.toString()+')()');}catch{return;}
   if(!Array.isArray(a)||!donOpen(D))return;
   const z=D.zoom||1,[cw,ch]=D.win.getContentSize();
@@ -312,6 +305,14 @@ function dockFit(D){
   const c=D.cfg||{},[cw,ch]=D.win.getContentSize();
   const z=Math.min(10,Math.max(.1,Math.min(cw/(c.refW||1280),ch/(c.refH||720))));
   D.zoom=z;try{D.view.webContents.setZoomFactor(z);}catch{}
+}
+// CSS yang disuntik ke halaman widget: latar transparan + Opacity dari pengaturan dock (hanya isi widget; tombol tidak ikut pudar)
+function donCss(D){
+  const wc=D.view&&D.view.webContents;if(!wc||wc.isDestroyed())return;
+  const op=Math.min(100,Math.max(10,Math.round(+((D.cfg||{}).opacity))||100));D.opAp=op;
+  const css='html,body{background:transparent!important}'+(op<100?'html{opacity:'+(op/100)+'!important}':'');
+  const old=D.cssKey;D.cssKey=null;if(old)wc.removeInsertedCSS(old).catch(()=>{});
+  wc.insertCSS(css).then(k=>{if(wc.isDestroyed())return;if(D.cssKey)wc.removeInsertedCSS(D.cssKey).catch(()=>{});D.cssKey=k;}).catch(()=>{});
 }
 function donGo(D){
   if(!D.view||D.view.webContents.isDestroyed())return;
@@ -339,6 +340,7 @@ function donSync(){
     if(!cfg||!donCheck(cfg).url){D.win.close();return;}
     D.cfg=cfg;
     try{D.view.webContents.setAudioMuted(!!cfg.mute);}catch{}
+    if((cfg.opacity||100)!==D.opAp)donCss(D);
     if(cfg.url!==D.loaded){D.tries=0;donGo(D);}
     dockFit(D);
   });
@@ -356,29 +358,35 @@ function makeDock(id,L){
   const v=new WebContentsView({webPreferences:{partition:part,autoplayPolicy:'no-user-gesture-required',backgroundThrottling:false,contextIsolation:true,nodeIntegration:false,sandbox:true,spellcheck:false}});
   v.setBackgroundColor('#00000000');
   w.contentView.addChildView(v);
-  const D={id,cfg,win:w,view:v,ctl:old?old.ctl:null,locked:!!L,loaded:'',tries:0,T:{},rects:[],sig:'',zoom:1,dragT:null,scanT:null};
-  if(old)old.ctl=null;
-  const layout=()=>{if(w.isDestroyed())return;const [cw,ch]=w.getContentSize();v.setBounds({x:0,y:0,width:cw,height:ch});dockFit(D);};
-  layout();w.on('resize',layout);
-  const wc=v.webContents,CSS='html,body{background:transparent!important}';
+  // tombol (mata, gembok, pindah, tutup): halaman kecil di DALAM jendela, di atas widget
+  const cv=new WebContentsView({webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true,spellcheck:false}});
+  cv.setBackgroundColor('#00000000');
+  w.contentView.addChildView(cv);
+  const D={id,cfg,win:w,view:v,cv,locked:!!L,loaded:'',tries:0,T:{},rects:[],sig:'',zoom:1,dragT:null,scanT:null,cssKey:null,opAp:0};
+  const layout=()=>{if(w.isDestroyed())return;const [cw,ch]=w.getContentSize();v.setBounds({x:0,y:0,width:cw,height:ch});cv.setBounds(ctlRect(cw,ch));dockFit(D);if(D.locked)applyDockInput(D);};
+  D.layout=layout;layout();w.on('resize',layout);
+  cv.webContents.loadURL(base()+'/?view=ctl&t='+encodeURIComponent(id));
+  const wc=v.webContents;
   wc.setAudioMuted(!!cfg.mute);
   wc.setWindowOpenHandler(()=>({action:'deny'}));
   const onlyHttp=(e,u)=>{if(!/^https?:\/\//i.test(u))e.preventDefault();};
   wc.on('will-navigate',onlyHttp);wc.on('will-redirect',onlyHttp);
-  wc.on('dom-ready',()=>{wc.insertCSS(CSS).catch(()=>{});dockFit(D);});
+  wc.on('dom-ready',()=>{try{wc.setAudioMuted(!!D.cfg.mute);}catch{}donCss(D);dockFit(D);});
   wc.on('did-navigate',()=>dockFit(D));
   wc.on('did-finish-load',()=>{
-    clearTimeout(D.T.hang);wc.insertCSS(CSS).catch(()=>{});dockFit(D);
+    clearTimeout(D.T.hang);donCss(D);dockFit(D);
     clearTimeout(D.T.stable);D.T.stable=setTimeout(()=>{D.tries=0;},30000); // dianggap sehat kalau bertahan 30 dtk
   });
   wc.on('did-fail-load',(e,c,d,u,isMain)=>{if(c===-3||isMain===false)return;donRetry(D,'gagal memuat ('+d+')');});
   wc.on('render-process-gone',()=>donRetry(D,'proses halaman berhenti'));
-  const moved=()=>{if(!D.locked&&!w.isDestroyed()){donSaveBounds(D);dockCtlShow(D);}};
+  const moved=()=>{if(!D.locked&&!w.isDestroyed())donSaveBounds(D);};
   w.on('moved',moved);w.on('resized',moved);
   w.on('show',refreshTray);w.on('hide',refreshTray);
   w.on('closed',()=>{
     clearTimeout(D.T.hang);clearTimeout(D.T.retry);clearTimeout(D.T.stable);clearInterval(D.scanT);clearInterval(D.dragT);
-    if(docks.get(id)===D){docks.delete(id);dockCtlHide(D);}
+    if(docks.get(id)===D)docks.delete(id);
+    // WebContentsView TIDAK ikut tertutup saat jendelanya ditutup: tanpa ini halaman widget lama tetap hidup dan suaranya terus bunyi (dobel)
+    [v,cv].forEach(x=>{try{const c=x.webContents;if(!c.isDestroyed()){c.setAudioMuted(true);c.close();}}catch{}});
     refreshTray();
   });
   docks.set(id,D);
@@ -387,9 +395,8 @@ function makeDock(id,L){
     [0,300,1200].forEach(t=>setTimeout(()=>{if(docks.get(id)===D)applyDockInput(D);},t));
     D.scanT=setInterval(()=>dockScan(D),700);
   }
-  dockCtlShow(D);
   donGo(D);
-  if(old&&!old.win.isDestroyed())old.win.destroy();
+  if(old&&!old.win.isDestroyed()){try{old.view.webContents.setAudioMuted(true);}catch{}old.win.destroy();}
   refreshTray();
   return D;
 }
@@ -402,14 +409,13 @@ function dockSetLock(id,on){
 }
 function dockDrag(id,on){
   const D=docks.get(id);if(!donOpen(D))return;
-  if(!on){if(D.dragT){clearInterval(D.dragT);D.dragT=null;donSaveBounds(D);dockCtlShow(D);}return;}
+  if(!on){if(D.dragT){clearInterval(D.dragT);D.dragT=null;donSaveBounds(D);}return;}
   if(D.dragT)return;
-  const c0=screen.getCursorScreenPoint(),m0=D.win.getBounds(),k0=(D.ctl&&!D.ctl.isDestroyed())?D.ctl.getBounds():null,t0=Date.now();
+  const c0=screen.getCursorScreenPoint(),m0=D.win.getBounds(),t0=Date.now();
   D.dragT=setInterval(()=>{
     if(!donOpen(D)){clearInterval(D.dragT);D.dragT=null;return;}
     const c=screen.getCursorScreenPoint(),dx=c.x-c0.x,dy=c.y-c0.y;
     D.win.setBounds({x:m0.x+dx,y:m0.y+dy,width:m0.width,height:m0.height});
-    if(k0&&D.ctl&&!D.ctl.isDestroyed())D.ctl.setPosition(k0.x+dx,k0.y+dy);
     if(Date.now()-t0>25000)dockDrag(id,false);
   },16);
 }
@@ -443,8 +449,8 @@ const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+
 const ACTIONS={
   lock:()=>setLock(!locked),
   hide:()=>{if(!main||main.isDestroyed())return;
-    if(main.isVisible()){main.hide();if(ctlWin&&!ctlWin.isDestroyed())ctlWin.hide();}
-    else{if(locked){main.showInactive();if(ctlWin&&!ctlWin.isDestroyed())ctlWin.showInactive();}else main.show();}},
+    if(main.isVisible())main.hide();
+    else{if(locked)main.showInactive();else main.show();}},
   obs:()=>{if(srv){protect=!protect;srv.setGlobal({protect});}},
   up:()=>srv&&srv.cmd('up'),down:()=>srv&&srv.cmd('down'),clear:()=>srv&&srv.cmd('clear'),filter:()=>srv&&srv.cmd('filter'),
   settings:()=>openSettings(),
@@ -476,7 +482,7 @@ const hooks={
   setHotkeys,
   winCtl,
   shape:rects=>{lastRects=rects;applyLockedInput();},
-  global:g=>{ctrlPos=(g&&g.ctrlPos)||'top-right';if(locked)showCtl();donSync();},
+  global:g=>{ctrlPos=(g&&g.ctrlPos)||'top-right';applyLockedInput();docks.forEach(D=>D.layout&&D.layout());donSync();},
   donate:(act,id)=>donateAct(act,id),
   dashState
 };

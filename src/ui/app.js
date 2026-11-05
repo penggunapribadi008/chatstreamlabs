@@ -335,7 +335,7 @@ if(isStatic){
       const s=cur(view),lim=Date.now()-(s.fade>0?s.fade*1000:1e12);
       data.history.filter(m=>m.t>lim).slice(view==='overlay'?-s.max:-300).forEach(m=>add(m));if(view==='dock')toLatest();bootDone();}
     else if(type==='settings'){saved=copy(data);S=copy(data);S.global=S.global||{};
-      if(isSet){refreshPresets();if(isDash){pvSend();dashDocks();}if($('dnList')){const g=S.global||{};if(!$('dnList').contains(document.activeElement)){dnDocks=copy(g.donateDocks||[]);dnRender();}}}else if(isTpl)tplOnSettings();else if(isAdd){applyUi(cur('dock'));}else{applyStyle();if(isPrev)resample();}}
+      if(isSet){refreshPresets();if(isDash){pvSend();dashDocks();}}else if(isTpl)tplOnSettings();else if(isAdd){applyUi(cur('dock'));}else{applyStyle();if(isPrev)resample();}}
     else if(type==='draft'){if(live&&data.view===view){S[view]=data.values;applyStyle();if(isPrev)resample();else if(isPrev&&!document.querySelector('.m'))samples(false);}
       else if((isTpl||isAdd)&&data.view==='dock')applyUi({...cur('dock'),...data.values});}
     else if(type==='draftclear'){if(live){S=copy(saved);document.querySelectorAll('.sample').forEach(x=>x.remove());applyStyle();if(isPrev)resample();}else if(isTpl||isAdd)applyUi(cur('dock'));}
@@ -356,8 +356,8 @@ if(isLocked&&!isAdmin){
   addEventListener('resize',q);addEventListener('animationend',q);setInterval(send,1500);setTimeout(send,300);
 }
 // ---- dua kotak saat terkunci (jendela kecil terpisah) ----
-if(isCtl){
-  bootDone();
+if(isCtl||(isLocked&&view==='dock'&&!isAdmin&&!isPrev)){
+  if(isCtl)bootDone();
   const T=Q.get('t')||'chat',isChat=T==='chat',mv=$('mover'),idb=isChat?{}:{id:T};
   let lk=isChat;
   mv.addEventListener('pointerdown',e=>{try{mv.setPointerCapture(e.pointerId);}catch{}post('/drag',{on:true,...idb});});
@@ -365,10 +365,15 @@ if(isCtl){
   $('unlock').onclick=()=>post('/lock',{on:isChat?false:!lk,...idb});
   $('cclose').onclick=()=>post('/win',{which:isChat?'main':'donate:'+T,act:'close'});
   const eyeSt=async()=>{try{const r=await(await fetch('/dash-state')).json();
-    document.body.classList.toggle('prot',!!r.protect);$('eye').title=r.protect?'Tersembunyi dari OBS (klik untuk menampilkan)':'Terlihat di OBS (klik untuk menyembunyikan)';
+    document.body.classList.toggle('prot',!!r.protect);document.documentElement.classList.toggle('prot',!!r.protect);$('eye').title=r.protect?'Tersembunyi dari OBS (klik untuk menampilkan)':'Terlihat di OBS (klik untuk menyembunyikan)';
     if(!isChat){const d=r.docks&&r.docks[T];if(d)lk=!!d.locked;}
     document.body.classList.toggle('islocked',lk);$('unlock').title=lk?'Buka kunci':'Kunci jendela';}catch{}};
   $('eye').onclick=async()=>{await post('/protect-toggle');eyeSt();};eyeSt();setInterval(eyeSt,700);
+  if(!isCtl){ // chat terkunci: kotak tombol ada di dalam halaman chat, posisinya mengikuti pengaturan "Posisi tombol saat terkunci"
+    const placeCtl=()=>{const P=(S.global&&S.global.ctrlPos)||'top-right',e=$('ctl').style,top=P.startsWith('top');
+      e.top=top?'4px':'auto';e.bottom=top?'auto':'4px';e.left=P.endsWith('left')?'4px':P.endsWith('right')?'auto':'calc(50% - 81px)';e.right=P.endsWith('right')?'4px':'auto';};
+    placeCtl();setInterval(placeCtl,700);
+  }
 }
 // ---- pengaturan ----
 const T=(k,l,o)=>['sel',k,l,o],C=(k,l)=>['chk',k,l],K=(k,l)=>['col',k,l],R=(k,l,a,b,u)=>['sl',k,l,a,b,u||''];
@@ -448,7 +453,7 @@ function refreshPresets(){const sel=$('overlay_preset');if(!sel)return;const kee
   sel.value=all.some(x=>x[0]===keep)?keep:(all.some(x=>x[0]===cur('overlay').preset)?cur('overlay').preset:'polos');}
 function fill(v,src){const s=src||cur(v);if(v==='overlay')refreshPresets();
   items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;if(it[0]==='chk')e.checked=!!s[it[1]];else e.value=s[it[1]];if(it[0]==='sl')lbl(v,it);});syncDeps(v);pvAll(v);}
-function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';if(!$('dnList').querySelector('input:focus')){dnDocks=copy(g.donateDocks||[]);dnRender();}}
+function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';}
 function collect(v){const o={};items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;o[it[1]]=it[0]==='chk'?e.checked:(it[0]==='sl'?+e.value:e.value);});return o;}
 let dt=null;
 function draftChange(v){items(v).filter(i=>i[0]==='sl').forEach(i=>lbl(v,i));syncDeps(v);pvAll(v);if(v==='dock')applyUi(collect('dock'));if(isDash)pvSend();clearTimeout(dt);dt=setTimeout(()=>post('/draft',{view:v,values:collect(v)}),40);}
@@ -524,28 +529,6 @@ $('portrestart').onclick=()=>post('/restart');
 $('portavoid').onclick=()=>{$('avlist').innerHTML='';(conf.avoid||[]).forEach(a=>{const r=document.createElement('div');r.className='avrow';const b=document.createElement('b'),n=document.createElement('span');b.textContent=a.port;n.textContent=a.name;r.append(b,n);$('avlist').appendChild(r);});$('avmodal').hidden=false;};
 $('avclose').onclick=()=>{$('avmodal').hidden=true;};$('avmodal').onclick=e=>{if(e.target===$('avmodal'))$('avmodal').hidden=true;};
 $('sendOn').onchange=()=>post('/send-set',{on:$('sendOn').checked}).catch(()=>{});
-// Donate Dock: daftar dock (nama, URL, bisu, ukuran acuan). Buka / tutup / muat ulang dilakukan dari beranda Dashboard.
-const DN_MAX=5;
-let dnDocks=[];
-const dnRow=d=>{const c=document.createElement('div');c.className='dnc';c.dataset.id=d.id;
-  c.innerHTML='<div class="dnh"><input type="text" class="dn-name" maxlength="40" placeholder="Nama dock"><button class="btn b2 sm dn-del">Hapus</button></div>'
-   +'<label><span>URL widget donasi</span></label><input type="text" class="dn-url" placeholder="https://saweria.co/widgets/..." spellcheck="false">'
-   +'<div class="g2"><div style="flex:1"><label><span>Lebar acuan (px)</span></label><input type="number" class="dn-w" min="200" max="7680"></div><div style="flex:1"><label><span>Tinggi acuan (px)</span></label><input type="number" class="dn-h" min="200" max="7680"></div></div>'
-   +'<div class="row"><span>Bisukan suara (kalau widget yang sama juga di OBS)</span><input type="checkbox" class="dn-mute"></div>';
-  c.querySelector('.dn-name').value=d.name||'';c.querySelector('.dn-url').value=d.url||'';c.querySelector('.dn-w').value=d.refW||1280;c.querySelector('.dn-h').value=d.refH||720;c.querySelector('.dn-mute').checked=!!d.mute;
-  c.querySelector('.dn-del').onclick=()=>{dnReadDom();dnDocks=dnDocks.filter(x=>x.id!==d.id);dnRender();};
-  return c;};
-function dnRender(){const box=$('dnList');box.textContent='';
-  if(!dnDocks.length){const h=document.createElement('div');h.className='hint';h.textContent='Belum ada Donate Dock. Klik Tambah Donate Dock.';box.appendChild(h);}
-  dnDocks.forEach(d=>box.appendChild(dnRow(d)));
-  $('dnAdd').style.display=dnDocks.length>=DN_MAX?'none':'';
-  $('dnSave').style.display=dnDocks.length?'':'none';}
-function dnReadDom(){dnDocks=[...document.querySelectorAll('#dnList .dnc')].map(c=>({id:c.dataset.id,name:c.querySelector('.dn-name').value,url:c.querySelector('.dn-url').value,refW:+c.querySelector('.dn-w').value,refH:+c.querySelector('.dn-h').value,mute:c.querySelector('.dn-mute').checked}));}
-$('dnAdd').onclick=()=>{dnReadDom();if(dnDocks.length>=DN_MAX)return;dnDocks.push({id:'d'+Date.now().toString(36),name:'Donate Dock '+(dnDocks.length+1),url:'',refW:1280,refH:720,mute:false});dnRender();};
-$('dnSave').onclick=async()=>{const m=$('dnMsg');dnReadDom();
-  const r=await(await post('/donate-docks',{docks:dnDocks})).json();
-  if(r.error){m.className='hint no';m.textContent=r.error;return;}
-  dnDocks=r.docks;dnRender();m.className='hint ok';m.textContent='Tersimpan.';};
 $('u2').onclick=()=>{$('u2').select();try{document.execCommand('copy')}catch{}};
 $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textContent='Menghubungi OBS...';
   const r=await(await post('/obs-add',{width:+$('obsW').value||500,height:+$('obsH').value||900,password:$('obsPass').value})).json();
@@ -583,17 +566,44 @@ function dashRender(){const b=$('dst');if(!b)return;const on=PF4.filter(k=>EN[k]
     v.className='dsv'+(c?' '+c:'');v.textContent=t+(viewers[k]!=null?' \u00b7 '+fmt(viewers[k])+' penonton':'');
     r.append(l,v);b.appendChild(r);});}
 let dashSt={chat:{},docks:{}};
-function dashDocks(){const box=$('dDocks');if(!box)return;const L=(g=>Array.isArray(g.donateDocks)?g.donateDocks:[])(S.global||{});
+// Donate Dock di beranda Dashboard: 1 kotak = 1 dock. Pengaturannya (URL, Opacity, bisukan suara) ada di dialog "Atur Donate Dock".
+const DN_MAX=5;
+const dnList=()=>{const g=S.global||{};return Array.isArray(g.donateDocks)?g.donateDocks:[];};
+function dashDocks(){const box=$('dDocks');if(!box)return;const L=dnList(),full=L.length>=DN_MAX;
+  $('dDockHint').textContent=L.length?'':'Belum ada Donate Dock. Tambahkan satu untuk menampilkan widget donasi (alert / media share) di layar game.';
+  $('dDockAddCard').style.display=full?'none':'';
   box.textContent='';
-  if(!L.length){const h=document.createElement('div');h.className='hint';h.textContent='Belum ada Donate Dock. Tambahkan dulu lewat tombol di bawah.';box.appendChild(h);return;}
-  L.forEach(d=>{const st=(dashSt.docks||{})[d.id]||{},r=document.createElement('div');r.className='dkr';
-    const i=document.createElement('div'),n=document.createElement('b'),sm=document.createElement('small'),bt=document.createElement('div');
-    i.className='dki';n.textContent=d.name||d.id;sm.className=st.open?(st.locked?'lk':'on'):'';sm.textContent=!d.url?'URL belum diisi':st.open?(st.locked?'Terbuka, terkunci':'Terbuka'):'Tertutup';
-    i.append(n,sm);bt.className='dkb';
+  L.forEach(d=>{const st=(dashSt.docks||{})[d.id]||{},c=document.createElement('div');c.className='card dkc';
+    const h=document.createElement('h3'),sm=document.createElement('small'),bt=document.createElement('div'),i=document.createElement('div');
+    h.textContent=d.name||d.id;i.className='dki';sm.className=st.open?(st.locked?'lk':'on'):'';sm.textContent=!d.url?'URL belum diisi':st.open?(st.locked?'Terbuka, terkunci':'Terbuka'):'Tertutup';i.appendChild(sm);bt.className='dkb';
     const mk=(t,cls,fn)=>{const b=document.createElement('button');b.className='btn sm '+cls;b.textContent=t;b.onclick=fn;bt.appendChild(b);return b;};
     const act=async a=>{const x=await(await post('/donate',{act:a,id:d.id})).json();if(x&&x.error)sm.textContent=x.error;setTimeout(dashPoll,250);};
     if(st.open){mk('Muat ulang','b4',()=>act('reload'));mk('Tutup','b2',()=>act('close'));}else mk('Buka','b1',()=>act('open')).disabled=!d.url;
-    r.append(i,bt);box.appendChild(r);});}
+    mk('Atur Donate Dock','b3',()=>dnOpen(d,false));
+    c.append(h,i,bt);box.appendChild(c);});}
+let dnCur=null,dnDelArm=false;
+const dnOpLbl=()=>{const e=$('dnmOp');$('dnmOpV').textContent=e.value+'%';e.style.setProperty('--pct',((e.value-e.min)/(e.max-e.min)*100)+'%');};
+function dnOpen(d,isNew){dnCur={d:copy(d),isNew};dnDelArm=false;
+  $('dnmT').textContent=isNew?'Tambah Donate Dock':'Atur '+(d.name||'Donate Dock');
+  $('dnmUrl').value=d.url||'';$('dnmOp').value=d.opacity||100;dnOpLbl();$('dnmMute').checked=isNew?true:!!d.mute;
+  $('dnmMsg').className='hint';$('dnmMsg').textContent='';$('dnmDel').textContent='Hapus';$('dnmDel').style.display=isNew?'none':'';
+  $('dnModal').hidden=false;$('dnmUrl').focus();}
+async function dnPost(L){const r=await(await post('/donate-docks',{docks:L})).json();if(r.error){$('dnmMsg').className='hint no';$('dnmMsg').textContent=r.error;return false;}
+  S.global=S.global||{};S.global.donateDocks=r.docks;$('dnModal').hidden=true;dnCur=null;dashDocks();setTimeout(dashPoll,250);return true;}
+function initDnModal(){
+  $('dnmOp').oninput=dnOpLbl;
+  $('dnmCancel').onclick=()=>{$('dnModal').hidden=true;dnCur=null;};
+  $('dnModal').onclick=e=>{if(e.target===$('dnModal')){$('dnModal').hidden=true;dnCur=null;}};
+  $('dnmSave').onclick=async()=>{if(!dnCur)return;const url=$('dnmUrl').value.trim();
+    if(!url){$('dnmMsg').className='hint no';$('dnmMsg').textContent='Isi URL widget donasi dulu.';return;}
+    const d={...dnCur.d,url,opacity:+$('dnmOp').value,mute:$('dnmMute').checked},L=copy(dnList()),i=L.findIndex(x=>x.id===d.id);
+    if(i>=0)L[i]=d;else L.push(d);await dnPost(L);};
+  $('dnmDel').onclick=async()=>{if(!dnCur||dnCur.isNew)return;
+    if(!dnDelArm){dnDelArm=true;$('dnmDel').textContent='Yakin hapus?';return;}
+    await dnPost(dnList().filter(x=>x.id!==dnCur.d.id));};
+  $('dDockAdd').onclick=()=>{const L=dnList();if(L.length>=DN_MAX)return;let n=1;while(L.some(x=>x.name==='Donate Dock '+n))n++;
+    dnOpen({id:'d'+Date.now().toString(36),name:'Donate Dock '+n,url:'',opacity:100,mute:true,refW:1280,refH:720},true);};
+}
 async function dashPoll(){if(!isDash||document.hidden)return;try{dashSt=await(await fetch('/dash-state')).json();}catch{return;}
   const c=dashSt.chat||{},b=$('dChat'),s2=$('dChatSt');if(b){b.textContent=c.open?'Tutup Chat':'Buka Chat';b.className='btn sm '+(c.open?'b2':'b1');}
   if(s2){s2.className=c.open?(c.locked?'lk':'on'):'';s2.textContent=c.open?(c.locked?'Terbuka, terkunci':'Terbuka'):'Tertutup';}
@@ -601,7 +611,7 @@ async function dashPoll(){if(!isDash||document.hidden)return;try{dashSt=await(aw
 let dashInit=false;
 function initDash(){if(dashInit)return;dashInit=true;
   document.querySelectorAll('.sbi[data-t]').forEach(b=>b.onclick=()=>setTab(b.dataset.t));
-  $('dChat').onclick=()=>{if(dashSt.chat&&dashSt.chat.open)post('/win',{which:'main',act:'close'});else openC('chat');setTimeout(dashPoll,250);};$('dRep').onclick=()=>setTab('r');$('dDockSet').onclick=()=>setTab('n');dashPoll();setInterval(dashPoll,2000);
+  $('dChat').onclick=()=>{if(dashSt.chat&&dashSt.chat.open)post('/win',{which:'main',act:'close'});else openC('chat');setTimeout(dashPoll,250);};initDnModal();dashPoll();setInterval(dashPoll,2000);
   $('pvm_prev').onclick=pvAddOne;$('pvm_live').onclick=pvSendLive;
   // Dashboard disembunyikan (tray): pratinjau dibongkar supaya tidak memakan RAM/CPU, dimuat lagi saat dibuka
   document.addEventListener('visibilitychange',()=>pvLoadFrames(document.hidden?'':document.body.dataset.pv));

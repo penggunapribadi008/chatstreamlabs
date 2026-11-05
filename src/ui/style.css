@@ -103,10 +103,13 @@ body.donatewin{background:var(--winbg)}
 body.donatewin #app,body.donatewin #panel,body.donatewin #tpl,body.donatewin #addwin,body.donatewin #rep,body.donatewin #sb,body.donatewin #dpv{display:none!important}
 body.ctlwin #app,body.ctlwin #panel,body.ctlwin #tpl,body.ctlwin #addwin,body.ctlwin #tb{display:none!important}
 body.ctlwin #ctl{display:flex;position:static;padding:0}
-#eye .e-open{display:block}#eye .e-shut{display:none}body.prot #eye .e-open{display:none}body.prot #eye .e-shut{display:block}
+#eye .e-open{display:block}#eye .e-shut{display:none}body.prot #eye .e-open,html.prot #eye .e-open{display:none}body.prot #eye .e-shut,html.prot #eye .e-shut{display:block}
 body.ctlwin{--eyec:#ffd166}body.ctlwin.prot{--eyec:#5eead4}
 .cb2{width:36px;height:36px;border-radius:10px;background:#12181c;border:1px solid #33414a;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;opacity:.85;transition:opacity .15s,background .15s}
 .cb2:hover{opacity:1;background:#1d2a31}
+body.ctlwin .cb2,body.locked #ctl .cb2{opacity:.35}body.ctlwin .cb2:hover,body.locked #ctl .cb2:hover{opacity:1}
+/* kotak tombol di dalam jendela chat terkunci (posisi diatur lewat JS dari pengaturan) */
+body.locked #ctl{display:flex;position:fixed;z-index:60;gap:6px;--eyec:#ffd166}html.prot body.locked #ctl{--eyec:#5eead4}
 #mover{cursor:move;touch-action:none}
 /* ===== jendela pengaturan / kelola gaya / gaya baru ===== */
 #panel,#tpl,#addwin,#rep{display:none}
@@ -125,9 +128,9 @@ body.addwin #addwin{display:flex;position:absolute;inset:34px 0 0 0;flex-directi
 .card,.tcard{background:var(--card-bg);border:1px solid var(--line);border-radius:var(--rad);box-shadow:var(--sh-card);backdrop-filter:var(--blur)}
 .card{padding:16px;margin-bottom:14px}
 .card h3{margin:0 0 6px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
-#panel label,#addwin label{display:flex;justify-content:space-between;margin:12px 0 5px;color:var(--muted);font-size:12px}
-#panel label b{color:var(--text);font-weight:600}
-#panel input[type=text],#panel input[type=number],#panel select,#addwin input[type=text],#addwin textarea{width:100%;height:38px;background:var(--ctl-bg);border:1px solid var(--ctl-line);box-shadow:var(--sh-in);border-radius:var(--rad-c);padding:0 11px;color:var(--text);font:inherit}
+#panel label,#addwin label,#dnModal label{display:flex;justify-content:space-between;margin:12px 0 5px;color:var(--muted);font-size:12px}
+#panel label b,#dnModal label b{color:var(--text);font-weight:600}
+#panel input[type=text],#panel input[type=number],#panel select,#dnModal input[type=text],#addwin input[type=text],#addwin textarea{width:100%;height:38px;background:var(--ctl-bg);border:1px solid var(--ctl-line);box-shadow:var(--sh-in);border-radius:var(--rad-c);padding:0 11px;color:var(--text);font:inherit}
 #panel select option{background:#1b2329;color:#e8eef0}
 #addwin textarea{height:100%;min-height:200px;padding:10px 11px;font:12px/1.5 Consolas,Menlo,monospace;resize:none}
 #panel input:focus,#panel select:focus,#addwin input:focus,#addwin textarea:focus,#msg:focus,#flt:focus{border-color:var(--acc)!important}
@@ -328,7 +331,8 @@ body.dock:not(.locked):not(.preview) #weye,body.dock:not(.locked):not(.preview) 
 #weye{--eyec:#ffd166;padding:0}html.prot #weye{--eyec:#5eead4}
 #weye svg{display:block;margin:auto}
 #weye .e-open{display:block}#weye .e-shut{display:none}html.prot #weye .e-open{display:none}html.prot #weye .e-shut{display:block}
-#unlock .l-shut{display:none}body.islocked #unlock .l-open{display:none}body.islocked #unlock .l-shut{display:block}
+#unlock .l-shut{display:none}body.islocked #unlock .l-open,body.locked #unlock .l-open{display:none}body.islocked #unlock .l-shut,body.locked #unlock .l-shut{display:block}
+body.dock .wbs{display:flex;flex:none}
 #cclose:hover{background:#e5484d;border-color:#e5484d}
 
 /* ===== Dashboard: beranda rapi (kartu dua kolom) ===== */
@@ -352,3 +356,8 @@ body.dock:not(.locked):not(.preview) #weye,body.dock:not(.locked):not(.preview) 
 .dnc .g2{align-items:flex-end}
 #panel .dnc label{margin:10px 0 5px}
 .dnc .row{margin:10px 0 0}
+
+/* Donate Dock di beranda Dashboard: satu kotak per dock (ikut grid dua kolom) */
+#dDocks{display:contents}
+.dkc h3{margin:0 0 6px}.dkc .dkb{flex-wrap:wrap;margin-top:12px}.dkc .dkb .btn{min-width:0}
+#dnModal .row{margin:12px 0 0}#dnModal .btns{margin-top:14px}

@@ -33,7 +33,7 @@ function chatUrl(p){
 function cmd(name){if(name==='clear')history.length=0;emit('cmd',{name});}
 // URL widget Donate Dock: kosong = fitur diam (''), hanya http/https yang diterima, selain itu null (ditolak)
 function cleanDonateUrl(u){const v=String(u==null?'':u).trim();if(!v)return '';let x;try{x=new URL(v);}catch{return null;}return(x.protocol==='http:'||x.protocol==='https:')?x.href:null;}
-// Donate Dock (bisa lebih dari satu): [{id,name,url,mute,refW,refH}]. refW/refH = ukuran acuan (px) untuk skala isi widget supaya muat di jendela.
+// Donate Dock (bisa lebih dari satu): [{id,name,url,mute,opacity,refW,refH}]. opacity = 10-100 (persen). refW/refH = ukuran acuan (px) untuk skala isi widget supaya muat di jendela.
 const DOCK_MAX=5;
 function cleanDocks(a){
   const out=[],seen=new Set(),n=(v,d)=>{v=Math.round(+v);return v>=200&&v<=7680?v:d;};
@@ -42,7 +42,7 @@ function cleanDocks(a){
     let id=String((d&&d.id)||'').replace(/[^\w-]/g,'').slice(0,24);if(!id||seen.has(id))id='d'+Date.now().toString(36)+out.length;seen.add(id);
     const name=String((d&&d.name)||'').trim().slice(0,40)||'Donate Dock '+(out.length+1),url=cleanDonateUrl(d&&d.url);
     if(url===null)return{error:'URL "'+name+'" tidak valid. Pakai alamat widget yang diawali http:// atau https://, contoh https://saweria.co/widgets/...'};
-    out.push({id,name,url,mute:!!(d&&d.mute),refW:n(d&&d.refW,1280),refH:n(d&&d.refH,720)});
+    out.push({id,name,url,mute:!!(d&&d.mute),opacity:Math.min(100,Math.max(10,Math.round(+(d&&d.opacity))||100)),refW:n(d&&d.refW,1280),refH:n(d&&d.refH,720)});
   }
   return{docks:out};
 }

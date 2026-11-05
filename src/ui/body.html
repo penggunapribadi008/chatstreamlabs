@@ -13,7 +13,7 @@
 <div id="sb">
   <button class="sbi" data-t="d">Dashboard</button><button class="sbi" data-t="k">Koneksi</button>
   <div class="sbl"></div>
-  <button class="sbi" data-t="p">Pribadi</button><button class="sbi" data-t="o">Overlay</button><button class="sbi" data-t="n">Donate Dock</button><button class="sbi" data-t="h">Hotkey</button>
+  <button class="sbi" data-t="p">Pribadi</button><button class="sbi" data-t="o">Overlay</button><button class="sbi" data-t="h">Hotkey</button>
   <div class="sbl"></div>
   <button class="sbi" data-t="r">Laporan penonton</button>
   <div class="sbsp"></div>
@@ -23,13 +23,12 @@
   <div class="tabs"><div class="tabrow"><button class="tab on" data-t="k">Koneksi</button><button class="tab" data-t="p">Pribadi</button><button class="tab" data-t="o">Overlay</button><button class="tab" data-t="h">Hotkey</button></div></div>
   <div id="panes">
   <div class="pane on" id="pd">
-    <div class="card dwel"><h2>Selamat datang!</h2><div class="hint">Atur koneksi live, tampilan chat pribadi, overlay OBS, dan Donate Dock dari menu di kiri. Jendela chat dan Donate Dock dibuka dari sini.</div>
-      <div class="btns"><button class="btn b3 sm" id="dRep">Laporan penonton</button></div></div>
     <div class="card"><h3>Chat</h3>
       <div class="dkr"><div class="dki"><b>Jendela chat</b><small id="dChatSt">Tertutup</small></div><div class="dkb"><button class="btn b1 sm" id="dChat">Buka Chat</button></div></div></div>
+    <div id="dDocks"></div>
+    <div class="card dwide" id="dDockAddCard"><h3>Donate Dock</h3><div class="hint" id="dDockHint"></div>
+      <div class="btns"><button class="btn b3 sm" id="dDockAdd">+ Tambah Donate Dock</button></div></div>
     <div class="card"><h3>Status koneksi</h3><div id="dst"></div></div>
-    <div class="card dwide"><h3>Donate Dock</h3><div id="dDocks"></div>
-      <div class="btns"><button class="btn b3 sm" id="dDockSet">Atur Donate Dock</button></div></div>
   </div>
   <div class="pane on" id="pk">
     <div class="card"><h3>Sambungkan live</h3>
@@ -85,22 +84,6 @@
       </ol>
       <label><span>Alamat overlay (kalau mau pasang manual)</span></label><input type="text" readonly id="u2"></div>
     <div class="bar"><button class="btn b4" data-reset="overlay">Reset</button><button class="btn b1" data-apply="overlay">Terapkan</button></div></div>
-  <div class="pane" id="pn"><div class="card"><h3>Donate Dock</h3>
-      <div class="hint">Tampilkan widget donasi (alert dan media share) langsung di layar game, tanpa Alt Tab. Aplikasi hanya memuat halaman widget-mu di jendelanya sendiri, jadi Chrome tidak perlu dibuka dan tidak perlu login. Bisa lebih dari satu dock (maksimal 5). Dock dibuka dan ditutup dari Dashboard.</div>
-      <div id="dnList"></div>
-      <div class="btns"><button class="btn b3" id="dnAdd">+ Tambah Donate Dock</button></div>
-      <div class="btns"><button class="btn b1" id="dnSave">Simpan</button></div>
-      <div id="dnMsg" class="hint"></div></div>
-    <div class="card"><h3>Cara pakai</h3>
-      <ol class="steps">
-        <li><div class="sn">1</div><div class="sb"><b>Ambil URL widget</b><span>Buka dashboard layanan donasimu (misalnya Saweria), masuk ke menu Widget, lalu salin alamat widget alert atau media share. Itu alamat yang sama dengan yang dipasang sebagai Browser Source di OBS.</span></div></li>
-        <li><div class="sn">2</div><div class="sb"><b>Tempel dan simpan</b><span>Tambahkan dock, tempel alamatnya, lalu klik <b>Simpan</b>.</span></div></li>
-        <li><div class="sn">3</div><div class="sb"><b>Buka dari Dashboard</b><span>Di halaman Dashboard, klik <b>Buka</b> pada dock-nya. Jendela tidak punya bilah judul; geser lewat tombol panah empat arah, ubah ukuran lewat tepi jendela. Posisi dan ukurannya diingat.</span></div></li>
-        <li><div class="sn">4</div><div class="sb"><b>Kunci</b><span>Klik tombol gembok: jendela jadi transparan, di atas game, dan tidak menghalangi klik selama belum ada donasi yang tampil. Tombol mata menyembunyikan jendela dari OBS, tombol silang menutup dock.</span></div></li>
-      </ol>
-      <div class="hint"><b>Ukuran acuan</b> menentukan skala isi widget: isi widget dibuat seolah layarnya seukuran itu lalu diperkecil/diperbesar supaya muat di jendela (video dan teks tidak kepotong). Kalau isi terlalu kecil, kecilkan ukuran acuannya; kalau masih kepotong, besarkan.</div>
-      <div class="hint">Saat <b>Sembunyikan dari OBS</b> menyala, bagian jendela yang menerima klik hanya area widget yang sedang terlihat (batasan Windows), jadi saat ada donasi tampil area itu menerima klik.</div></div>
-  </div>
   <div class="pane" id="ph"><div class="card"><h3>Hotkey</h3>
     <div id="hkl"></div></div>
     <div class="bar"><button class="btn b4" id="hkdef">Kembalikan default</button><button class="btn b1" id="hkapply">Terapkan</button></div></div>
@@ -141,6 +124,12 @@
   </div>
   <div class="foot"><button class="btn b3" id="tguide" style="margin-right:auto">Salin panduan struktur (untuk AI)</button><button class="btn b4" id="tcancel">Batal</button><button class="btn b1" id="tsave">Simpan</button></div>
 </div>
+<div id="dnModal" class="avm" hidden><div class="avbox"><h3 id="dnmT">Atur Donate Dock</h3>
+  <label><span>URL widget donasi</span></label><input type="text" id="dnmUrl" placeholder="https://saweria.co/widgets/..." spellcheck="false">
+  <label><span>Opacity <b id="dnmOpV">100%</b></span></label><input type="range" id="dnmOp" min="10" max="100" step="5" value="100">
+  <div class="row"><span>Bisukan suara (kalau widget yang sama juga di OBS)</span><input type="checkbox" id="dnmMute" checked></div>
+  <div class="hint" id="dnmMsg"></div>
+  <div class="btns"><button class="btn b2 sm" id="dnmDel" style="margin-right:auto">Hapus</button><button class="btn b4 sm" id="dnmCancel">Batal</button><button class="btn b1 sm" id="dnmSave">Simpan</button></div></div></div>
 <div id="avmodal" class="avm" hidden><div class="avbox"><h3>Port yang sebaiknya dihindari</h3>
   <div class="hint">Port ini biasanya sudah dipakai program lain. Kalau dimasukkan, aplikasi menolaknya.</div>
   <div id="avlist"></div>
