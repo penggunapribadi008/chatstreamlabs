@@ -171,7 +171,7 @@ function openWin(url,opt){
 }
 function winCtl(which,act){
   const w=which==='main'?main:which==='dash'?dash:wins[which];if(!w||w.isDestroyed())return;
-  if(act==='min')w.minimize();
+  if(act==='min'){if(which==='dash'||which==='main')w.hide();else w.minimize();} // Dashboard/Chat: langsung sembunyi ke tray (tanpa status 'minimized', yang bikin jendela macet saat dibuka lagi)
   else if(act==='max'){if(w.isMaximized())w.unmaximize();else w.maximize();}
   else if(act==='close'){if(which==='dash')askQuit();else w.close();}
 }
@@ -184,7 +184,10 @@ function openReport(){
 function openSettings(){showDash();}
 function showDash(){
   if(!dash||dash.isDestroyed())return;
-  if(dash.isMinimized())dash.restore();if(!dash.isVisible())dash.show();dash.focus();
+  if(dash.isMinimized())dash.restore();
+  if(!dash.isVisible())dash.show();
+  dash.focus();dash.moveTop();
+  try{dash.webContents.focus();}catch{}
 }
 // jendela chat (dulu jendela utama), dibuka dari tombol di Dashboard
 function openChat(){
@@ -270,7 +273,7 @@ app.whenReady().then(()=>{
   if(!gotLock)return;
   Menu.setApplicationMenu(null);
   startUp();
-  try{tray=new Tray(nativeImage.createFromPath(ICON).resize({width:16,height:16}));tray.setToolTip('ChatStream Labs');tray.setContextMenu(trayMenu());tray.on('click',()=>setLock(!locked));}catch{}
+  try{tray=new Tray(nativeImage.createFromPath(ICON).resize({width:16,height:16}));tray.setToolTip('ChatStream Labs');tray.setContextMenu(trayMenu());tray.on('click',()=>showDash());}catch{}
   setTimeout(()=>{
     srv=require('./server.js');Object.assign(srv.hooks,hooks);
     setHotkeys(G().hotkeys);

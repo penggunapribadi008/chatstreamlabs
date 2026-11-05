@@ -90,7 +90,7 @@ function applyStyle(){
   const usesVars=!!(tpl.custom&&/--fs[nt]\b|--p5-scale|--nr\b/.test(tpl.css||'')),zm=view==='overlay'&&tpl.custom&&!usesVars&&tpl.struct!=='p5'&&tpl.struct!=='cozy'&&/font(-size)?\s*:[^;}]*\d+(\.\d+)?px/.test(tpl.css||'');
   r.setProperty('--zn',(s.fsName/20).toFixed(3));r.setProperty('--zt',(s.fsText/20).toFixed(3));
   $('usercss').textContent=tpl.custom?tpl.css:'';
-  b.className=[view,isPrev?'preview':'',isLocked?'locked':'',s.chatBg?'cb':'',s.order==='top'?'ot':'',(view==='overlay'&&s.align==='right')?'al-right':'',(view==='overlay'&&tpl.struct==='rv')?'s-rv':'','p-'+(tpl.custom?'custom':pid),'an-'+an,zm?'zm':'',(view==='overlay'&&s.gap!==DEF.overlay.gap)?'gap-set':'',booting?'noanim':'',s.viewers?'sv':'',s.time?'st':'',s.avatar?'':'na',s.botTag?'':'nobt',s.hideBots?'hb':'',(view==='dock'&&filt!=='all')?'f-'+filt:''].filter(Boolean).join(' ');
+  b.className=[view,isPrev?'preview':'',isLocked?'locked':'',s.chatBg?'cb':'',s.order==='top'?'ot':'',(view==='overlay'&&s.align==='right')?'al-right':'',(view==='overlay'&&tpl.struct==='rv')?'s-rv':'','p-'+(tpl.custom?'custom':pid),'an-'+an,zm?'zm':'',(view==='overlay'&&s.gap!==DEF.overlay.gap)?'gap-set':'',booting?'noanim':'',s.viewers?'sv':'',s.time?'st':'',s.avatar?'':'na',s.botTag?'':'nobt',s.hideBots?'hb':'',(view==='dock'&&filt!=='all')?'f-'+filt:'',(S.global&&S.global.sendOn===false)?'nosend':''].filter(Boolean).join(' ');
   if(view==='dock'&&!isLocked)applyUi(s);
   chatColors(s,pid);
   if(view==='overlay'){wrap.id=curStruct==='rv'?'log':curStruct==='cozy'?'chat':'msgs';if(curStruct==='cozy')wrap.dataset.mode='person';else delete wrap.dataset.mode;}
@@ -225,7 +225,7 @@ function styleMsg(d,m,s){
   if(m.member&&!s[mk+'Badge'])d.classList.add('nomem1');
   if(m.vip&&VIPK[m.p]&&!s[VIPK[m.p]])d.classList.add('novip1');
   if(m.hl&&s.twHl)d.classList.add('ishl');}
-// alert hadiah TikTok: muncul di bawah kotak penonton beberapa detik (gambar hadiah bisa beranimasi)
+// alert hadiah TikTok: strip sendiri di bawah kotak penonton, di atas chat (tidak menimpa chat) beberapa detik (gambar hadiah bisa beranimasi)
 function giftAlert(m){
   if(Date.now()-(m.t||0)>8000)return;
   const box=$('galert');if(!box)return;
@@ -541,7 +541,12 @@ function dashPane(tab){
 function pvSend(){if(!isDash)return;const s=copy(S);s.global=s.global||{};s.dock={...(s.dock||{}),...collect('dock')};s.overlay={...(s.overlay||{}),...collect('overlay')};
   [['pvD','p'],['pvO','o']].forEach(([i,t])=>{const f=$(i);if(f&&f.getAttribute('src')===PVSRC[i]&&f.contentWindow)f.contentWindow.postMessage({type:'cfg',settings:s,enabled:EN},'*');});}
 function dashRender(){const b=$('dst');if(!b)return;const on=PF4.filter(k=>EN[k]);
-  b.innerHTML=on.length?on.map(k=>'<div class="dsr"><span><img src="'+PL[k]+'" alt="">'+PNAME[k]+'</span><span>'+esc(status[k]||'-')+(viewers[k]!=null?' &middot; '+fmt(viewers[k])+' penonton':'')+'</span></div>').join(''):'<div class="hint">Belum ada platform yang menyala. Nyalakan di tab Koneksi.</div>';}
+  b.textContent='';
+  if(!on.length){b.innerHTML='<div class="hint">Belum ada platform yang menyala. Nyalakan di tab Koneksi.</div>';return;}
+  on.forEach(k=>{const [c,t]=stView(status[k]),r=document.createElement('div'),l=document.createElement('span'),i=document.createElement('img'),v=document.createElement('span');
+    r.className='dsr';i.src=PL[k];i.alt='';l.append(i,PNAME[k]);
+    v.className='dsv'+(c?' '+c:'');v.textContent=t+(viewers[k]!=null?' \u00b7 '+fmt(viewers[k])+' penonton':'');
+    r.append(l,v);b.appendChild(r);});}
 let dashInit=false;
 function initDash(){if(dashInit)return;dashInit=true;
   document.querySelectorAll('.sbi[data-t]').forEach(b=>b.onclick=()=>setTab(b.dataset.t));
