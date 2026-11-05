@@ -112,7 +112,7 @@ function watchLoad(w,go){
 function makeMain(bounds){
   const L=locked;
   const b=bounds||readJ(BF).outer||{};
-  const o={x:b.x,y:b.y,width:b.width||460,height:b.height||800,title:'ChatStream Labs',icon:ICON,minWidth:300,minHeight:300,show:false};
+  const o={x:b.x,y:b.y,width:b.width||460,height:b.height||800,title:'ChatStream Labs',icon:ICON,minWidth:300,minHeight:300,show:false,webPreferences:{spellcheck:false}};
   if(L)Object.assign(o,{frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,alwaysOnTop:true,resizable:false,skipTaskbar:true,focusable:false,thickFrame:false});
   else Object.assign(o,{frame:false,backgroundColor:themeBg()});
   const w=new BrowserWindow(o);
@@ -125,6 +125,7 @@ function makeMain(bounds){
   w.webContents.on('console-message',(...a)=>{const e=a[0],lv=(e&&e.level!==undefined)?e.level:a[1],msg=(e&&e.message)||a[2];if(lv===3||lv==='error')log('tampilan: '+msg);});
   const keep=()=>{if(!L&&!w.isDestroyed()&&!w.isMinimized())saveB({outer:w.getBounds()});};
   w.on('moved',keep);w.on('resized',keep);
+  if(!L)w.on('minimize',()=>{if(!quitting&&!w.isDestroyed())w.hide();}); // diperkecil = masuk tray
   // menutup jendela chat tidak menutup aplikasi (Dashboard tetap ada)
   w.on('closed',()=>{if(main===w&&!switching){main=null;locked=false;hideCtl();if(tray)tray.setContextMenu(trayMenu());}});
   main=w;
@@ -153,6 +154,8 @@ async function askQuit(){
   }finally{asking=false;}
 }
 const trayMenu=()=>Menu.buildFromTemplate([
+  {label:'Buka Dashboard',click:()=>showDash()},
+  {label:'Buka Chat',click:()=>openChat()},
   {label:locked?'Buka kunci':'Kunci jendela',click:()=>setLock(!locked)},
   {label:'Laporan penonton',click:()=>openReport()},
   {label:'Pengaturan',click:()=>openSettings()},
@@ -191,13 +194,14 @@ function openChat(){
 // Dashboard = jendela pertama yang terbuka setelah splash
 function makeDash(){
   const b=readJ(BF).dash||{};
-  const w=new BrowserWindow({x:b.x,y:b.y,width:b.width||1100,height:b.height||700,minWidth:860,minHeight:540,title:'ChatStream Labs - Dashboard',icon:ICON,frame:false,autoHideMenuBar:true,backgroundColor:themeBg(),show:false});
+  const w=new BrowserWindow({x:b.x,y:b.y,width:b.width||1100,height:b.height||700,minWidth:860,minHeight:540,title:'ChatStream Labs - Dashboard',icon:ICON,frame:false,autoHideMenuBar:true,backgroundColor:themeBg(),show:false,webPreferences:{spellcheck:false}});
   const go=()=>{if(!w.isDestroyed())w.loadURL(base()+'/?view=dashboard');};
   go();watchLoad(w,go);
   w.webContents.on('did-fail-load',(e,c,d,u)=>{if(c!==-3&&u&&u.startsWith('http://localhost'))setTimeout(go,1000);});
   w.webContents.on('render-process-gone',()=>{log('proses tampilan Dashboard berhenti, memuat ulang');setTimeout(go,500);});
   const keep=()=>{if(!w.isDestroyed()&&!w.isMinimized()&&!w.isMaximized())saveB({dash:w.getBounds()});};
   w.on('moved',keep);w.on('resized',keep);
+  w.on('minimize',()=>{if(!quitting&&!w.isDestroyed())w.hide();}); // diperkecil = masuk tray
   w.on('close',e=>{if(!quitting){e.preventDefault();askQuit();}});
   w.on('closed',()=>{if(dash===w)dash=null;});
   dash=w;return w;

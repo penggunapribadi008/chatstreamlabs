@@ -75,6 +75,7 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/draft-clear')return body(()=>emit('draftclear',{}));
     if(u.pathname==='/hotkeys')return json(async({hotkeys})=>{settings.global={...settings.global,hotkeys};fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);return hooks.setHotkeys?hooks.setHotkeys(hotkeys||{}):{};});
     if(u.pathname==='/templates-restore')return body(()=>{const have=new Set((settings.global.templates||[]).map(t=>t.id));settings.global.templates=[...SEEDS.filter(x=>!have.has(x.id)),...(settings.global.templates||[])];fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);});
+    if(u.pathname==='/send-set')return body(({on})=>setGlobal({sendOn:on!==false}));
     if(u.pathname==='/protect-toggle')return body(()=>setGlobal({protect:settings.global.protect===false}));
     if(u.pathname==='/shape')return body(({rects})=>{if(hooks.shape)hooks.shape(Array.isArray(rects)?rects:[]);});
     if(u.pathname==='/ready')return body(()=>autoStart());
@@ -197,7 +198,8 @@ function startTT(){
       const gd=d.giftDetails||d.gift||{},type=gd.giftType!=null?gd.giftType:d.giftType;
       if(type===1&&!d.repeatEnd)return; // streak masih berjalan: tunggu event akhir supaya tidak terhitung berkali-kali
       const n=Number(d.repeatCount)||1,dia=Number(gd.diamondCount!=null?gd.diamondCount:d.diamondCount)||0;
-      push({p:'tiktok',kind:'gift',name:nm(d.user),gift:String(gd.giftName||gd.name||d.giftName||'hadiah'),n,coins:dia*n});}));
+      const gi=gd.giftImage||gd.image||d.giftImage||{},img=gd.giftPictureUrl||d.giftPictureUrl||gi.giftPictureUrl||(gi.urlList&&gi.urlList[0])||(gd.icon&&gd.icon.urlList&&gd.icon.urlList[0])||'';
+      push({p:'tiktok',kind:'gift',name:nm(d.user),gift:String(gd.giftName||gd.name||d.giftName||'hadiah'),n,coins:dia*n,img:/^https?:\/\//.test(img)?img:undefined});}));
     // like datang bertubi-tubi: dihitung semua untuk statistik, tapi ditampilkan sebagai satu baris per 5 detik
     c.on(E.LIKE||'like',safe(d=>{const n=Number(d.likeCount)||1;stats.like(n);likeAdd(nm(d.user),n);}));
     c.on(E.ROOM_USER||'roomUser',safe(d=>{

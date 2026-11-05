@@ -288,3 +288,25 @@ body.dashboard .wbs{display:flex;flex:none}
 .cnh{display:flex;align-items:center;gap:10px;margin-bottom:8px}.cnh img{width:22px;height:22px;flex:none}.cnh b{flex:1;font-size:14px}
 .cn.off input[type=text],.cn.off input[type=number]{opacity:.45}
 .stat{flex-wrap:wrap}.stat .chip2{flex:1 1 40%}
+
+/* kirim chat dimatikan: kolom kirim di dock hilang */
+body.nosend #foot{display:none!important}
+.h3sw{display:flex;align-items:center;justify-content:space-between}
+/* status koneksi yang rapi */
+#st{white-space:normal}
+#st .sr{display:flex;align-items:center;gap:8px;padding:5px 0}
+#st .sr img{width:16px;height:16px;flex:none}
+#st .sr b{font-weight:600;color:var(--text)}
+#st .sr .sv{margin-left:auto;display:flex;align-items:center;gap:6px}
+#st .sr .sv::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--muted)}
+#st .sr .sv.ok{color:#4ade80}#st .sr .sv.ok::before{background:#4ade80}
+#st .sr .sv.wait{color:#fbbf24}#st .sr .sv.wait::before{background:#fbbf24}
+#st .sr .sv.bad{color:#f87171}#st .sr .sv.bad::before{background:#f87171}
+/* alert hadiah TikTok di bawah kotak penonton (hanya dock) */
+#galert{display:none;position:absolute;top:8px;left:10px;right:10px;flex-direction:column;gap:6px;pointer-events:none;z-index:4}
+body.dock #galert{display:flex}
+#galert .ga{display:flex;align-items:center;gap:10px;align-self:flex-start;max-width:100%;padding:6px 14px 6px 8px;border-radius:14px;background:rgba(15,15,22,.92);border:1px solid rgba(255,255,255,.2);color:#fff;font:600 13px 'Segoe UI',sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.5);animation:gaIn .35s ease both}
+#galert .ga img,#galert .ga .gi{width:40px;height:40px;flex:none;object-fit:contain;font-size:30px;line-height:40px;text-align:center}
+#galert .ga .gt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#galert .ga.out{opacity:0;transform:translateY(-6px);transition:opacity .4s,transform .4s}
+@keyframes gaIn{from{opacity:0;transform:translateY(-10px) scale(.95)}to{opacity:1;transform:none}}

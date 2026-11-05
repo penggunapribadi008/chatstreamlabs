@@ -81,6 +81,7 @@ function tplOf(id){
 }
 function applyStyle(){
   const s=cur(view),b=document.body,r=document.documentElement.style;
+  b.classList.toggle('nosend',!!(S.global&&S.global.sendOn===false));
   r.setProperty('--fsn',s.fsName+'px');r.setProperty('--fst',s.fsText+'px');r.setProperty('--fs',s.fsText+'px');r.setProperty('--gap',s.gap+'px');r.setProperty('--bg',s.bg/100);
   r.setProperty('--cbg',s.chatBg?hexA(s.chatBgColor,s.chatBgOp):'transparent');r.setProperty('--p5-scale',(s.fsText/17.5).toFixed(3));r.setProperty('--nr',(s.fsName/s.fsText).toFixed(3));
   let pid=view==='overlay'?(forceId||s.preset):'polos',tpl=tplOf(pid);if(!tpl){pid='polos';tpl=tplOf('polos');}
@@ -108,7 +109,8 @@ list.addEventListener('scroll',updBtn);$('tobottom').onclick=toLatest;
 function showViewers(){$('vy').textContent=fmt(viewers.youtube);$('vt').textContent=fmt(viewers.tiktok);$('vw').textContent=fmt(viewers.twitch);$('vk').textContent=fmt(viewers.kick);
   [['chy','youtube'],['cht','tiktok'],['cw','twitch'],['ck','kick']].forEach(([i,p])=>$(i).classList.toggle('off',!EN[p]));
   const a=PF4.filter(p=>EN[p]).map(k=>viewers[k]).filter(x=>x!=null);$('vs').textContent=a.length?fmt(a.reduce((x,y)=>x+y,0)):'-';}
-function showSt(s){status=s;$('st').textContent=PF4.filter(k=>EN[k]).map(k=>PNAME[k]+': '+(s[k]||'-')).join('\n');showViewers();if(isDash)dashRender();}
+function stView(v){v=String(v||'-');if(/^terhubung/i.test(v))return['ok','Terhubung'];if(/not found|not online|isn't online|tidak ditemukan|offline/i.test(v))return['wait','Belum live, mencoba lagi'];if(/gagal|coba lagi/i.test(v))return['bad','Gagal tersambung, mencoba lagi'];return['',v.charAt(0).toUpperCase()+v.slice(1)];}
+function showSt(s){status=s;const b=$('st');b.textContent='';PF4.filter(k=>EN[k]).forEach(k=>{const [c,t]=stView(s[k]),r=document.createElement('div'),i=document.createElement('img'),n=document.createElement('b'),v=document.createElement('span');r.className='sr';i.src=PL[k];i.alt='';n.textContent=PNAME[k];v.className='sv'+(c?' '+c:'');v.textContent=t;r.append(i,n,v);b.appendChild(r);});showViewers();if(isDash)dashRender();}
 // dipanggil saat switch platform berubah (dan saat pertama dimuat)
 function fltBuild(){const f=$('flt');if(!f)return;const on=PF4.filter(p=>EN[p]);
   if(filt!=='all'&&!on.includes(filt)){filt='all';try{localStorage.setItem('flt',filt)}catch{}}
@@ -223,10 +225,21 @@ function styleMsg(d,m,s){
   if(m.member&&!s[mk+'Badge'])d.classList.add('nomem1');
   if(m.vip&&VIPK[m.p]&&!s[VIPK[m.p]])d.classList.add('novip1');
   if(m.hl&&s.twHl)d.classList.add('ishl');}
+// alert hadiah TikTok: muncul di bawah kotak penonton beberapa detik (gambar hadiah bisa beranimasi)
+function giftAlert(m){
+  if(Date.now()-(m.t||0)>8000)return;
+  const box=$('galert');if(!box)return;
+  const d=document.createElement('div'),t=document.createElement('span'),b=document.createElement('b');d.className='ga';t.className='gt';
+  const fb=()=>{const e=document.createElement('span');e.className='gi';e.textContent='\u{1F381}';return e;};
+  let im;if(m.img){im=document.createElement('img');im.alt='';im.onerror=()=>im.replaceWith(fb());im.src=m.img;}else im=fb();
+  b.textContent=m.name||'?';t.append(b,' mengirim '+(m.gift||'hadiah')+((m.n||1)>1?' \u00d7'+m.n:''));
+  d.append(im,t);box.appendChild(d);while(box.children.length>3)box.firstChild.remove();
+  setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),450);},6000);}
 function addAct(m,re,s,stick){
   const A=ACT[m.p];if(!A||!s[A.pre+'Act']||!s[A.pre+cap(m.kind)])return;
   if(m.kind==='gift'&&(m.p==='tiktok'?(m.coins||0):(m.n||1))<(s[A.pre+'GiftMin']||0))return;
   if(!re&&view==='overlay'){msgsData.push(m);if(msgsData.length>80)msgsData.shift();}
+  if(view==='dock'&&m.p==='tiktok'&&m.kind==='gift')giftAlert(m);
   const d=actEl(m,s);put(d);trim();if(stick)toLatest();
   if(s.fade>0&&!isPrev&&!m.sample&&!re)setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),450);},s.fade*1000);}
 function add(m,re){
@@ -284,7 +297,7 @@ function samples(clear){if(clear){wrap.innerHTML='';msgsData=[];applyStyle();}fe
   if(view==='overlay'&&isPrev){
     // beberapa contoh langsung (satu dari tiap jenis utama) supaya pratinjau tidak kosong, lalu dilanjutkan pesan acak terus-menerus
     SHOW.slice().sort(()=>Math.random()-.5).slice(0,isStatic?4:7).forEach((i,k)=>setTimeout(()=>{if(!draftEmpty())add({...SCEN[i](),t:Date.now(),sample:true});},k*(isStatic?450:380)));
-    setTimeout(feedLoop,(isStatic?4:7)*(isStatic?450:380)+300);return;}
+    if(!isStatic||forceId)setTimeout(feedLoop,(isStatic?4:7)*(isStatic?450:380)+300);return;}
   SAMP.forEach((x,i)=>setTimeout(()=>{if(!draftEmpty())add({p:x[0],name:x[1],text:x[2],t:Date.now(),sample:true,...(x[3]||{})});},i*450));}
 let tmS=null;function resample(){clearTimeout(tmS);tmS=setTimeout(()=>samples(true),250);}
 const live=!isAdmin&&(view==='dock'||isPrev)&&!isStatic;
@@ -299,7 +312,7 @@ if(isStatic){
   applyStyle();
   addEventListener('message',e=>{const d=e.data||{};
     if(d.type==='cfg'){S=copy(d.settings);S.global=S.global||{};setEN(d.enabled);if(d.feed!=null)feedOn=!!d.feed;applyStyle();resample();}
-    else if(d.type==='feed'){feedOn=!!d.on;resample();}
+    else if(d.type==='one'){if(!draftEmpty()){const m=pickScen();if(m)add({...m,t:Date.now(),sample:true});}}
     else if(d.type==='tpldraft'){draftTpl={css:d.css};applyStyle();resample();}});
   setTimeout(()=>{if(!wrap.children.length&&!feedT)resample();},1500);
   parent.postMessage({type:'ready'},'*');bootDone();
@@ -329,9 +342,9 @@ if(isStatic){
 if(isLocked&&!isAdmin){
   // Hanya kotak yang benar-benar terlihat (tiap gelembung chat, dan tiap kotak YouTube / TikTok / Total) yang menerima klik.
   // Ruang kosong di antara kotak tidak masuk daftar, jadi klik menembus ke jendela di belakangnya.
-  let st=null;const send=()=>{const rs=[];[['#msgs>*',8],['#top>*',1]].forEach(([sel,pad])=>document.querySelectorAll(sel).forEach(e=>{const r=e.getBoundingClientRect();if(r.width>0&&r.height>0)rs.push({x:r.left-pad,y:r.top-pad,width:r.width+pad*2,height:r.height+pad*2});}));post('/shape',{rects:rs});};
+  let st=null;const send=()=>{const rs=[];[['#msgs>*',8],['#top>*',1],['#galert>*',1]].forEach(([sel,pad])=>document.querySelectorAll(sel).forEach(e=>{const r=e.getBoundingClientRect();if(r.width>0&&r.height>0)rs.push({x:r.left-pad,y:r.top-pad,width:r.width+pad*2,height:r.height+pad*2});}));post('/shape',{rects:rs});};
   const q=()=>{if(st)return;st=setTimeout(()=>{st=null;send();},120);};
-  [$('msgs'),$('top')].forEach(n=>new MutationObserver(q).observe(n,{childList:true,subtree:true,characterData:true}));
+  [$('msgs'),$('top'),$('galert')].forEach(n=>new MutationObserver(q).observe(n,{childList:true,subtree:true,characterData:true}));
   addEventListener('resize',q);addEventListener('animationend',q);setInterval(send,1500);setTimeout(send,300);
 }
 // ---- dua kotak saat terkunci (jendela kecil terpisah) ----
@@ -422,7 +435,7 @@ function refreshPresets(){const sel=$('overlay_preset');if(!sel)return;const kee
   sel.value=all.some(x=>x[0]===keep)?keep:(all.some(x=>x[0]===cur('overlay').preset)?cur('overlay').preset:'polos');}
 function fill(v,src){const s=src||cur(v);if(v==='overlay')refreshPresets();
   items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;if(it[0]==='chk')e.checked=!!s[it[1]];else e.value=s[it[1]];if(it[0]==='sl')lbl(v,it);});syncDeps(v);pvAll(v);}
-function fillGlobal(){const g=S.global||{};$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';}
+function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';}
 function collect(v){const o={};items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;o[it[1]]=it[0]==='chk'?e.checked:(it[0]==='sl'?+e.value:e.value);});return o;}
 let dt=null;
 function draftChange(v){items(v).filter(i=>i[0]==='sl').forEach(i=>lbl(v,i));syncDeps(v);pvAll(v);if(v==='dock')applyUi(collect('dock'));if(isDash)pvSend();clearTimeout(dt);dt=setTimeout(()=>post('/draft',{view:v,values:collect(v)}),40);}
@@ -438,7 +451,7 @@ document.querySelectorAll('[data-apply]').forEach(b=>b.onclick=async()=>{const v
   else await post('/settings',{view:'global',values:{obsW:+$('obsW').value||500,obsH:+$('obsH').value||900,obsPass:$('obsPass').value}});});
 document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{const v=b.dataset.reset;fill(v,DEF[v]);if(v==='dock'){$('protect').checked=true;$('ctrlPos').value='top-right';}draftChange(v);});
 // akun
-async function acct(){try{const a=await(await fetch('/account')).json();accState=a;
+async function acct(){if(document.hidden)return;try{const a=await(await fetch('/account')).json();accState=a;
   [['ay',a.youtube],['at',a.tiktok],['aw',a.twitch],['ak',a.kick]].forEach(([i,ok])=>{$(i).textContent=ok?'terhubung':'belum terhubung';$(i).className=ok?'ok':'no';});}catch{}}
 const copyText=async t=>{try{await navigator.clipboard.writeText(t);}catch{try{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}catch{}}};
 // hotkey
@@ -497,6 +510,7 @@ $('portsave').onclick=async()=>{const m=$('portmsg');const r=await(await post('/
 $('portrestart').onclick=()=>post('/restart');
 $('portavoid').onclick=()=>{$('avlist').innerHTML='';(conf.avoid||[]).forEach(a=>{const r=document.createElement('div');r.className='avrow';const b=document.createElement('b'),n=document.createElement('span');b.textContent=a.port;n.textContent=a.name;r.append(b,n);$('avlist').appendChild(r);});$('avmodal').hidden=false;};
 $('avclose').onclick=()=>{$('avmodal').hidden=true;};$('avmodal').onclick=e=>{if(e.target===$('avmodal'))$('avmodal').hidden=true;};
+$('sendOn').onchange=()=>post('/send-set',{on:$('sendOn').checked}).catch(()=>{});
 $('u2').onclick=()=>{$('u2').select();try{document.execCommand('copy')}catch{}};
 $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textContent='Menghubungi OBS...';
   const r=await(await post('/obs-add',{width:+$('obsW').value||500,height:+$('obsH').value||900,password:$('obsPass').value})).json();
@@ -508,37 +522,33 @@ function initSettings(){fill('dock');fill('overlay');fillGlobal();applyUi(cur('d
 // ---- Dashboard: sidebar, halaman beranda, pratinjau kanan (Pribadi / Overlay), laporan ----
 const PVSRC={pvD:'/?view=dock&preview=1&static=1',pvO:'/?view=overlay&preview=1&static=1'};
 // mode pratinjau per tab: 'prev' = chat contoh hanya di pratinjau; 'live' = chat contoh dikirim ke Dock (Pribadi) / overlay OBS (Overlay), pratinjau dikosongkan
-const pvMode={p:'prev',o:'prev'};let pvT=null,pvTarget='',repLoad=null;
-function pvLiveStop(){clearTimeout(pvT);pvT=null;if(pvTarget){pvTarget='';post('/sample-clear').catch(()=>{});}}
-function pvLiveStart(target){pvLiveStop();pvTarget=target;
-  const send=m=>{if(m&&EN[m.p]!==false)post('/sample',{m:{...m},target}).catch(()=>{});};
-  SHOW.slice().sort(()=>Math.random()-.5).slice(0,5).forEach((i,k)=>setTimeout(()=>{if(pvTarget===target)send(SCEN[i]());},k*450));
-  const loop=()=>{pvT=setTimeout(()=>{if(pvTarget!==target)return;send(pickScen());loop();},rint(1500,2600));};
-  setTimeout(()=>{if(pvTarget===target)loop();},2400);}
-function pvUI(){const t=document.body.dataset.pv;if(t!=='p'&&t!=='o')return;
-  $('pvm_prev').classList.toggle('on',pvMode[t]==='prev');$('pvm_live').classList.toggle('on',pvMode[t]==='live');
-  $('pvm_live').textContent=t==='p'?'Kirim Chat ke Dock':'Kirim Chat ke Overlay';
-  const n=$('pvnote');n.hidden=pvMode[t]!=='live';
-  n.textContent=t==='p'?'Chat contoh sedang dikirim ke Dock. Klik Buka Chat untuk melihatnya. Pratinjau ini dikosongkan.':'Chat contoh sedang dikirim ke overlay yang tampil di OBS. Pratinjau ini dikosongkan.';}
-function pvFeedApply(){
-  [['p','pvD'],['o','pvO']].forEach(([t,i])=>{const f=$(i);if(f&&f.contentWindow&&f.getAttribute('src'))f.contentWindow.postMessage({type:'feed',on:pvMode[t]==='prev'},'*');});
-  const t=document.body.dataset.pv,want=(t==='p'||t==='o')&&pvMode[t]==='live'?(t==='p'?'dock':'overlay'):'';
-  if(want!==pvTarget){if(want)pvLiveStart(want);else pvLiveStop();}}
-function pvSetMode(m){const t=document.body.dataset.pv;if(t!=='p'&&t!=='o'||pvMode[t]===m)return;pvMode[t]=m;pvUI();pvFeedApply();}
+let pvTarget='',repLoad=null;
+// bersihkan chat contoh yang pernah dikirim ke Dock / Overlay
+function pvLiveStop(){if(pvTarget){pvTarget='';post('/sample-clear').catch(()=>{});}}
+function pvUI(){const t=document.body.dataset.pv;if(t!=='p'&&t!=='o')return;$('pvm_live').textContent=t==='p'?'Kirim Chat ke Dock':'Kirim Chat ke Overlay';}
+// tombol "Kirim Chat Pratinjau": tambah satu chat acak ke pratinjau
+function pvAddOne(){const t=document.body.dataset.pv,f=$(t==='p'?'pvD':t==='o'?'pvO':'');if(f&&f.contentWindow&&f.getAttribute('src')===PVSRC[f.id])f.contentWindow.postMessage({type:'one'},'*');}
+// tombol "Kirim Chat ke Dock/Overlay": kirim satu chat acak ke sana
+function pvSendLive(){const t=document.body.dataset.pv;if(t!=='p'&&t!=='o')return;const target=t==='p'?'dock':'overlay',m=pickScen();if(m&&EN[m.p]!==false){pvTarget=target;post('/sample',{m:{...m},target}).catch(()=>{});}}
+// hanya pratinjau tab yang sedang dibuka yang dimuat (hemat RAM); yang lain dikosongkan
+function pvLoadFrames(tab){const want=tab==='p'?'pvD':tab==='o'?'pvO':'';['pvD','pvO'].forEach(id=>{const f=$(id);if(!f)return;const cur=f.getAttribute('src');
+  if(id===want){if(cur!==PVSRC[id])f.src=PVSRC[id];}else if(cur&&cur!=='about:blank')f.src='about:blank';});}
 function dashPane(tab){
   document.querySelectorAll('.sbi[data-t]').forEach(x=>x.classList.toggle('on',x.dataset.t===tab));
   document.body.classList.toggle('split',tab==='p'||tab==='o');document.body.classList.toggle('rview',tab==='r');document.body.dataset.pv=tab;
-  const f=$(tab==='p'?'pvD':tab==='o'?'pvO':'');if(f&&!f.getAttribute('src'))f.src=PVSRC[f.id];
-  pvUI();pvFeedApply();if(tab==='r'&&repLoad)repLoad();}
+  pvLiveStop();pvLoadFrames(tab);
+  pvUI();if(tab==='r'&&repLoad)repLoad();}
 function pvSend(){if(!isDash)return;const s=copy(S);s.global=s.global||{};s.dock={...(s.dock||{}),...collect('dock')};s.overlay={...(s.overlay||{}),...collect('overlay')};
-  [['pvD','p'],['pvO','o']].forEach(([i,t])=>{const f=$(i);if(f&&f.getAttribute('src')&&f.contentWindow)f.contentWindow.postMessage({type:'cfg',settings:s,enabled:EN,feed:pvMode[t]==='prev'},'*');});}
+  [['pvD','p'],['pvO','o']].forEach(([i,t])=>{const f=$(i);if(f&&f.getAttribute('src')===PVSRC[i]&&f.contentWindow)f.contentWindow.postMessage({type:'cfg',settings:s,enabled:EN},'*');});}
 function dashRender(){const b=$('dst');if(!b)return;const on=PF4.filter(k=>EN[k]);
   b.innerHTML=on.length?on.map(k=>'<div class="dsr"><span><img src="'+PL[k]+'" alt="">'+PNAME[k]+'</span><span>'+esc(status[k]||'-')+(viewers[k]!=null?' &middot; '+fmt(viewers[k])+' penonton':'')+'</span></div>').join(''):'<div class="hint">Belum ada platform yang menyala. Nyalakan di tab Koneksi.</div>';}
 let dashInit=false;
 function initDash(){if(dashInit)return;dashInit=true;
   document.querySelectorAll('.sbi[data-t]').forEach(b=>b.onclick=()=>setTab(b.dataset.t));
   $('sbChat').onclick=$('dChat').onclick=()=>openC('chat');$('dRep').onclick=()=>setTab('r');
-  $('pvm_prev').onclick=()=>pvSetMode('prev');$('pvm_live').onclick=()=>pvSetMode('live');
+  $('pvm_prev').onclick=pvAddOne;$('pvm_live').onclick=pvSendLive;
+  // Dashboard disembunyikan (tray): pratinjau dibongkar supaya tidak memakan RAM/CPU, dimuat lagi saat dibuka
+  document.addEventListener('visibilitychange',()=>pvLoadFrames(document.hidden?'':document.body.dataset.pv));
   window.__goTab=t=>setTab(t);
   addEventListener('beforeunload',()=>{if(pvTarget)fetch('/sample-clear',{method:'POST',body:'{}',keepalive:true});});
   addEventListener('message',e=>{if(e.data&&e.data.type==='ready')pvSend();});repLoad=initReport(true);syncPlats();dashRender();}
@@ -698,7 +708,7 @@ function drawRep(r){
 function initReport(emb){
   let sel='cur',busy=false;const dd=$('rsess');
   const lab=x=>new Date(x.start).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' \u00b7 '+fdur((x.end||Date.now())-x.start)+(x.peak?' \u00b7 puncak '+fmt(x.peak.v):'')+(x.live?' (berjalan)':'');
-  async function load(){if(busy)return;busy=true;
+  async function load(){if(busy||document.hidden)return;busy=true;
     try{const r=await(await fetch('/analytics?id='+encodeURIComponent(sel))).json();
       if(document.activeElement!==dd){dd.innerHTML=r.list.map(x=>'<option value="'+x.id+'">'+esc(lab(x))+'</option>').join('');}
       const id=r.report?r.report.id:'';if(id){sel=id;dd.value=id;}
