@@ -15,6 +15,12 @@ if(!settings.global.tplSeeded){settings.global.templates=[...SEEDS,...(settings.
 {const MARK='/* twitch-kick */';let ch=false;
   (settings.global.templates||[]).forEach(t=>{const sd=SEEDS.find(x=>x.id===t.id);if(!sd||String(t.css||'').includes(MARK))return;const i=sd.css.indexOf(MARK);if(i>=0){t.css=String(t.css||'')+'\n'+sd.css.slice(i);ch=true;}});
   if(ch)try{fs.writeFileSync(SF,JSON.stringify(settings));}catch{}}
+// pindahan dari versi lama (satu URL) ke daftar dock
+if(!Array.isArray(settings.global.donateDocks)){
+  const u=cleanDonateUrl(settings.global.donateUrl);
+  settings.global.donateDocks=u?[{id:'d1',name:'Donate Dock 1',url:u,mute:!!settings.global.donateMute,refW:1280,refH:720}]:[];
+  try{fs.writeFileSync(SF,JSON.stringify(settings));}catch{}
+}
 const P=require('./platforms.js');
 let PORT=cfg.port||3000;const clients=new Set(),history=[],status={youtube:'',tiktok:'',twitch:'',kick:''},viewers={youtube:null,tiktok:null,twitch:null,kick:null};
 let seq=0;const crypto=require('crypto');const hooks={};let ytLive='';let _ready;const ready=new Promise(r=>_ready=r);let autoStarted=false;
@@ -27,6 +33,19 @@ function chatUrl(p){
 function cmd(name){if(name==='clear')history.length=0;emit('cmd',{name});}
 // URL widget Donate Dock: kosong = fitur diam (''), hanya http/https yang diterima, selain itu null (ditolak)
 function cleanDonateUrl(u){const v=String(u==null?'':u).trim();if(!v)return '';let x;try{x=new URL(v);}catch{return null;}return(x.protocol==='http:'||x.protocol==='https:')?x.href:null;}
+// Donate Dock (bisa lebih dari satu): [{id,name,url,mute,refW,refH}]. refW/refH = ukuran acuan (px) untuk skala isi widget supaya muat di jendela.
+const DOCK_MAX=5;
+function cleanDocks(a){
+  const out=[],seen=new Set(),n=(v,d)=>{v=Math.round(+v);return v>=200&&v<=7680?v:d;};
+  for(const d of Array.isArray(a)?a:[]){
+    if(out.length>=DOCK_MAX)break;
+    let id=String((d&&d.id)||'').replace(/[^\w-]/g,'').slice(0,24);if(!id||seen.has(id))id='d'+Date.now().toString(36)+out.length;seen.add(id);
+    const name=String((d&&d.name)||'').trim().slice(0,40)||'Donate Dock '+(out.length+1),url=cleanDonateUrl(d&&d.url);
+    if(url===null)return{error:'URL "'+name+'" tidak valid. Pakai alamat widget yang diawali http:// atau https://, contoh https://saweria.co/widgets/...'};
+    out.push({id,name,url,mute:!!(d&&d.mute),refW:n(d&&d.refW,1280),refH:n(d&&d.refH,720)});
+  }
+  return{docks:out};
+}
 function setGlobal(v){settings.global={...settings.global,...v};fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);if(v.protect!==undefined&&hooks.protect)hooks.protect(settings.global.protect!==false);if(hooks.global)hooks.global(settings.global);}
 module.exports={hooks,ready,cmd,setGlobal,cleanDonateUrl,flush:()=>stats.flush(),get port(){return PORT;}};
 process.on('exit',()=>{try{stats.flush();}catch{}});
@@ -78,15 +97,14 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/hotkeys')return json(async({hotkeys})=>{settings.global={...settings.global,hotkeys};fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);return hooks.setHotkeys?hooks.setHotkeys(hotkeys||{}):{};});
     if(u.pathname==='/templates-restore')return body(()=>{const have=new Set((settings.global.templates||[]).map(t=>t.id));settings.global.templates=[...SEEDS.filter(x=>!have.has(x.id)),...(settings.global.templates||[])];fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);});
     if(u.pathname==='/send-set')return body(({on})=>setGlobal({sendOn:on!==false}));
-    if(u.pathname==='/donate-set')return json(async({url})=>{const v=cleanDonateUrl(url);if(v===null)return{error:'URL tidak valid. Pakai alamat widget yang diawali http:// atau https://, contoh https://saweria.co/widgets/...'};setGlobal({donateUrl:v});return{ok:true,url:v};});
-    if(u.pathname==='/donate-mute')return body(({on})=>setGlobal({donateMute:!!on}));
-    if(u.pathname==='/donate')return json(async({act})=>{if(!hooks.donate)return{error:'hanya di aplikasi desktop'};return(await hooks.donate(String(act||'')))||{ok:true};});
+    if(u.pathname==='/donate-docks')return json(async({docks})=>{const r=cleanDocks(docks);if(r.error)return r;setGlobal({donateDocks:r.docks});return{ok:true,docks:r.docks};});
+    if(u.pathname==='/donate')return json(async({act,id})=>{if(!hooks.donate)return{error:'hanya di aplikasi desktop'};return(await hooks.donate(String(act||''),id?String(id):''))||{ok:true};});
     if(u.pathname==='/protect-toggle')return body(()=>setGlobal({protect:settings.global.protect===false}));
     if(u.pathname==='/shape')return body(({rects})=>{if(hooks.shape)hooks.shape(Array.isArray(rects)?rects:[]);});
     if(u.pathname==='/ready')return body(()=>autoStart());
     if(u.pathname==='/log')return body(({msg})=>{try{fs.appendFileSync(path.join(base,'log.txt'),new Date().toISOString()+' '+String(msg).slice(0,800)+'\n');}catch{}});
-    if(u.pathname==='/drag')return body(({on})=>{if(hooks.drag)hooks.drag(!!on);});
-    if(u.pathname==='/lock')return body(({on})=>{if(hooks.lock)hooks.lock(!!on);});
+    if(u.pathname==='/drag')return body(({on,id})=>{if(hooks.drag)hooks.drag(!!on,id?String(id):'');});
+    if(u.pathname==='/lock')return body(({on,id})=>{if(hooks.lock)hooks.lock(!!on,id?String(id):'');});
     if(u.pathname==='/settings-window')return body(()=>{if(hooks.openSettings)hooks.openSettings();});
     if(u.pathname==='/open')return json(async({what,id})=>{if(!hooks.open)return{error:'hanya di aplikasi desktop'};
       if(what==='chat'){if(hooks.openChat)hooks.openChat();return{ok:true};}
@@ -112,6 +130,7 @@ const srv=http.createServer((req,res)=>{
     });
   }
   if(u.pathname==='/analytics'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(stats.get(u.searchParams.get('id')||'cur',viewers)));}
+  if(u.pathname==='/dash-state'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify({protect:settings.global.protect!==false,...(hooks.dashState?hooks.dashState():{chat:{},docks:{}})}));}
   if(u.pathname==='/state'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({protect:settings.global.protect!==false}));}
   if(u.pathname==='/account'){res.writeHead(200,{'Content-Type':'application/json'});const has=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);return res.end(JSON.stringify({youtube:has('youtube'),tiktok:has('tiktok'),twitch:has('twitch'),kick:has('kick')}));}
   if(u.pathname==='/urls'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({youtube:chatUrl('youtube'),tiktok:chatUrl('tiktok'),twitch:chatUrl('twitch'),kick:chatUrl('kick')}));}

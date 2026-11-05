@@ -321,3 +321,34 @@ body.dock #galert{display:flex}#galert:empty{display:none!important}
 .dsr .dsv.ok{color:#4ade80}.dsr .dsv.ok::before{background:#4ade80}
 .dsr .dsv.wait{color:#fbbf24}.dsr .dsv.wait::before{background:#fbbf24}
 .dsr .dsv.bad{color:#f87171}.dsr .dsv.bad::before{background:#f87171}
+
+/* ===== tombol mata / gembok / tutup (jendela chat belum dikunci, dan jendela kecil tombol) ===== */
+#weye,#wlock{display:none}
+body.dock:not(.locked):not(.preview) #weye,body.dock:not(.locked):not(.preview) #wlock{display:block}
+#weye{--eyec:#ffd166;padding:0}html.prot #weye{--eyec:#5eead4}
+#weye svg{display:block;margin:auto}
+#weye .e-open{display:block}#weye .e-shut{display:none}html.prot #weye .e-open{display:none}html.prot #weye .e-shut{display:block}
+#unlock .l-shut{display:none}body.islocked #unlock .l-open{display:none}body.islocked #unlock .l-shut{display:block}
+#cclose:hover{background:#e5484d;border-color:#e5484d}
+
+/* ===== Dashboard: beranda rapi (kartu dua kolom) ===== */
+#pd.on{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-content:start;padding-bottom:18px}
+#pd .card{margin:0}
+#pd .dwel,#pd .dwide{grid-column:1/-1}
+@media (max-width:1000px){#pd.on{grid-template-columns:minmax(0,1fr)}}
+.dkr{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.dkr:first-of-type{border-top:0}
+.dki{display:flex;flex-direction:column;gap:3px;min-width:0}.dki b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dki small{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dki small::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dki small.on::before{background:#4ade80}.dki small.lk::before{background:#fbbf24}
+.dkb{display:flex;gap:8px;flex:none}.dkb .btn{min-width:84px}
+.dkb .btn.on{background:var(--btn2);color:var(--text);border:0}
+
+/* ===== pengaturan Donate Dock (daftar dock) ===== */
+.dnc{border:1px solid var(--line);border-radius:var(--rad-c);padding:12px;margin-top:12px}
+.dnc .dnh{display:flex;gap:8px;align-items:center}.dnc .dnh input{flex:1}
+.dnc .dnh .btn{flex:none;min-width:84px}
+.dnc .g2{align-items:flex-end}
+#panel .dnc label{margin:10px 0 5px}
+.dnc .row{margin:10px 0 0}

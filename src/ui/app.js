@@ -72,6 +72,12 @@ if(!isPrev&&!isCtl&&view==='dock'||isSet||isTpl||isAdd||isDB){
   $('tbt').textContent=isDB?'Donate Dock':isRep?'Laporan penonton':isDash?'ChatStream Labs - Dashboard':isSet?'Pengaturan':isTpl?'Kelola gaya overlay':isAdd?'Gaya overlay':'ChatStream Labs';
   $('wmin').onclick=()=>post('/win',{which:WHICH,act:'min'});$('wmax').onclick=()=>post('/win',{which:WHICH,act:'max'});$('wclose').onclick=()=>post('/win',{which:WHICH,act:'close'});
 }
+if(view==='dock'&&!isPrev&&!isAdmin&&$('weye')){
+  $('wlock').onclick=()=>post('/lock',{on:true});
+  $('weye').onclick=async()=>{await post('/protect-toggle');eyeW();};
+  const eyeW=async()=>{try{const r=await(await fetch('/state')).json();document.documentElement.classList.toggle('prot',!!r.protect);$('weye').title=r.protect?'Tersembunyi dari OBS (klik untuk menampilkan)':'Terlihat di OBS (klik untuk menyembunyikan)';}catch{}};
+  eyeW();setInterval(eyeW,1500);
+}
 const detectStruct=css=>/data-color\s*=|data-mode\s*=/.test(css||'')?'cozy':/\.p5-msg/.test(css||'')?'p5':(/\.badge\b/.test(css||'')&&/\.p-(yt|tt)\b/.test(css||''))?'rv':'std';
 const customs=()=>((S.global&&S.global.templates)||[]);
 function tplOf(id){
@@ -329,7 +335,7 @@ if(isStatic){
       const s=cur(view),lim=Date.now()-(s.fade>0?s.fade*1000:1e12);
       data.history.filter(m=>m.t>lim).slice(view==='overlay'?-s.max:-300).forEach(m=>add(m));if(view==='dock')toLatest();bootDone();}
     else if(type==='settings'){saved=copy(data);S=copy(data);S.global=S.global||{};
-      if(isSet){refreshPresets();if(isDash)pvSend();}else if(isTpl)tplOnSettings();else if(isAdd){applyUi(cur('dock'));}else{applyStyle();if(isPrev)resample();}}
+      if(isSet){refreshPresets();if(isDash){pvSend();dashDocks();}if($('dnList')){const g=S.global||{};if(!$('dnList').contains(document.activeElement)){dnDocks=copy(g.donateDocks||[]);dnRender();}}}else if(isTpl)tplOnSettings();else if(isAdd){applyUi(cur('dock'));}else{applyStyle();if(isPrev)resample();}}
     else if(type==='draft'){if(live&&data.view===view){S[view]=data.values;applyStyle();if(isPrev)resample();else if(isPrev&&!document.querySelector('.m'))samples(false);}
       else if((isTpl||isAdd)&&data.view==='dock')applyUi({...cur('dock'),...data.values});}
     else if(type==='draftclear'){if(live){S=copy(saved);document.querySelectorAll('.sample').forEach(x=>x.remove());applyStyle();if(isPrev)resample();}else if(isTpl||isAdd)applyUi(cur('dock'));}
@@ -352,12 +358,17 @@ if(isLocked&&!isAdmin){
 // ---- dua kotak saat terkunci (jendela kecil terpisah) ----
 if(isCtl){
   bootDone();
-  const mv=$('mover');
-  mv.addEventListener('pointerdown',e=>{try{mv.setPointerCapture(e.pointerId);}catch{}post('/drag',{on:true});});
-  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>mv.addEventListener(ev,()=>post('/drag',{on:false})));
-  $('unlock').onclick=()=>post('/lock',{on:false});
-  const eyeSt=async()=>{try{const r=await(await fetch('/state')).json();document.body.classList.toggle('prot',!!r.protect);$('eye').title=r.protect?'Tersembunyi dari OBS (klik untuk menampilkan)':'Terlihat di OBS (klik untuk menyembunyikan)';}catch{}};
-  $('eye').onclick=async()=>{await post('/protect-toggle');eyeSt();};eyeSt();setInterval(eyeSt,1000);
+  const T=Q.get('t')||'chat',isChat=T==='chat',mv=$('mover'),idb=isChat?{}:{id:T};
+  let lk=isChat;
+  mv.addEventListener('pointerdown',e=>{try{mv.setPointerCapture(e.pointerId);}catch{}post('/drag',{on:true,...idb});});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>mv.addEventListener(ev,()=>post('/drag',{on:false,...idb})));
+  $('unlock').onclick=()=>post('/lock',{on:isChat?false:!lk,...idb});
+  $('cclose').onclick=()=>post('/win',{which:isChat?'main':'donate:'+T,act:'close'});
+  const eyeSt=async()=>{try{const r=await(await fetch('/dash-state')).json();
+    document.body.classList.toggle('prot',!!r.protect);$('eye').title=r.protect?'Tersembunyi dari OBS (klik untuk menampilkan)':'Terlihat di OBS (klik untuk menyembunyikan)';
+    if(!isChat){const d=r.docks&&r.docks[T];if(d)lk=!!d.locked;}
+    document.body.classList.toggle('islocked',lk);$('unlock').title=lk?'Buka kunci':'Kunci jendela';}catch{}};
+  $('eye').onclick=async()=>{await post('/protect-toggle');eyeSt();};eyeSt();setInterval(eyeSt,700);
 }
 // ---- pengaturan ----
 const T=(k,l,o)=>['sel',k,l,o],C=(k,l)=>['chk',k,l],K=(k,l)=>['col',k,l],R=(k,l,a,b,u)=>['sl',k,l,a,b,u||''];
@@ -437,7 +448,7 @@ function refreshPresets(){const sel=$('overlay_preset');if(!sel)return;const kee
   sel.value=all.some(x=>x[0]===keep)?keep:(all.some(x=>x[0]===cur('overlay').preset)?cur('overlay').preset:'polos');}
 function fill(v,src){const s=src||cur(v);if(v==='overlay')refreshPresets();
   items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;if(it[0]==='chk')e.checked=!!s[it[1]];else e.value=s[it[1]];if(it[0]==='sl')lbl(v,it);});syncDeps(v);pvAll(v);}
-function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';$('dnUrl').value=g.donateUrl||'';$('dnMute').checked=!!g.donateMute;}
+function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';if(!$('dnList').querySelector('input:focus')){dnDocks=copy(g.donateDocks||[]);dnRender();}}
 function collect(v){const o={};items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;o[it[1]]=it[0]==='chk'?e.checked:(it[0]==='sl'?+e.value:e.value);});return o;}
 let dt=null;
 function draftChange(v){items(v).filter(i=>i[0]==='sl').forEach(i=>lbl(v,i));syncDeps(v);pvAll(v);if(v==='dock')applyUi(collect('dock'));if(isDash)pvSend();clearTimeout(dt);dt=setTimeout(()=>post('/draft',{view:v,values:collect(v)}),40);}
@@ -513,13 +524,28 @@ $('portrestart').onclick=()=>post('/restart');
 $('portavoid').onclick=()=>{$('avlist').innerHTML='';(conf.avoid||[]).forEach(a=>{const r=document.createElement('div');r.className='avrow';const b=document.createElement('b'),n=document.createElement('span');b.textContent=a.port;n.textContent=a.name;r.append(b,n);$('avlist').appendChild(r);});$('avmodal').hidden=false;};
 $('avclose').onclick=()=>{$('avmodal').hidden=true;};$('avmodal').onclick=e=>{if(e.target===$('avmodal'))$('avmodal').hidden=true;};
 $('sendOn').onchange=()=>post('/send-set',{on:$('sendOn').checked}).catch(()=>{});
-// Donate Dock: URL widget, buka/tutup, muat ulang, bisu
-$('dnSave').onclick=async()=>{const m=$('dnMsg');const r=await(await post('/donate-set',{url:$('dnUrl').value})).json();
+// Donate Dock: daftar dock (nama, URL, bisu, ukuran acuan). Buka / tutup / muat ulang dilakukan dari beranda Dashboard.
+const DN_MAX=5;
+let dnDocks=[];
+const dnRow=d=>{const c=document.createElement('div');c.className='dnc';c.dataset.id=d.id;
+  c.innerHTML='<div class="dnh"><input type="text" class="dn-name" maxlength="40" placeholder="Nama dock"><button class="btn b2 sm dn-del">Hapus</button></div>'
+   +'<label><span>URL widget donasi</span></label><input type="text" class="dn-url" placeholder="https://saweria.co/widgets/..." spellcheck="false">'
+   +'<div class="g2"><div style="flex:1"><label><span>Lebar acuan (px)</span></label><input type="number" class="dn-w" min="200" max="7680"></div><div style="flex:1"><label><span>Tinggi acuan (px)</span></label><input type="number" class="dn-h" min="200" max="7680"></div></div>'
+   +'<div class="row"><span>Bisukan suara (kalau widget yang sama juga di OBS)</span><input type="checkbox" class="dn-mute"></div>';
+  c.querySelector('.dn-name').value=d.name||'';c.querySelector('.dn-url').value=d.url||'';c.querySelector('.dn-w').value=d.refW||1280;c.querySelector('.dn-h').value=d.refH||720;c.querySelector('.dn-mute').checked=!!d.mute;
+  c.querySelector('.dn-del').onclick=()=>{dnReadDom();dnDocks=dnDocks.filter(x=>x.id!==d.id);dnRender();};
+  return c;};
+function dnRender(){const box=$('dnList');box.textContent='';
+  if(!dnDocks.length){const h=document.createElement('div');h.className='hint';h.textContent='Belum ada Donate Dock. Klik Tambah Donate Dock.';box.appendChild(h);}
+  dnDocks.forEach(d=>box.appendChild(dnRow(d)));
+  $('dnAdd').style.display=dnDocks.length>=DN_MAX?'none':'';
+  $('dnSave').style.display=dnDocks.length?'':'none';}
+function dnReadDom(){dnDocks=[...document.querySelectorAll('#dnList .dnc')].map(c=>({id:c.dataset.id,name:c.querySelector('.dn-name').value,url:c.querySelector('.dn-url').value,refW:+c.querySelector('.dn-w').value,refH:+c.querySelector('.dn-h').value,mute:c.querySelector('.dn-mute').checked}));}
+$('dnAdd').onclick=()=>{dnReadDom();if(dnDocks.length>=DN_MAX)return;dnDocks.push({id:'d'+Date.now().toString(36),name:'Donate Dock '+(dnDocks.length+1),url:'',refW:1280,refH:720,mute:false});dnRender();};
+$('dnSave').onclick=async()=>{const m=$('dnMsg');dnReadDom();
+  const r=await(await post('/donate-docks',{docks:dnDocks})).json();
   if(r.error){m.className='hint no';m.textContent=r.error;return;}
-  $('dnUrl').value=r.url;m.className='hint ok';m.textContent=r.url?'Tersimpan.':'URL dikosongkan, Donate Dock tidak aktif.';};
-const dnAct=async a=>{const m=$('dnMsg2');const r=await(await post('/donate',{act:a})).json();m.className=r.error?'hint no':'hint';m.textContent=r.error||'';};
-$('dnOpen').onclick=()=>dnAct('open');$('dnClose').onclick=()=>dnAct('close');$('dnReload').onclick=()=>dnAct('reload');
-$('dnMute').onchange=()=>post('/donate-mute',{on:$('dnMute').checked}).catch(()=>{});
+  dnDocks=r.docks;dnRender();m.className='hint ok';m.textContent='Tersimpan.';};
 $('u2').onclick=()=>{$('u2').select();try{document.execCommand('copy')}catch{}};
 $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textContent='Menghubungi OBS...';
   const r=await(await post('/obs-add',{width:+$('obsW').value||500,height:+$('obsH').value||900,password:$('obsPass').value})).json();
@@ -556,10 +582,26 @@ function dashRender(){const b=$('dst');if(!b)return;const on=PF4.filter(k=>EN[k]
     r.className='dsr';i.src=PL[k];i.alt='';l.append(i,PNAME[k]);
     v.className='dsv'+(c?' '+c:'');v.textContent=t+(viewers[k]!=null?' \u00b7 '+fmt(viewers[k])+' penonton':'');
     r.append(l,v);b.appendChild(r);});}
+let dashSt={chat:{},docks:{}};
+function dashDocks(){const box=$('dDocks');if(!box)return;const L=(g=>Array.isArray(g.donateDocks)?g.donateDocks:[])(S.global||{});
+  box.textContent='';
+  if(!L.length){const h=document.createElement('div');h.className='hint';h.textContent='Belum ada Donate Dock. Tambahkan dulu lewat tombol di bawah.';box.appendChild(h);return;}
+  L.forEach(d=>{const st=(dashSt.docks||{})[d.id]||{},r=document.createElement('div');r.className='dkr';
+    const i=document.createElement('div'),n=document.createElement('b'),sm=document.createElement('small'),bt=document.createElement('div');
+    i.className='dki';n.textContent=d.name||d.id;sm.className=st.open?(st.locked?'lk':'on'):'';sm.textContent=!d.url?'URL belum diisi':st.open?(st.locked?'Terbuka, terkunci':'Terbuka'):'Tertutup';
+    i.append(n,sm);bt.className='dkb';
+    const mk=(t,cls,fn)=>{const b=document.createElement('button');b.className='btn sm '+cls;b.textContent=t;b.onclick=fn;bt.appendChild(b);return b;};
+    const act=async a=>{const x=await(await post('/donate',{act:a,id:d.id})).json();if(x&&x.error)sm.textContent=x.error;setTimeout(dashPoll,250);};
+    if(st.open){mk('Muat ulang','b4',()=>act('reload'));mk('Tutup','b2',()=>act('close'));}else mk('Buka','b1',()=>act('open')).disabled=!d.url;
+    r.append(i,bt);box.appendChild(r);});}
+async function dashPoll(){if(!isDash||document.hidden)return;try{dashSt=await(await fetch('/dash-state')).json();}catch{return;}
+  const c=dashSt.chat||{},b=$('dChat'),s2=$('dChatSt');if(b){b.textContent=c.open?'Tutup Chat':'Buka Chat';b.className='btn sm '+(c.open?'b2':'b1');}
+  if(s2){s2.className=c.open?(c.locked?'lk':'on'):'';s2.textContent=c.open?(c.locked?'Terbuka, terkunci':'Terbuka'):'Tertutup';}
+  dashDocks();}
 let dashInit=false;
 function initDash(){if(dashInit)return;dashInit=true;
   document.querySelectorAll('.sbi[data-t]').forEach(b=>b.onclick=()=>setTab(b.dataset.t));
-  $('sbChat').onclick=$('dChat').onclick=()=>openC('chat');$('dRep').onclick=()=>setTab('r');
+  $('dChat').onclick=()=>{if(dashSt.chat&&dashSt.chat.open)post('/win',{which:'main',act:'close'});else openC('chat');setTimeout(dashPoll,250);};$('dRep').onclick=()=>setTab('r');$('dDockSet').onclick=()=>setTab('n');dashPoll();setInterval(dashPoll,2000);
   $('pvm_prev').onclick=pvAddOne;$('pvm_live').onclick=pvSendLive;
   // Dashboard disembunyikan (tray): pratinjau dibongkar supaya tidak memakan RAM/CPU, dimuat lagi saat dibuka
   document.addEventListener('visibilitychange',()=>pvLoadFrames(document.hidden?'':document.body.dataset.pv));
@@ -639,7 +681,6 @@ function initAdd(){
 }
 // ---- filter + kirim chat ----
 if(!isAdmin){
-$('lock').onclick=()=>post('/lock',{on:true});
 $('flt').value=filt;
 $('flt').onchange=()=>{filt=$('flt').value;try{localStorage.setItem('flt',filt)}catch{};applyStyle();toLatest();};
 function flash(m){const i=$('msg');if(!i.dataset.ph)i.dataset.ph=i.placeholder;i.classList.add('err');i.placeholder=m;clearTimeout(flash.t);flash.t=setTimeout(()=>{i.classList.remove('err');i.placeholder=i.dataset.ph;},4500);}
