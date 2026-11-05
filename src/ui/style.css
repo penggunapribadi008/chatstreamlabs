@@ -107,11 +107,6 @@ body.ctlwin{--eyec:#ffd166}body.ctlwin.prot{--eyec:#5eead4}
 .cb2{width:36px;height:36px;border-radius:10px;background:#12181c;border:1px solid #33414a;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;opacity:.85;transition:opacity .15s,background .15s}
 .cb2:hover{opacity:1;background:#1d2a31}
 body.ctlwin .cb2,body.locked #ctl .cb2{opacity:.35}body.ctlwin .cb2:hover,body.locked #ctl .cb2:hover{opacity:1}
-/* kotak tombol di dalam jendela chat terkunci (posisi diatur lewat JS dari pengaturan) */
-body.locked #ctl{display:flex;position:fixed;z-index:60;gap:6px;--eyec:#ffd166}html.prot body.locked #ctl{--eyec:#5eead4}
-/* chat tidak terkunci: tanpa bilah judul, kotak tombol sama seperti saat terkunci. Atas = di atas bar penonton, bawah = di bawah chat */
-html.cs body.dock:not(.locked):not(.preview) #ctl{display:flex;position:fixed;z-index:60;gap:6px;--eyec:#ffd166}html.cs.prot body.dock:not(.locked):not(.preview) #ctl{--eyec:#5eead4}
-html.cs.cst body.dock:not(.preview) #app{top:44px}html.cs.csb body.dock:not(.preview) #app{bottom:44px}
 #mover{cursor:move;touch-action:none}
 /* ===== jendela pengaturan / kelola gaya / gaya baru ===== */
 #panel,#tpl,#addwin,#rep{display:none}
@@ -250,8 +245,7 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px}.rt th{text-align:le
 .rl img{width:14px;height:14px;vertical-align:-2px;margin-right:6px}
 
 /* ===== Dashboard (sidebar + beranda + pratinjau kanan) ===== */
-#sb,#dpv,#wmax{display:none}
-body.dashboard #wmax{display:block}
+#sb,#dpv{display:none}
 body.dashboard .tabs{display:none}
 body.dashboard #sb{display:flex;flex-direction:column;gap:4px;position:absolute;left:0;top:34px;bottom:0;width:190px;padding:12px 10px;background:var(--card-bg);border-right:1px solid var(--line);font-size:13px}
 .sbi{width:100%;text-align:left;padding:10px 12px;border:0;border-radius:var(--rad-c);background:transparent;color:var(--text);font:600 13px 'Segoe UI',sans-serif;cursor:pointer}
@@ -360,7 +354,7 @@ body.dock .wbs{display:flex;flex:none}
 
 /* Donate Dock di beranda Dashboard: satu kotak per dock (ikut grid dua kolom) */
 #dDocks{display:contents}
-.dkc h3{margin:0 0 6px}.dkc .dkb{flex-wrap:wrap;margin-top:12px}.dkc .dkb .btn{min-width:0}
+.dkc h3{margin:0 0 6px}.dkc .dkb{flex-wrap:wrap;margin-top:12px;justify-content:flex-end}.dkc .dkb .btn{min-width:0}
 .btn.ic{width:38px;padding:0;display:inline-flex;align-items:center;justify-content:center}.btn.ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #dDockHint:empty{display:none}
 .fab{position:absolute;right:22px;bottom:22px;z-index:5;width:54px;height:54px;border:0;border-radius:50%;background:var(--acc);color:var(--acc-t);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 6px 18px rgba(0,0,0,.45);transition:filter .15s,transform .15s}.fab:hover{filter:brightness(1.12);transform:scale(1.05)}

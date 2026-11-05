@@ -46,24 +46,31 @@ const log=t=>{try{fs.appendFileSync(LOGF(),new Date().toISOString()+' '+t+'\n');
 app.on('second-instance',()=>{
   showDash();
 });
-// ===== kotak tombol (mata, gembok, pindah, tutup) = DI DALAM jendela chat terkunci / Donate Dock, transparan rendah =====
+// ===== kotak tombol (mata, gembok, pindah, tutup) = jendela kecil tanpa bingkai di LUAR jendela chat / Donate Dock =====
 const CW=162,CH=36,CM=4;
 const hideToTray=w=>{try{if(w&&!w.isDestroyed()){if(w.isMinimized())w.restore();w.hide();}}catch{}}; // diperkecil lewat taskbar: kembalikan dulu ke normal baru sembunyi, supaya saat dibuka lagi tombolnya bisa diklik
-function ctlRect(w,h){ // posisi kotak tombol relatif ke isi jendela (harus sama dengan CSS di app.js / style.css)
+function ctlBounds(wb){ // posisi kotak tombol di luar jendela: atas = tepat di atas jendela, bawah = tepat di bawah (mengikuti pengaturan \"Posisi tombol\"), dijaga tetap di dalam layar
   const P=ctrlPos||'top-right',top=P.startsWith('top');
-  const x=P.endsWith('left')?CM:P.endsWith('right')?w-CW-CM:Math.round((w-CW)/2),y=top?CM:h-CH-CM;
-  return{x:Math.max(0,x),y:Math.max(0,y),width:Math.min(CW,w),height:Math.min(CH,h)};
+  let x=P.endsWith('left')?wb.x:P.endsWith('right')?wb.x+wb.width-CW:Math.round(wb.x+(wb.width-CW)/2),y=top?wb.y-CH-CM:wb.y+wb.height+CM;
+  try{const wa=screen.getDisplayMatching(wb).workArea;x=Math.min(Math.max(x,wa.x),wa.x+wa.width-CW);y=Math.min(Math.max(y,wa.y),wa.y+wa.height-CH);}catch{}
+  return{x,y};
 }
-function setIgn(w,v){if(!w||w.isDestroyed()||w.__ig===v)return;w.__ig=v;try{w.setIgnoreMouseEvents(v);}catch{}}
-function overCtl(w){
-  try{const c=screen.getCursorScreenPoint(),b=w.getContentBounds(),r=ctlRect(b.width,b.height),x=c.x-b.x,y=c.y-b.y;return x>=r.x&&x<r.x+r.width&&y>=r.y&&y<r.y+r.height;}catch{return false;}
+// t = 'chat' atau id Donate Dock. Jendela tombol ikut bergerak, tampil, dan sembunyi bersama jendela induknya, dan ditutup saat induknya ditutup.
+function attachCtl(w,t,L){
+  const c=new BrowserWindow({width:CW,height:CH,useContentSize:true,title:'ChatStream Labs - kontrol',icon:ICON,frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,resizable:false,maximizable:false,minimizable:false,fullscreenable:false,skipTaskbar:true,focusable:false,thickFrame:false,show:false,parent:w,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true,spellcheck:false}});
+  if(L)c.setAlwaysOnTop(true,'screen-saver');
+  const pos=()=>{try{if(c.isDestroyed()||w.isDestroyed())return;const r=ctlBounds(w.getBounds()),b=c.getPosition();if(b[0]!==r.x||b[1]!==r.y)c.setPosition(r.x,r.y,false);}catch{}};
+  w.__pos=pos;pos();
+  const go=()=>{if(!c.isDestroyed())c.loadURL(base()+'/?view=ctl&t='+encodeURIComponent(t));};
+  srvP.then(go);
+  c.webContents.on('did-fail-load',(e,code,d,u)=>{if(code!==-3&&u&&u.startsWith('http://localhost'))setTimeout(go,1000);});
+  w.on('move',pos);w.on('resize',pos);
+  w.on('show',()=>{pos();try{if(!c.isDestroyed())c.showInactive();}catch{}});
+  w.on('hide',()=>{try{if(!c.isDestroyed())c.hide();}catch{}});
+  w.on('closed',()=>{try{if(!c.isDestroyed())c.destroy();}catch{}});
+  return c;
 }
-// Jendela tembus-klik penuh tidak menerima klik sama sekali, jadi selama kursor ada di atas kotak tombol, tembus-klik dimatikan sebentar.
-setInterval(()=>{
-  if(protect)return;
-  if(locked&&main&&!main.isDestroyed())setIgn(main,!overCtl(main));
-  docks.forEach(D=>{if(D.locked&&donOpen(D))setIgn(D.win,!overCtl(D.win));});
-},80);
+const posAllCtl=()=>{[main,...[...docks.values()].map(D=>D.win)].forEach(x=>{try{if(x&&!x.isDestroyed()&&x.__pos)x.__pos();}catch{}});};
 function dragOn(on){
   if(!on){if(dragT){clearInterval(dragT);dragT=null;if(!locked&&main&&!main.isDestroyed())saveB({outer:main.getBounds()});}return;}
   if(dragT||!main||main.isDestroyed())return;
@@ -71,7 +78,7 @@ function dragOn(on){
   dragT=setInterval(()=>{
     if(!main||main.isDestroyed()){clearInterval(dragT);dragT=null;return;}
     const c=screen.getCursorScreenPoint();
-    main.setPosition(m0.x+c.x-c0.x,m0.y+c.y-c0.y);
+    main.setPosition(m0.x+c.x-c0.x,m0.y+c.y-c0.y);if(main.__pos)main.__pos();
     if(Date.now()-t0>25000)dragOn(false);
   },16);
 }
@@ -82,14 +89,14 @@ function dragOn(on){
 function applyLockedInput(){
   if(!locked||!main||main.isDestroyed())return;
   try{
-    const b=main.getBounds(),cr=ctlRect(b.width,b.height);
+    const b=main.getBounds();
     if(protect){
       setIgn(main,false);
       const r=(lastRects||[]).map(q=>({x:Math.max(0,Math.round(q.x)),y:Math.max(0,Math.round(q.y)),width:Math.max(1,Math.round(q.width)),height:Math.max(1,Math.round(q.height))}));
-      main.setShape(r.concat([cr])); // kotak tombol selalu ikut menerima klik
+      main.setShape(r.length?r:[{x:0,y:0,width:1,height:1}]); // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
     }else{
       main.setShape([{x:0,y:0,width:b.width,height:b.height}]);
-      setIgn(main,!overCtl(main));
+      setIgn(main,true);
     }
   }catch{}
 }
@@ -113,6 +120,7 @@ function makeMain(bounds){
   else Object.assign(o,{frame:false,backgroundColor:themeBg()});
   const w=new BrowserWindow(o);
   if(L)w.setAlwaysOnTop(true,'screen-saver');
+  attachCtl(w,'chat',L);
   const go=()=>{if(!w.isDestroyed())w.loadURL(base()+'/?view=dock'+(L?'&locked=1':''));};
   showWin(w,L);if(L)applyLockedInputSoon(w);else w.loadURL(splash());
   srvP.then(()=>{go();watchLoad(w,go);});
@@ -170,6 +178,7 @@ function winCtl(which,act){
   if(act==='min'){if(which==='dash'||which==='main')w.hide();else w.minimize();} // Dashboard/Chat: langsung sembunyi ke tray (tanpa status 'minimized', yang bikin jendela macet saat dibuka lagi)
   else if(act==='max'){if(w.isMaximized())w.unmaximize();else w.maximize();}
   else if(act==='close'){if(which==='dash')askQuit();else w.close();}
+  else if(act==='reload'){try{w.webContents.reload();}catch{}}
 }
 // Laporan penonton = tab di dalam Dashboard (bukan jendela baru)
 function openReport(){
@@ -228,8 +237,8 @@ function startUp(){
 }
 // ===== Donate Dock (bisa lebih dari satu) =====
 // Tiap dock memuat satu URL widget donasi (alert / media share) di jendelanya sendiri. Tidak ada integrasi API: aplikasi hanya menampilkan halamannya.
-// Jendela selalu tanpa bingkai dan tanpa bilah judul. Tombol (mata, gembok, pindah, tutup) ada DI DALAM jendela (WebContentsView kecil ?view=ctl&t=<id>, transparan rendah).
-// Mode biasa (belum dikunci): jendela berlatar, bisa diubah ukurannya. Mode gembok: transparan, selalu di atas, tidak mencuri fokus.
+// Jendela selalu tanpa bingkai dan tanpa bilah judul. Tombol (mata, gembok, pindah, tutup) = jendela kecil tanpa bingkai di LUAR jendela dock (?view=ctl&t=<id>, transparan rendah), lihat attachCtl.
+// Mode biasa (belum dikunci): jendela berlatar, bisa diubah ukurannya, tidak selalu di atas (jadi Dashboard tetap bisa naik ke depan saat diklik). Mode gembok: transparan, selalu di atas, tidak mencuri fokus, isi widget tidak bisa diklik.
 // Isi widget otomatis diskalakan (zoom) supaya muat di jendela: skala = min(lebar jendela / lebar acuan, tinggi jendela / tinggi acuan).
 const DON_MAX=5,docks=new Map(); // id -> D
 const donCfg=()=>Array.isArray(G().donateDocks)?G().donateDocks:[];
@@ -253,9 +262,9 @@ const donSaveBounds=D=>{try{if(donOpen(D))saveB({donates:{...(readJ(BF).donates|
 function applyDockInput(D){
   if(!D||!D.locked||!donOpen(D))return;
   try{
-    const b=D.win.getBounds(),cr=ctlRect(b.width,b.height);
-    if(protect){setIgn(D.win,false);D.win.setShape((D.rects||[]).concat([cr]));} // kotak tombol selalu ikut menerima klik
-    else{D.win.setShape([{x:0,y:0,width:b.width,height:b.height}]);setIgn(D.win,!overCtl(D.win));}
+    const b=D.win.getBounds();
+    if(protect){setIgn(D.win,false);D.win.setShape((D.rects&&D.rects.length)?D.rects:[{x:0,y:0,width:1,height:1}]);} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
+    else{D.win.setShape([{x:0,y:0,width:b.width,height:b.height}]);setIgn(D.win,true);}
   }catch{}
 }
 function applyDonateInput(){docks.forEach(applyDockInput);}
@@ -306,11 +315,11 @@ function dockFit(D){
   const z=c.fit===false?1:Math.min(10,Math.max(.1,Math.min(cw/(c.refW||1280),ch/(c.refH||720))));
   D.zoom=z;try{D.view.webContents.setZoomFactor(z);}catch{}
 }
-// CSS yang disuntik ke halaman widget: latar transparan + Opacity dari pengaturan dock (hanya isi widget; tombol tidak ikut pudar)
+// CSS yang disuntik ke halaman widget: latar transparan + Opacity dari pengaturan dock (hanya isi widget; tombol tidak ikut pudar) + saat terkunci isi widget tidak bisa diklik
 function donCss(D){
   const wc=D.view&&D.view.webContents;if(!wc||wc.isDestroyed())return;
   const op=Math.min(100,Math.max(10,Math.round(+((D.cfg||{}).opacity))||100));D.opAp=op;
-  const css='html,body{background:transparent!important}'+(op<100?'html{opacity:'+(op/100)+'!important}':'');
+  const css='html,body{background:transparent!important}'+(D.locked?'*{pointer-events:none!important}':'')+(op<100?'html{opacity:'+(op/100)+'!important}':'');
   const old=D.cssKey;D.cssKey=null;if(old)wc.removeInsertedCSS(old).catch(()=>{});
   wc.insertCSS(css).then(k=>{if(wc.isDestroyed())return;if(D.cssKey)wc.removeInsertedCSS(D.cssKey).catch(()=>{});D.cssKey=k;}).catch(()=>{});
 }
@@ -352,20 +361,17 @@ function makeDock(id,L){
   if(L)Object.assign(o,{transparent:true,backgroundColor:'#00000000',hasShadow:false,resizable:false,focusable:false,thickFrame:false});
   else o.backgroundColor=themeBg();
   const w=new BrowserWindow(o);
-  w.setAlwaysOnTop(true,'screen-saver');
+  if(L)w.setAlwaysOnTop(true,'screen-saver'); // hanya saat terkunci; saat belum dikunci jendela biasa supaya Dashboard bisa naik ke depan
   const part='persist:donate-'+id; // satu partisi per dock: zoom dan data halaman tidak bercampur antar dock
   try{session.fromPartition(part).setPermissionRequestHandler((wc,perm,cb)=>cb(false));}catch{}
   const v=new WebContentsView({webPreferences:{partition:part,autoplayPolicy:'no-user-gesture-required',backgroundThrottling:false,contextIsolation:true,nodeIntegration:false,sandbox:true,spellcheck:false}});
   v.setBackgroundColor('#00000000');
   w.contentView.addChildView(v);
-  // tombol (mata, gembok, pindah, tutup): halaman kecil di DALAM jendela, di atas widget
-  const cv=new WebContentsView({webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true,spellcheck:false}});
-  cv.setBackgroundColor('#00000000');
-  w.contentView.addChildView(cv);
-  const D={id,cfg,win:w,view:v,cv,locked:!!L,loaded:'',tries:0,T:{},rects:[],sig:'',zoom:1,dragT:null,scanT:null,cssKey:null,opAp:0};
-  const layout=()=>{if(w.isDestroyed())return;const [cw,ch]=w.getContentSize();v.setBounds({x:0,y:0,width:cw,height:ch});cv.setBounds(ctlRect(cw,ch));dockFit(D);if(D.locked)applyDockInput(D);};
+  // tombol (mata, gembok, pindah, tutup): jendela kecil di LUAR jendela dock
+  attachCtl(w,id,!!L);
+  const D={id,cfg,win:w,view:v,locked:!!L,loaded:'',tries:0,T:{},rects:[],sig:'',zoom:1,dragT:null,scanT:null,cssKey:null,opAp:0};
+  const layout=()=>{if(w.isDestroyed())return;const [cw,ch]=w.getContentSize();v.setBounds({x:0,y:0,width:cw,height:ch});dockFit(D);if(D.locked)applyDockInput(D);};
   D.layout=layout;layout();w.on('resize',layout);
-  cv.webContents.loadURL(base()+'/?view=ctl&t='+encodeURIComponent(id));
   const wc=v.webContents;
   wc.setAudioMuted(!!cfg.mute);
   wc.setWindowOpenHandler(()=>({action:'deny'}));
@@ -386,7 +392,7 @@ function makeDock(id,L){
     clearTimeout(D.T.hang);clearTimeout(D.T.retry);clearTimeout(D.T.stable);clearInterval(D.scanT);clearInterval(D.dragT);
     if(docks.get(id)===D)docks.delete(id);
     // WebContentsView TIDAK ikut tertutup saat jendelanya ditutup: tanpa ini halaman widget lama tetap hidup dan suaranya terus bunyi (dobel)
-    [v,cv].forEach(x=>{try{const c=x.webContents;if(!c.isDestroyed()){c.setAudioMuted(true);c.close();}}catch{}});
+    [v].forEach(x=>{try{const c=x.webContents;if(!c.isDestroyed()){c.setAudioMuted(true);c.close();}}catch{}});
     refreshTray();
   });
   docks.set(id,D);
@@ -415,7 +421,7 @@ function dockDrag(id,on){
   D.dragT=setInterval(()=>{
     if(!donOpen(D)){clearInterval(D.dragT);D.dragT=null;return;}
     const c=screen.getCursorScreenPoint(),dx=c.x-c0.x,dy=c.y-c0.y;
-    D.win.setBounds({x:m0.x+dx,y:m0.y+dy,width:m0.width,height:m0.height});
+    D.win.setBounds({x:m0.x+dx,y:m0.y+dy,width:m0.width,height:m0.height});if(D.win.__pos)D.win.__pos();
     if(Date.now()-t0>25000)dockDrag(id,false);
   },16);
 }
@@ -482,7 +488,7 @@ const hooks={
   setHotkeys,
   winCtl,
   shape:rects=>{lastRects=rects;applyLockedInput();},
-  global:g=>{ctrlPos=(g&&g.ctrlPos)||'top-right';applyLockedInput();docks.forEach(D=>D.layout&&D.layout());donSync();},
+  global:g=>{ctrlPos=(g&&g.ctrlPos)||'top-right';applyLockedInput();docks.forEach(D=>D.layout&&D.layout());posAllCtl();donSync();},
   donate:(act,id)=>donateAct(act,id),
   dashState
 };

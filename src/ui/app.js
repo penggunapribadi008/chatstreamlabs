@@ -70,7 +70,7 @@ function chatColors(s,pid){
 const WHICH=isDash?'dash':isSet?'settings':isTpl?'tpl':isAdd?'tpladd':isRep?'report':isDB?'donate':'main';
 if(!isPrev&&!isCtl&&view==='dock'||isSet||isTpl||isAdd||isDB){
   $('tbt').textContent=isDB?'Donate Dock':isRep?'Laporan penonton':isDash?'ChatStream Labs - Dashboard':isSet?'Pengaturan':isTpl?'Kelola gaya overlay':isAdd?'Gaya overlay':'ChatStream Labs';
-  $('wmin').onclick=()=>post('/win',{which:WHICH,act:'min'});$('wmax').onclick=()=>post('/win',{which:WHICH,act:'max'});$('wclose').onclick=()=>post('/win',{which:WHICH,act:'close'});
+  $('wmin').onclick=()=>post('/win',{which:WHICH,act:'min'});$('wclose').onclick=()=>post('/win',{which:WHICH,act:'close'});
 }
 if(view==='dock'&&!isPrev&&!isAdmin&&$('weye')){
   $('wlock').onclick=()=>post('/lock',{on:true});
@@ -355,27 +355,19 @@ if(isLocked&&!isAdmin){
   [$('msgs'),$('top'),$('galert')].forEach(n=>new MutationObserver(q).observe(n,{childList:true,subtree:true,characterData:true}));
   addEventListener('resize',q);addEventListener('animationend',q);setInterval(send,1500);setTimeout(send,300);
 }
-// ---- dua kotak saat terkunci (jendela kecil terpisah) ----
-if(isCtl||(view==='dock'&&!isAdmin&&!isPrev)){
-  if(isCtl)bootDone();
-  const T=Q.get('t')||'chat',isChat=T==='chat',mv=$('mover'),idb=isChat?{}:{id:T};
-  const chatLk=isCtl||isLocked;let lk=isChat&&chatLk;
+// ---- kotak tombol (mata, gembok, pindah, tutup): jendela kecil tanpa bingkai di LUAR jendela chat / Donate Dock ----
+if(isCtl){
+  bootDone();
+  const T=Q.get('t')||'chat',isChat=T==='chat',mv=$('mover'),idb=isChat?{}:{id:T};let lk=false;
   mv.addEventListener('pointerdown',e=>{try{mv.setPointerCapture(e.pointerId);}catch{}post('/drag',{on:true,...idb});});
   ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>mv.addEventListener(ev,()=>post('/drag',{on:false,...idb})));
-  $('unlock').onclick=()=>post('/lock',{on:isChat?!chatLk:!lk,...idb});
+  $('unlock').onclick=()=>post('/lock',{on:!lk,...idb});
   $('cclose').onclick=()=>post('/win',{which:isChat?'main':'donate:'+T,act:'close'});
   const eyeSt=async()=>{try{const r=await(await fetch('/dash-state')).json();
     document.body.classList.toggle('prot',!!r.protect);document.documentElement.classList.toggle('prot',!!r.protect);$('eye').title=r.protect?'Tersembunyi dari OBS (klik untuk menampilkan)':'Terlihat di OBS (klik untuk menyembunyikan)';
-    if(!isChat){const d=r.docks&&r.docks[T];if(d)lk=!!d.locked;}
+    const d=isChat?r.chat:(r.docks&&r.docks[T]);if(d)lk=!!d.locked;
     document.body.classList.toggle('islocked',lk);$('unlock').title=lk?'Buka kunci':'Kunci jendela';}catch{}};
   $('eye').onclick=async()=>{await post('/protect-toggle');eyeSt();};eyeSt();setInterval(eyeSt,700);
-  if(!isCtl){ // chat (terkunci maupun tidak): kotak tombol ada di dalam halaman chat, posisinya mengikuti pengaturan "Posisi tombol saat terkunci"; atas = di atas bar penonton, bawah = di bawah chat
-    document.documentElement.classList.add('cs');
-    const placeCtl=()=>{const P=(S.global&&S.global.ctrlPos)||'top-right',e=$('ctl').style,top=P.startsWith('top');
-      document.documentElement.classList.toggle('cst',top);document.documentElement.classList.toggle('csb',!top);
-      e.top=top?'4px':'auto';e.bottom=top?'auto':'4px';e.left=P.endsWith('left')?'4px':P.endsWith('right')?'auto':'calc(50% - 81px)';e.right=P.endsWith('right')?'4px':'auto';};
-    placeCtl();setInterval(placeCtl,700);
-  }
 }
 // ---- pengaturan ----
 const T=(k,l,o)=>['sel',k,l,o],C=(k,l)=>['chk',k,l],K=(k,l)=>['col',k,l],R=(k,l,a,b,u)=>['sl',k,l,a,b,u||''];
@@ -568,6 +560,16 @@ function dashRender(){const b=$('dst');if(!b)return;const on=PF4.filter(k=>EN[k]
     v.className='dsv'+(c?' '+c:'');v.textContent=t+(viewers[k]!=null?' \u00b7 '+fmt(viewers[k])+' penonton':'');
     r.append(l,v);b.appendChild(r);});}
 let dashSt={chat:{},docks:{}};
+const SV_RELOAD='<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',SV_X='<path d="M6 6l12 12M18 6L6 18"/>',SV_LK_OPEN='<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-1.5"/>',SV_LK_SHUT='<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>';
+// kartu Chat di beranda Dashboard: tombolnya sama seperti kartu Donate Dock (Buka / muat ulang + tutup / gembok)
+function dashChat(){const box=$('dChatBtns'),s2=$('dChatSt');if(!box)return;const c=dashSt.chat||{};
+  if(s2){s2.className=c.open?(c.locked?'lk':'on'):'';s2.textContent=c.open?(c.locked?'Terbuka, terkunci':'Terbuka'):'Tertutup';}
+  box.textContent='';
+  const mk=(t,cls,fn)=>{const b=document.createElement('button');b.className='btn sm '+cls;b.textContent=t;b.onclick=fn;box.appendChild(b);return b;};
+  const mkI=(svg,t,cls,fn)=>{const b=mk('',cls+' ic',fn);b.innerHTML='<svg viewBox="0 0 24 24">'+svg+'</svg>';b.title=t;b.setAttribute('aria-label',t);return b;};
+  if(c.open){mkI(SV_RELOAD,'Muat ulang','b4',()=>{post('/win',{which:'main',act:'reload'});});mkI(SV_X,'Tutup','b2',()=>{post('/win',{which:'main',act:'close'});setTimeout(dashPoll,250);});}
+  else mk('Buka','b1',()=>{openC('chat');setTimeout(dashPoll,250);});
+  mkI(c.locked?SV_LK_SHUT:SV_LK_OPEN,c.locked?'Buka kunci':'Kunci jendela','b4'+(c.locked?' on':''),async()=>{await post('/lock',{on:!c.locked});setTimeout(dashPoll,500);}).disabled=!c.open;}
 // Donate Dock di beranda Dashboard: 1 kotak = 1 dock. Pengaturannya (URL, Opacity, bisukan suara) ada di dialog "Atur Donate Dock".
 const DN_MAX=5;
 const dnList=()=>{const g=S.global||{};return Array.isArray(g.donateDocks)?g.donateDocks:[];};
@@ -581,7 +583,8 @@ function dashDocks(){const box=$('dDocks');if(!box)return;const L=dnList(),full=
     const mk=(t,cls,fn)=>{const b=document.createElement('button');b.className='btn sm '+cls;b.textContent=t;b.onclick=fn;bt.appendChild(b);return b;};
     const act=async a=>{const x=await(await post('/donate',{act:a,id:d.id})).json();if(x&&x.error)sm.textContent=x.error;setTimeout(dashPoll,250);};
     const mkI=(svg,t,cls,fn)=>{const b=mk('',cls+' ic',fn);b.innerHTML='<svg viewBox="0 0 24 24">'+svg+'</svg>';b.title=t;b.setAttribute('aria-label',t);return b;};
-    if(st.open){mkI('<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>','Muat ulang','b4',()=>act('reload'));mkI('<path d="M6 6l12 12M18 6L6 18"/>','Tutup','b2',()=>act('close'));}else mk('Buka','b1',()=>act('open')).disabled=!d.url;
+    if(st.open){mkI(SV_RELOAD,'Muat ulang','b4',()=>act('reload'));mkI(SV_X,'Tutup','b2',()=>act('close'));}else mk('Buka','b1',()=>act('open')).disabled=!d.url;
+    mkI(st.locked?SV_LK_SHUT:SV_LK_OPEN,st.locked?'Buka kunci':'Kunci jendela','b4'+(st.locked?' on':''),async()=>{await post('/lock',{on:!st.locked,id:d.id});setTimeout(dashPoll,500);});
     mkI('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>','Pengaturan','b3',()=>dnOpen(d,false));
     c.append(h,i,bt);box.appendChild(c);});}
 let dnCur=null,dnDelArm=false;
@@ -608,13 +611,11 @@ function initDnModal(){
     dnOpen({id:'d'+Date.now().toString(36),name:'Donate Dock '+n,url:'',opacity:100,mute:true,fit:true,refW:1280,refH:720},true);};
 }
 async function dashPoll(){if(!isDash||document.hidden)return;try{dashSt=await(await fetch('/dash-state')).json();}catch{return;}
-  const c=dashSt.chat||{},b=$('dChat'),s2=$('dChatSt');if(b){b.textContent=c.open?'Tutup Chat':'Buka Chat';b.className='btn sm '+(c.open?'b2':'b1');}
-  if(s2){s2.className=c.open?(c.locked?'lk':'on'):'';s2.textContent=c.open?(c.locked?'Terbuka, terkunci':'Terbuka'):'Tertutup';}
-  dashDocks();}
+  dashChat();dashDocks();}
 let dashInit=false;
 function initDash(){if(dashInit)return;dashInit=true;
   document.querySelectorAll('.sbi[data-t]').forEach(b=>b.onclick=()=>setTab(b.dataset.t));
-  $('dChat').onclick=()=>{if(dashSt.chat&&dashSt.chat.open)post('/win',{which:'main',act:'close'});else openC('chat');setTimeout(dashPoll,250);};initDnModal();dashPoll();setInterval(dashPoll,2000);
+  initDnModal();dashPoll();setInterval(dashPoll,2000);
   $('pvm_prev').onclick=pvAddOne;$('pvm_live').onclick=pvSendLive;
   // Dashboard disembunyikan (tray): pratinjau dibongkar supaya tidak memakan RAM/CPU, dimuat lagi saat dibuka
   document.addEventListener('visibilitychange',()=>pvLoadFrames(document.hidden?'':document.body.dataset.pv));
