@@ -22,6 +22,10 @@ const BUILT=PRE.map(x=>x[0]);
 const THEMES=[['standar','Standar'],['neo','Neumorfisme'],['glass','Glassmorphism'],['clay','Claymorphism'],['liquid','Liquid Glass'],['spatial','Spatial UI']];
 const ANI=[['none','Tanpa animasi'],['slide','Geser'],['fade','Muncul pelan'],['bounce','Memantul'],['zoom','Zoom'],['flip','Putar 3D'],['type','Mengetik'],['glitch','Glitch']];
 const ORD=[['bottom','Dari bawah (chat baru di bawah)'],['top','Dari atas (chat baru di atas)']];
+// platform yang dinyalakan di Koneksi: menentukan header, filter, kirim chat, pengaturan, dan pratinjau
+const PF4=['youtube','tiktok','twitch','kick'];
+let EN={youtube:true,tiktok:true,twitch:false,kick:false};
+const setEN=e=>{if(e)PF4.forEach(p=>{if(e[p]!=null)EN[p]=!!e[p];});};
 let S={dock:{},overlay:{},global:{}},saved=JSON.parse(JSON.stringify(S)),conf={},viewers={},status={},curTab='k',draftTpl=null,curStruct='std',curPid='polos',msgsData=[],accState={};
 let filt='all';try{filt=localStorage.getItem('flt')||'all';}catch{}
 const $=id=>document.getElementById(id),list=$('list');
@@ -100,11 +104,27 @@ function toLatest(){list.scrollTop=isTop()?0:list.scrollHeight;updBtn();}
 function updBtn(){const b=$('tobottom');b.textContent=isTop()?'↑ Chat terbaru':'↓ Chat terbaru';b.style.display=(view==='dock'&&!isLocked&&!isAdmin&&!atLatest())?'block':'none';}
 list.addEventListener('scroll',updBtn);$('tobottom').onclick=toLatest;
 // kotak Twitch / Kick di header hanya muncul kalau platformnya dipakai (ada username / sedang tersambung)
-const used=p=>viewers[p]!=null||!!(status[p]&&!/^(belum diisi|terputus|username tidak dikenali)/.test(status[p]));
+// kotak di header hanya untuk platform yang dinyalakan
 function showViewers(){$('vy').textContent=fmt(viewers.youtube);$('vt').textContent=fmt(viewers.tiktok);$('vw').textContent=fmt(viewers.twitch);$('vk').textContent=fmt(viewers.kick);
-  $('cw').classList.toggle('off',!used('twitch'));$('ck').classList.toggle('off',!used('kick'));
-  const a=['youtube','tiktok','twitch','kick'].map(k=>viewers[k]).filter(x=>x!=null);$('vs').textContent=a.length?fmt(a.reduce((x,y)=>x+y,0)):'-';}
-function showSt(s){status=s;$('st').textContent=['youtube','tiktok','twitch','kick'].map(k=>PNAME[k]+': '+(s[k]||'-')).join('\n');showViewers();if(isDash)dashRender();}
+  [['chy','youtube'],['cht','tiktok'],['cw','twitch'],['ck','kick']].forEach(([i,p])=>$(i).classList.toggle('off',!EN[p]));
+  const a=PF4.filter(p=>EN[p]).map(k=>viewers[k]).filter(x=>x!=null);$('vs').textContent=a.length?fmt(a.reduce((x,y)=>x+y,0)):'-';}
+function showSt(s){status=s;$('st').textContent=PF4.filter(k=>EN[k]).map(k=>PNAME[k]+': '+(s[k]||'-')).join('\n');showViewers();if(isDash)dashRender();}
+// dipanggil saat switch platform berubah (dan saat pertama dimuat)
+function fltBuild(){const f=$('flt');if(!f)return;const on=PF4.filter(p=>EN[p]);
+  if(filt!=='all'&&!on.includes(filt)){filt='all';try{localStorage.setItem('flt',filt)}catch{}}
+  f.innerHTML='<option value="all">Semua</option>'+on.map(p=>'<option value="'+p+'">'+PNAME[p]+'</option>').join('');f.value=filt;}
+function syncPlats(){
+  document.querySelectorAll('[data-pf]').forEach(e=>{e.style.display=EN[e.dataset.pf]?'':'none';});
+  document.querySelectorAll('.nop').forEach(e=>{e.style.display=PF4.some(p=>EN[p])?'none':'';});
+  const UIN={youtube:'yt',tiktok:'tk',twitch:'twu',kick:'kku'};
+  PF4.forEach(p=>{const sw=$('en_'+p);if(sw)sw.checked=!!EN[p];const row=$('cn_'+p);if(row)row.classList.toggle('off',!EN[p]);const ip=$(UIN[p]);if(ip)ip.disabled=!EN[p];});}
+function applyEnabled(){
+  showViewers();
+  if(isAdmin){if(isSet){syncPlats();if(isDash){dashRender();pvSend();}}return;}
+  fltBuild();
+  [...wrap.querySelectorAll('[data-platform]')].forEach(e=>{if(EN[e.dataset.platform]===false)e.remove();});
+  msgsData=msgsData.filter(m=>EN[m.p]!==false);
+  applyStyle();}
 const FLAGS=m=>(m.bot?' isbot':'')+(m.mod?' ismod':'')+(m.owner?' isown':'')+(m.vip?' isvip':'')+(m.me?' isme':'')+(m.sample?' sample':'')+(m.sc?' sc':'')+(m.member?' ismem':'');
 const memOn=(m,s)=>m.member&&s[(MEMK[m.p]||'ytMem')+'Badge'];
 // isi teks chat; emote (m.emo = [[mulai,akhir,url],...] dalam hitungan karakter) dirender sebagai gambar kecil, kalau gagal dimuat tampil sebagai namanya
@@ -210,6 +230,7 @@ function addAct(m,re,s,stick){
   const d=actEl(m,s);put(d);trim();if(stick)toLatest();
   if(s.fade>0&&!isPrev&&!m.sample&&!re)setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),450);},s.fade*1000);}
 function add(m,re){
+  if(EN[m.p]===false)return;
   const s=cur(view),stick=view!=='dock'||atLatest();
   if(m.kind)return addAct(m,re,s,stick);
   if(m.sticker){if(!s.ytSticker)return;}else if(m.sc&&!s[SCK[m.p]||'ytSc'])return;
@@ -252,13 +273,14 @@ const SCEN=[
 const SHOW=[6,5,13,26,35,31,43,48,24,46];
 let deck=[];
 const nextScen=()=>{if(!deck.length){deck=SCEN.map((_,i)=>i);for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}}return SCEN[deck.pop()]();};
-let feedT=null;
+let feedT=null,feedOn=true; // feedOn=false: pratinjau dikosongkan karena chat contoh sedang dikirim ke Dock / Overlay
 const feedStop=()=>{clearTimeout(feedT);feedT=null;};
-const feedOne=()=>{if(draftEmpty())return;add({...nextScen(),t:Date.now(),sample:true});};
+const pickScen=()=>{for(let i=0;i<60;i++){const m=nextScen();if(EN[m.p]!==false)return m;}return null;};
+const feedOne=()=>{if(draftEmpty()||!feedOn)return;const m=pickScen();if(m)add({...m,t:Date.now(),sample:true});};
 function feedLoop(){feedStop();const [a,b]=isStatic?[2200,3600]:[800,1500];const go=()=>{feedOne();feedT=setTimeout(go,rint(a,b));};feedT=setTimeout(go,rint(a,b));}
 // jendela "Gaya baru": CSS masih kosong = pratinjau dibiarkan kosong (tidak menampilkan tampilan bawaan aplikasi)
 const draftEmpty=()=>forceId==='__draft'&&!(draftTpl&&String(draftTpl.css||'').trim());
-function samples(clear){if(clear){wrap.innerHTML='';msgsData=[];applyStyle();}feedStop();if(draftEmpty())return;
+function samples(clear){if(clear){wrap.innerHTML='';msgsData=[];applyStyle();}feedStop();if(draftEmpty()||!feedOn)return;
   if(view==='overlay'&&isPrev){
     // beberapa contoh langsung (satu dari tiap jenis utama) supaya pratinjau tidak kosong, lalu dilanjutkan pesan acak terus-menerus
     SHOW.slice().sort(()=>Math.random()-.5).slice(0,isStatic?4:7).forEach((i,k)=>setTimeout(()=>{if(!draftEmpty())add({...SCEN[i](),t:Date.now(),sample:true});},k*(isStatic?450:380)));
@@ -270,13 +292,14 @@ function doCmd(n){
   if(n==='up')list.scrollBy({top:-list.clientHeight*.8,behavior:'smooth'});
   else if(n==='down')list.scrollBy({top:list.clientHeight*.8,behavior:'smooth'});
   else if(n==='clear'){[...wrap.children].forEach(x=>x.remove());msgsData=[];updBtn();}
-  else if(n==='filter'){const o=['all','youtube','tiktok','twitch','kick'];filt=o[(o.indexOf(filt)+1)%o.length];$('flt').value=filt;try{localStorage.setItem('flt',filt)}catch{};applyStyle();toLatest();}
+  else if(n==='filter'){const o=['all',...PF4.filter(p=>EN[p])];filt=o[(o.indexOf(filt)+1)%o.length];$('flt').value=filt;try{localStorage.setItem('flt',filt)}catch{};applyStyle();toLatest();}
 }
 // ---- pratinjau statis (dalam iframe): tanpa koneksi SSE, data dikirim induknya ----
 if(isStatic){
   applyStyle();
   addEventListener('message',e=>{const d=e.data||{};
-    if(d.type==='cfg'){S=copy(d.settings);S.global=S.global||{};applyStyle();resample();}
+    if(d.type==='cfg'){S=copy(d.settings);S.global=S.global||{};setEN(d.enabled);if(d.feed!=null)feedOn=!!d.feed;applyStyle();resample();}
+    else if(d.type==='feed'){feedOn=!!d.on;resample();}
     else if(d.type==='tpldraft'){draftTpl={css:d.css};applyStyle();resample();}});
   setTimeout(()=>{if(!wrap.children.length&&!feedT)resample();},1500);
   parent.postMessage({type:'ready'},'*');bootDone();
@@ -284,21 +307,23 @@ if(isStatic){
   if(isPrev)applyStyle();
   const es=new EventSource('/events');
   es.onmessage=e=>{const {type,data}=JSON.parse(e.data);
-    if(type==='init'){S=data.settings;S.global=S.global||{};saved=copy(S);conf=data.cfg;viewers=data.viewers||{};showSt(data.status);
+    if(type==='init'){S=data.settings;S.global=S.global||{};saved=copy(S);conf=data.cfg;setEN(conf.enabled);viewers=data.viewers||{};showSt(data.status);
       if(isSet){initSettings();bootDone();return;}if(isTpl){initTpl();bootDone();return;}if(isAdd){initAdd();bootDone();return;}
-      applyStyle();showViewers();
+      fltBuild();applyStyle();showViewers();
       if(isPrev){samples(true);bootDone();return;}
       const s=cur(view),lim=Date.now()-(s.fade>0?s.fade*1000:1e12);
       data.history.filter(m=>m.t>lim).slice(view==='overlay'?-s.max:-300).forEach(m=>add(m));if(view==='dock')toLatest();bootDone();}
     else if(type==='settings'){saved=copy(data);S=copy(data);S.global=S.global||{};
       if(isSet){refreshPresets();if(isDash)pvSend();}else if(isTpl)tplOnSettings();else if(isAdd){applyUi(cur('dock'));}else{applyStyle();if(isPrev)resample();}}
-    else if(type==='draft'){if(live&&data.view===view){S[view]=data.values;applyStyle();if(isPrev)resample();else if(!document.querySelector('.m'))samples(false);}
+    else if(type==='draft'){if(live&&data.view===view){S[view]=data.values;applyStyle();if(isPrev)resample();else if(isPrev&&!document.querySelector('.m'))samples(false);}
       else if((isTpl||isAdd)&&data.view==='dock')applyUi({...cur('dock'),...data.values});}
     else if(type==='draftclear'){if(live){S=copy(saved);document.querySelectorAll('.sample').forEach(x=>x.remove());applyStyle();if(isPrev)resample();}else if(isTpl||isAdd)applyUi(cur('dock'));}
     else if(type==='cmd'){if(!isAdmin&&!isPrev){if(view==='dock')doCmd(data.name);else if(data.name==='clear')doCmd('clear');}}
     else if(type==='status')showSt(data);
+    else if(type==='cfg'){conf.enabled=data.enabled;setEN(data.enabled);applyEnabled();}
+    else if(type==='sampleclear'){if(!isAdmin&&!isPrev&&!isStatic){document.querySelectorAll('.sample').forEach(x=>x.remove());msgsData=msgsData.filter(m=>!m.sample);updBtn();}}
     else if(type==='viewers'){if(!isAdmin){viewers=data;showViewers();}else if(isDash){viewers=data;dashRender();}}
-    else if(type==='msg'){if(!isAdmin&&!isPrev)add(data);}};
+    else if(type==='msg'){if(!isAdmin&&!isPrev&&(!data.target||data.target===view))add(data);}};
 }
 // ---- jendela terkunci: laporkan area gelembung chat supaya hanya itu yang menerima klik saat disembunyikan dari OBS ----
 if(isLocked&&!isAdmin){
@@ -414,7 +439,7 @@ document.querySelectorAll('[data-apply]').forEach(b=>b.onclick=async()=>{const v
 document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{const v=b.dataset.reset;fill(v,DEF[v]);if(v==='dock'){$('protect').checked=true;$('ctrlPos').value='top-right';}draftChange(v);});
 // akun
 async function acct(){try{const a=await(await fetch('/account')).json();accState=a;
-  [['ay',a.youtube],['at',a.tiktok]].forEach(([i,ok])=>{$(i).textContent=ok?'terhubung':'belum terhubung';$(i).className=ok?'ok':'no';});}catch{}}
+  [['ay',a.youtube],['at',a.tiktok],['aw',a.twitch],['ak',a.kick]].forEach(([i,ok])=>{$(i).textContent=ok?'terhubung':'belum terhubung';$(i).className=ok?'ok':'no';});}catch{}}
 const copyText=async t=>{try{await navigator.clipboard.writeText(t);}catch{try{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}catch{}}};
 // hotkey
 const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R'};
@@ -450,12 +475,17 @@ $('hkapply').onclick=async()=>{const dups=Object.keys(hk).filter(a=>hk[a]&&Objec
 $('conn').onclick=()=>post('/connect',{youtube:$('yt').value,tiktok:$('tk').value,twitch:$('twu').value,kick:$('kku').value,kickRoom:$('kkroom').value});
 $('disc').onclick=()=>post('/disconnect');
 $('sbot').onclick=()=>post('/settings',{view:'global',values:{botNames:$('botNames').value}});
-$('oe').onclick=()=>openC('ext');$('oy').onclick=()=>openC('youtube');$('ot').onclick=()=>openC('tiktok');
+$('tplMng').onclick=()=>openC('templates');
+$('oe').onclick=()=>openC('ext');
 $('cx').onclick=()=>{copyText('chrome://extensions');$('cx').textContent='Disalin';setTimeout(()=>$('cx').textContent='Salin alamat chrome://extensions',1500);};
-$('cy').onclick=async()=>{const u=(await(await fetch('/urls')).json()).youtube;if(!u)return alert('Isi username YouTube dulu di bagian Sambungkan live.');copyText(u);$('cy').textContent='Disalin';setTimeout(()=>$('cy').textContent='Salin alamat YouTube',1500);};
-$('ct').onclick=async()=>{const u=(await(await fetch('/urls')).json()).tiktok;if(!u)return alert('Isi username TikTok dulu di bagian Sambungkan live.');copyText(u);$('ct').textContent='Disalin';setTimeout(()=>$('ct').textContent='Salin alamat TikTok',1500);};
-$('prev').onclick=()=>openC('preview');$('tplMng').onclick=()=>openC('templates');
-$('test').onclick=()=>post('/test');
+PF4.forEach(p=>{$('op_'+p).onclick=()=>openC(p);
+  const b=$('cp_'+p),t0=b.textContent;
+  b.onclick=async()=>{const u=(await(await fetch('/urls')).json())[p];if(!u)return alert('Isi username '+PNAME[p]+' dulu di bagian Sambungkan live.');copyText(u);b.textContent='Disalin';setTimeout(()=>b.textContent=t0,1500);};});
+// switch platform: nyala = tersambung + muncul di pengaturan/pratinjau/header/kirim chat; mati = putus dan disembunyikan
+const UINP={youtube:'yt',tiktok:'tk',twitch:'twu',kick:'kku'};
+PF4.forEach(p=>{const sw=$('en_'+p);sw.onchange=async()=>{const on=sw.checked;sw.disabled=true;EN[p]=on;syncPlats();
+  try{const r=await(await post('/platform',{platform:p,on,user:$(UINP[p]).value})).json();if(r&&r.enabled)setEN(r.enabled);}catch{}
+  sw.disabled=false;syncPlats();applyEnabled();};});
 function showPort(){const p=$('portIn');if(!p)return;if(document.activeElement!==p)p.value=conf.wanted||conf.port||'';const m=$('portmsg');
   if(conf.port&&conf.wanted&&conf.port!==conf.wanted){m.className='hint no';m.textContent='Port '+conf.wanted+' sedang dipakai program lain, jadi aplikasi sementara memakai '+conf.port+'.';}
   else{m.className='hint';m.textContent='Sedang berjalan di port '+(conf.port||location.port)+'.';}}
@@ -472,24 +502,46 @@ $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textConte
   const r=await(await post('/obs-add',{width:+$('obsW').value||500,height:+$('obsH').value||900,password:$('obsPass').value})).json();
   if(r.error){m.className='hint no';m.textContent='Gagal: '+r.error;}else{m.className='hint ok';m.textContent='Berhasil. Overlay sudah ada di scene OBS yang sedang aktif (nama sumber: ChatStream Overlay).';}};
 }
-function initSettings(){fill('dock');fill('overlay');fillGlobal();applyUi(cur('dock'));$('yt').value=conf.youtube||'';$('tk').value=conf.tiktok||'';$('twu').value=conf.twitch||'';$('kku').value=conf.kick||'';$('kkroom').value=conf.kickRoom||'';$('u2').value=location.origin+'/?view=overlay';showPort();
+function initSettings(){fill('dock');fill('overlay');fillGlobal();applyUi(cur('dock'));$('yt').value=conf.youtube||'';$('tk').value=conf.tiktok||'';$('twu').value=conf.twitch||'';$('kku').value=conf.kick||'';$('kkroom').value=conf.kickRoom||'';$('u2').value=location.origin+'/?view=overlay';showPort();syncPlats();
   hk={...HK_DEF,...((S.global&&S.global.hotkeys)||{})};hkRender();setTab(isDash?'d':'k');acct();setInterval(acct,3000);if(isDash)initDash();
   addEventListener('beforeunload',()=>{fetch('/draft-clear',{method:'POST',body:'{}',keepalive:true});});}
-// ---- Dashboard: sidebar, halaman beranda, pratinjau kanan (Pribadi / Overlay) ----
+// ---- Dashboard: sidebar, halaman beranda, pratinjau kanan (Pribadi / Overlay), laporan ----
 const PVSRC={pvD:'/?view=dock&preview=1&static=1',pvO:'/?view=overlay&preview=1&static=1'};
+// mode pratinjau per tab: 'prev' = chat contoh hanya di pratinjau; 'live' = chat contoh dikirim ke Dock (Pribadi) / overlay OBS (Overlay), pratinjau dikosongkan
+const pvMode={p:'prev',o:'prev'};let pvT=null,pvTarget='',repLoad=null;
+function pvLiveStop(){clearTimeout(pvT);pvT=null;if(pvTarget){pvTarget='';post('/sample-clear').catch(()=>{});}}
+function pvLiveStart(target){pvLiveStop();pvTarget=target;
+  const send=m=>{if(m&&EN[m.p]!==false)post('/sample',{m:{...m},target}).catch(()=>{});};
+  SHOW.slice().sort(()=>Math.random()-.5).slice(0,5).forEach((i,k)=>setTimeout(()=>{if(pvTarget===target)send(SCEN[i]());},k*450));
+  const loop=()=>{pvT=setTimeout(()=>{if(pvTarget!==target)return;send(pickScen());loop();},rint(1500,2600));};
+  setTimeout(()=>{if(pvTarget===target)loop();},2400);}
+function pvUI(){const t=document.body.dataset.pv;if(t!=='p'&&t!=='o')return;
+  $('pvm_prev').classList.toggle('on',pvMode[t]==='prev');$('pvm_live').classList.toggle('on',pvMode[t]==='live');
+  $('pvm_live').textContent=t==='p'?'Kirim Chat ke Dock':'Kirim Chat ke Overlay';
+  const n=$('pvnote');n.hidden=pvMode[t]!=='live';
+  n.textContent=t==='p'?'Chat contoh sedang dikirim ke Dock. Klik Buka Chat untuk melihatnya. Pratinjau ini dikosongkan.':'Chat contoh sedang dikirim ke overlay yang tampil di OBS. Pratinjau ini dikosongkan.';}
+function pvFeedApply(){
+  [['p','pvD'],['o','pvO']].forEach(([t,i])=>{const f=$(i);if(f&&f.contentWindow&&f.getAttribute('src'))f.contentWindow.postMessage({type:'feed',on:pvMode[t]==='prev'},'*');});
+  const t=document.body.dataset.pv,want=(t==='p'||t==='o')&&pvMode[t]==='live'?(t==='p'?'dock':'overlay'):'';
+  if(want!==pvTarget){if(want)pvLiveStart(want);else pvLiveStop();}}
+function pvSetMode(m){const t=document.body.dataset.pv;if(t!=='p'&&t!=='o'||pvMode[t]===m)return;pvMode[t]=m;pvUI();pvFeedApply();}
 function dashPane(tab){
   document.querySelectorAll('.sbi[data-t]').forEach(x=>x.classList.toggle('on',x.dataset.t===tab));
-  document.body.classList.toggle('split',tab==='p'||tab==='o');document.body.dataset.pv=tab;
-  const f=$(tab==='p'?'pvD':tab==='o'?'pvO':'');if(f&&!f.getAttribute('src'))f.src=PVSRC[f.id];}
+  document.body.classList.toggle('split',tab==='p'||tab==='o');document.body.classList.toggle('rview',tab==='r');document.body.dataset.pv=tab;
+  const f=$(tab==='p'?'pvD':tab==='o'?'pvO':'');if(f&&!f.getAttribute('src'))f.src=PVSRC[f.id];
+  pvUI();pvFeedApply();if(tab==='r'&&repLoad)repLoad();}
 function pvSend(){if(!isDash)return;const s=copy(S);s.global=s.global||{};s.dock={...(s.dock||{}),...collect('dock')};s.overlay={...(s.overlay||{}),...collect('overlay')};
-  ['pvD','pvO'].forEach(i=>{const f=$(i);if(f&&f.getAttribute('src')&&f.contentWindow)f.contentWindow.postMessage({type:'cfg',settings:s},'*');});}
-function dashRender(){const b=$('dst');if(!b)return;
-  b.innerHTML=['youtube','tiktok','twitch','kick'].map(k=>'<div class="dsr"><span><img src="'+PL[k]+'" alt="">'+PNAME[k]+'</span><span>'+esc(status[k]||'-')+(viewers[k]!=null?' &middot; '+fmt(viewers[k])+' penonton':'')+'</span></div>').join('');}
+  [['pvD','p'],['pvO','o']].forEach(([i,t])=>{const f=$(i);if(f&&f.getAttribute('src')&&f.contentWindow)f.contentWindow.postMessage({type:'cfg',settings:s,enabled:EN,feed:pvMode[t]==='prev'},'*');});}
+function dashRender(){const b=$('dst');if(!b)return;const on=PF4.filter(k=>EN[k]);
+  b.innerHTML=on.length?on.map(k=>'<div class="dsr"><span><img src="'+PL[k]+'" alt="">'+PNAME[k]+'</span><span>'+esc(status[k]||'-')+(viewers[k]!=null?' &middot; '+fmt(viewers[k])+' penonton':'')+'</span></div>').join(''):'<div class="hint">Belum ada platform yang menyala. Nyalakan di tab Koneksi.</div>';}
 let dashInit=false;
 function initDash(){if(dashInit)return;dashInit=true;
   document.querySelectorAll('.sbi[data-t]').forEach(b=>b.onclick=()=>setTab(b.dataset.t));
-  $('sbChat').onclick=$('dChat').onclick=()=>openC('chat');$('sbRep').onclick=$('dRep').onclick=()=>openC('report');
-  addEventListener('message',e=>{if(e.data&&e.data.type==='ready')pvSend();});dashRender();}
+  $('sbChat').onclick=$('dChat').onclick=()=>openC('chat');$('dRep').onclick=()=>setTab('r');
+  $('pvm_prev').onclick=()=>pvSetMode('prev');$('pvm_live').onclick=()=>pvSetMode('live');
+  window.__goTab=t=>setTab(t);
+  addEventListener('beforeunload',()=>{if(pvTarget)fetch('/sample-clear',{method:'POST',body:'{}',keepalive:true});});
+  addEventListener('message',e=>{if(e.data&&e.data.type==='ready')pvSend();});repLoad=initReport(true);syncPlats();dashRender();}
 // ---- kelola gaya overlay (daftar kartu + pratinjau) ----
 let tplSig='';
 const saveTpls=l=>post('/settings',{view:'global',values:{templates:l}});
@@ -563,23 +615,20 @@ function initAdd(){
 }
 // ---- filter + kirim chat ----
 if(!isAdmin){
-$('gear').onclick=()=>post('/settings-window');
-$('anBtn').onclick=()=>openC('report');
 $('lock').onclick=()=>post('/lock',{on:true});
 $('flt').value=filt;
 $('flt').onchange=()=>{filt=$('flt').value;try{localStorage.setItem('flt',filt)}catch{};applyStyle();toLatest();};
 function flash(m){const i=$('msg');if(!i.dataset.ph)i.dataset.ph=i.placeholder;i.classList.add('err');i.placeholder=m;clearTimeout(flash.t);flash.t=setTimeout(()=>{i.classList.remove('err');i.placeholder=i.dataset.ph;},4500);}
 async function doSend(){
   const text=$('msg').value.trim();if(!text)return;
-  const nm={youtube:'YouTube',tiktok:'TikTok'},targets=filt==='all'?['youtube','tiktok']:[filt];
-  if(filt==='twitch'||filt==='kick'){flash('Kirim chat ke '+PNAME[filt]+' belum tersedia. Pilih Semua, YouTube, atau TikTok.');return;}
+  const targets=filt==='all'?PF4.filter(p=>EN[p]):[filt];
+  if(!targets.length){flash('Belum ada platform yang menyala. Nyalakan di Dashboard > Koneksi.');return;}
   $('send').disabled=true;
   try{const r=await(await post('/send',{text,targets})).json();
     if(r.error)flash('Gagal: '+r.error);
-    else{const okk=targets.filter(k=>r[k]==='ok'),bad=targets.filter(k=>r[k]!==undefined&&r[k]!=='ok'&&!/^belum login/.test(r[k]||'')),nolog=targets.filter(k=>/^belum login/.test(r[k]||''));
+    else{const okk=targets.filter(k=>r[k]==='ok'),bad=targets.filter(k=>r[k]!==undefined&&r[k]!=='ok');
       if(okk.length)$('msg').value='';
-      if(bad.length)flash(bad.map(k=>nm[k]+': '+r[k]).join(' | '));
-      else if(!okk.length&&nolog.length)flash('Belum masuk akun. Buka Pengaturan > Koneksi > Akun.');}
+      if(bad.length)flash(bad.map(k=>PNAME[k]+': '+r[k]).join(' | '));}
   }catch(e){flash('Gagal: '+e.message);}
   $('send').disabled=false;$('msg').focus();}
 $('send').onclick=doSend;$('msg').onkeydown=e=>{if(e.key==='Enter')doSend();};
@@ -646,7 +695,7 @@ function drawRep(r){
    +(yt.top.length?'<h3 style="margin-top:14px">Super Chat terbesar</h3>'+yt.top.map((x,i)=>rl((i+1)+'. '+esc(x.name),esc(x.amount))).join(''):'')+'</div></div></div>'
    +'<div class="hint">Penonton = yang sedang menonton saat sampel diambil (YouTube tiap 20 detik, TikTok tiap ada pembaruan, Twitch dan Kick tiap 30 detik; disimpan tiap 15 detik), bukan jumlah kumulatif. Puncak adalah nilai tertinggi dari sampel itu. Durasi menonton per orang dan data seperti subscriber/like YouTube tidak bisa dibaca aplikasi ini; untuk itu pakai YouTube Studio / TikTok LIVE Center. Total koin dihitung dari hadiah yang tertangkap aplikasi selama terhubung.</div>';
   chartHover(r);}
-function initReport(){
+function initReport(emb){
   let sel='cur',busy=false;const dd=$('rsess');
   const lab=x=>new Date(x.start).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' \u00b7 '+fdur((x.end||Date.now())-x.start)+(x.peak?' \u00b7 puncak '+fmt(x.peak.v):'')+(x.live?' (berjalan)':'');
   async function load(){if(busy)return;busy=true;
@@ -659,5 +708,7 @@ function initReport(){
   dd.onchange=()=>{sel=dd.value;dd.blur();load();};
   $('rnew').onclick=async()=>{if(!confirm('Akhiri sesi sekarang dan mulai sesi baru dari nol?\n\nSesi yang diakhiri tetap tersimpan di daftar.'))return;await post('/analytics-new');sel='cur';load();};
   $('rdel').onclick=async()=>{if(!confirm('Hapus laporan sesi ini?'))return;await post('/analytics-del',{id:sel});sel='cur';load();};
-  bootDone();load();setInterval(load,5000);}
+  if(!emb){bootDone();load();}
+  setInterval(()=>{if(!emb||curTab==='r')load();},5000);
+  return load;}
 if(isRep)initReport();

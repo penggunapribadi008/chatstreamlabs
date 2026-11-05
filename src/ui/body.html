@@ -3,10 +3,10 @@
 <div id="tb"><div class="ttl"><img src="/icon.png" alt=""><span id="tbt">ChatStream Labs</span></div><div class="wbs"><button class="wb" id="wmin" title="Perkecil">&#8211;</button><button class="wb" id="wmax" title="Perbesar">&#9633;</button><button class="wb x" id="wclose" title="Tutup">&#10005;</button></div></div>
 <div id="ctl"><button class="cb2" id="eye" title="Sembunyikan dari OBS"><svg class="e-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--eyec,#ffd166)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="e-shut" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--eyec,#5eead4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11c2.5 4 5.5 6 9 6s6.5-2 9-6"/><path d="M12 17v3M7.5 15.5l-1.6 2.4M16.5 15.5l1.6 2.4"/><path d="M4 4l16 16"/></svg></button><button class="cb2" id="unlock" title="Buka kunci"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-1.5"/></svg></button><div class="cb2" id="mover" title="Tahan lalu geser untuk memindahkan"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></div></div>
 <div id="app">
-  <div id="top"><div class="vchip"><img src="/yt.png" alt=""><b id="vy">-</b></div><div class="vchip"><img src="/tt.png" alt=""><b id="vt">-</b></div><div class="vchip off" id="cw"><img src="/tw.png" alt=""><b id="vw">-</b></div><div class="vchip off" id="ck"><img src="/kick.png" alt=""><b id="vk">-</b></div><div id="tot" class="vchip" title="Penonton yang sedang menonton sekarang (semua platform yang tersambung), bukan puncak"><small>Total penonton</small><b id="vs">-</b></div><button id="anBtn" class="vchip anb" title="Laporan &amp; analisis penonton"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></button></div>
+  <div id="top"><div class="vchip" id="chy"><img src="/yt.png" alt=""><b id="vy">-</b></div><div class="vchip" id="cht"><img src="/tt.png" alt=""><b id="vt">-</b></div><div class="vchip off" id="cw"><img src="/tw.png" alt=""><b id="vw">-</b></div><div class="vchip off" id="ck"><img src="/kick.png" alt=""><b id="vk">-</b></div><div id="tot" class="vchip" title="Penonton yang sedang menonton sekarang (semua platform yang tersambung), bukan puncak"><small>Total penonton</small><b id="vs">-</b></div></div>
   <div id="lw"><div id="list"><div id="msgs"></div></div><button id="tobottom">&#8595; Chat terbaru</button></div>
   <div id="foot">
-    <div class="fr"><select id="flt" title="Filter dan tujuan kirim"><option value="all">Semua</option><option value="youtube">YouTube</option><option value="tiktok">TikTok</option><option value="twitch">Twitch</option><option value="kick">Kick</option></select><input id="msg" type="text" placeholder="Ketik pesan untuk penonton…" maxlength="150"><button id="send">Kirim</button><button class="ib" id="lock" title="Kunci jendela">&#128274;</button><button class="ib" id="gear" title="Pengaturan">&#9881;</button></div>
+    <div class="fr"><select id="flt" title="Filter dan tujuan kirim"><option value="all">Semua</option><option value="youtube">YouTube</option><option value="tiktok">TikTok</option><option value="twitch">Twitch</option><option value="kick">Kick</option></select><input id="msg" type="text" placeholder="Ketik pesan untuk penonton…" maxlength="150"><button id="send">Kirim</button><button class="ib" id="lock" title="Kunci jendela">&#128274;</button></div>
   </div>
 </div>
 <div id="sb">
@@ -14,11 +14,11 @@
   <div class="sbl"></div>
   <button class="sbi" data-t="p">Pribadi</button><button class="sbi" data-t="o">Overlay</button><button class="sbi" data-t="h">Hotkey</button>
   <div class="sbl"></div>
-  <button class="sbi" id="sbRep">Laporan penonton</button>
+  <button class="sbi" data-t="r">Laporan penonton</button>
   <div class="sbsp"></div>
   <button class="btn b1" id="sbChat">Buka Chat</button>
 </div>
-<div id="dpv"><iframe id="pvD" title="Pratinjau Pribadi"></iframe><iframe id="pvO" title="Pratinjau Overlay"></iframe></div>
+<div id="dpv"><div class="pvbar"><button class="btn sm on" id="pvm_prev">Kirim Chat Pratinjau</button><button class="btn sm" id="pvm_live">Kirim Chat ke Dock</button></div><div class="pvwrap"><iframe id="pvD" title="Pratinjau Pribadi"></iframe><iframe id="pvO" title="Pratinjau Overlay"></iframe><div class="pvnote" id="pvnote" hidden></div></div></div>
 <div id="panel">
   <div class="tabs"><div class="tabrow"><button class="tab on" data-t="k">Koneksi</button><button class="tab" data-t="p">Pribadi</button><button class="tab" data-t="o">Overlay</button><button class="tab" data-t="h">Hotkey</button></div></div>
   <div id="panes">
@@ -29,20 +29,20 @@
   </div>
   <div class="pane on" id="pk">
     <div class="card"><h3>Sambungkan live</h3>
-      <label><span>Username YouTube</span></label><input type="text" id="yt" placeholder="@namakamu">
-      <label><span>Username TikTok</span></label><input type="text" id="tk" placeholder="@namakamu">
-      <label><span>Username Twitch</span></label><input type="text" id="twu" placeholder="namakamu">
-      <label><span>Username Kick</span></label><input type="text" id="kku" placeholder="namakamu">
-      <details class="kkopt"><summary>Kick tidak mau tersambung?</summary><div class="hint">Kick dilindungi Cloudflare, jadi kadang aplikasi gagal mengambil info channelnya. Kalau status Kick berkata gagal, buka <code>kick.com/api/v2/channels/namakamu</code> di browser, cari tulisan <code>"chatroom":{"id":</code> lalu isi angka setelahnya di sini. Dibiarkan kosong = otomatis.</div><input type="number" id="kkroom" placeholder="ID chatroom Kick (opsional)"></details>
+      <div class="hint">Nyalakan platform yang kamu pakai. Hanya platform yang menyala yang tersambung, muncul di pengaturan Pribadi &amp; Overlay, di pratinjau, di header chat, dan di tujuan kirim chat.</div>
+      <div class="cn" id="cn_youtube"><div class="cnh"><img src="/yt.png" alt=""><b>YouTube</b><label class="sw" title="Aktifkan / nonaktifkan YouTube"><input type="checkbox" id="en_youtube"><i></i></label></div><input type="text" id="yt" placeholder="Username YouTube, contoh @namakamu"></div>
+      <div class="cn" id="cn_tiktok"><div class="cnh"><img src="/tt.png" alt=""><b>TikTok</b><label class="sw" title="Aktifkan / nonaktifkan TikTok"><input type="checkbox" id="en_tiktok"><i></i></label></div><input type="text" id="tk" placeholder="Username TikTok, contoh @namakamu"></div>
+      <div class="cn" id="cn_twitch"><div class="cnh"><img src="/tw.png" alt=""><b>Twitch</b><label class="sw" title="Aktifkan / nonaktifkan Twitch"><input type="checkbox" id="en_twitch"><i></i></label></div><input type="text" id="twu" placeholder="Username Twitch, contoh namakamu"></div>
+      <div class="cn" id="cn_kick"><div class="cnh"><img src="/kick.png" alt=""><b>Kick</b><label class="sw" title="Aktifkan / nonaktifkan Kick"><input type="checkbox" id="en_kick"><i></i></label></div><input type="text" id="kku" placeholder="Username Kick, contoh namakamu"><details class="kkopt"><summary>Kick tidak mau tersambung?</summary><div class="hint">Kick dilindungi Cloudflare, jadi kadang aplikasi gagal mengambil info channelnya. Kalau status Kick berkata gagal, buka <code>kick.com/api/v2/channels/namakamu</code> di browser, cari tulisan <code>"chatroom":{"id":</code> lalu isi angka setelahnya di sini. Dibiarkan kosong = otomatis.</div><input type="number" id="kkroom" placeholder="ID chatroom Kick (opsional)"></details></div>
       <div class="btns"><button class="btn b1" id="conn">Sambungkan</button><button class="btn b2" id="disc">Putuskan</button></div>
       <div id="st"></div></div>
     <div class="card"><h3>Kirim chat lewat Chrome</h3>
-      <div class="hint">Membalas chat butuh akunmu sendiri. Aplikasi memakai Chrome yang sudah login lewat ekstensi kecil, jadi tidak ada login di dalam aplikasi. Untuk saat ini kirim chat baru tersedia untuk YouTube dan TikTok; Twitch dan Kick hanya dibaca (chat masuk dan aktivitasnya).</div>
-      <div class="stat"><div class="chip2"><img src="/yt.png" alt=""><span>YouTube</span><b id="ay">-</b></div><div class="chip2"><img src="/tt.png" alt=""><span>TikTok</span><b id="at">-</b></div></div>
+      <div class="hint">Membalas chat butuh akunmu sendiri. Aplikasi memakai Chrome yang sudah login lewat ekstensi kecil, jadi tidak ada login di dalam aplikasi. Yang tampil di sini hanya platform yang menyala di atas. Kirim chat ke Twitch dan Kick masih baru dan belum diuji di live sungguhan; kalau ada yang tidak terkirim, kirim pesan galatnya ke pengembang.</div>
+      <div class="stat"><div class="chip2" data-pf="youtube"><img src="/yt.png" alt=""><span>YouTube</span><b id="ay">-</b></div><div class="chip2" data-pf="tiktok"><img src="/tt.png" alt=""><span>TikTok</span><b id="at">-</b></div><div class="chip2" data-pf="twitch"><img src="/tw.png" alt=""><span>Twitch</span><b id="aw">-</b></div><div class="chip2" data-pf="kick"><img src="/kick.png" alt=""><span>Kick</span><b id="ak">-</b></div></div>
       <ol class="steps">
         <li><div class="sn">1</div><div class="sb"><b>Buka folder ekstensi</b><span>Folder berisi ekstensi "ChatStream Labs - Pengirim Chat".</span><div class="btns"><button class="btn b3 sm" id="oe">Buka folder ekstensi</button></div></div></li>
-        <li><div class="sn">2</div><div class="sb"><b>Pasang di Chrome</b><span>Buka <code>chrome://extensions</code>, nyalakan <b>Developer mode</b> (pojok kanan atas), klik <b>Load unpacked</b>, lalu pilih folder dari langkah 1. Cukup sekali.</span><div class="btns"><button class="btn b3 sm" id="cx">Salin alamat chrome://extensions</button></div></div></li>
-        <li><div class="sn">3</div><div class="sb"><b>Buka halaman live-mu di Chrome</b><span>Pakai Chrome yang sudah login ke akun YouTube dan TikTok. Biarkan tabnya terbuka selama live. Status di atas berubah jadi "terhubung".</span><div class="btns"><button class="btn b3 sm" id="oy">Buka chat YouTube</button><button class="btn b3 sm" id="ot">Buka live TikTok</button></div><div class="btns"><button class="btn b4 sm" id="cy">Salin alamat YouTube</button><button class="btn b4 sm" id="ct">Salin alamat TikTok</button></div></div></li>
+        <li><div class="sn">2</div><div class="sb"><b>Pasang di Chrome</b><span>Buka <code>chrome://extensions</code>, nyalakan <b>Developer mode</b> (pojok kanan atas), klik <b>Load unpacked</b>, lalu pilih folder dari langkah 1. Cukup sekali. Kalau ekstensi sudah terpasang dari versi lama, klik tombol muat ulang (panah melingkar) di kartu ekstensinya supaya Twitch dan Kick ikut aktif.</span><div class="btns"><button class="btn b3 sm" id="cx">Salin alamat chrome://extensions</button></div></div></li>
+        <li><div class="sn">3</div><div class="sb"><b>Buka halaman live-mu di Chrome</b><span>Pakai Chrome yang sudah login ke akun platformnya. Biarkan tabnya terbuka selama live. Status di atas berubah jadi "terhubung".</span><div class="btns" style="flex-wrap:wrap"><button class="btn b3 sm" data-pf="youtube" id="op_youtube">Buka chat YouTube</button><button class="btn b3 sm" data-pf="tiktok" id="op_tiktok">Buka live TikTok</button><button class="btn b3 sm" data-pf="twitch" id="op_twitch">Buka chat Twitch</button><button class="btn b3 sm" data-pf="kick" id="op_kick">Buka chat Kick</button></div><div class="btns" style="flex-wrap:wrap"><button class="btn b4 sm" data-pf="youtube" id="cp_youtube">Salin alamat YouTube</button><button class="btn b4 sm" data-pf="tiktok" id="cp_tiktok">Salin alamat TikTok</button><button class="btn b4 sm" data-pf="twitch" id="cp_twitch">Salin alamat Twitch</button><button class="btn b4 sm" data-pf="kick" id="cp_kick">Salin alamat Kick</button></div></div></li>
       </ol>
       <div class="hint">Kalau Chrome bukan browser utama, pakai tombol Salin alamat lalu tempel di Chrome. Pesan hanya terkirim saat live sedang berjalan.</div></div>
     <div class="card"><h3>Port lokal</h3>
@@ -54,24 +54,23 @@
     <div class="card"><h3>Nama bot tambahan</h3><input type="text" id="botNames" placeholder="pisahkan dengan koma, contoh: moobot, fossabot">
       <div class="btns"><button class="btn b1" id="sbot">Terapkan</button></div></div>
   </div>
-  <div class="pane" id="pp"><div class="card"><h3>Aktivitas per platform</h3>
-      <button class="plat" data-pg="dock_yt"><img src="/yt.png" alt=""><span><b>YouTube</b><small>Super Chat, Super Sticker, Member</small></span><i>&#8250;</i></button>
-      <button class="plat" data-pg="dock_tt"><img src="/tt.png" alt=""><span><b>TikTok</b><small>Bergabung, hadiah, suka, ikuti, bagikan, langganan</small></span><i>&#8250;</i></button>
-      <button class="plat" data-pg="dock_tw"><img src="/tw.png" alt=""><span><b>Twitch</b><small>Bits, subscribe, gift sub, raid, pengumuman, chatter baru</small></span><i>&#8250;</i></button>
-      <button class="plat" data-pg="dock_kk"><img src="/kick.png" alt=""><span><b>Kick</b><small>Kicks, subscribe, gift sub, follow, raid, hadiah poin</small></span><i>&#8250;</i></button></div>
+  <div class="pane" id="pp"><div class="card"><h3>Aktivitas per platform</h3><div class="hint nop" style="display:none">Belum ada platform yang menyala. Nyalakan dulu di tab Koneksi.</div>
+      <button class="plat" data-pf="youtube" data-pg="dock_yt"><img src="/yt.png" alt=""><span><b>YouTube</b><small>Super Chat, Super Sticker, Member</small></span><i>&#8250;</i></button>
+      <button class="plat" data-pf="tiktok" data-pg="dock_tt"><img src="/tt.png" alt=""><span><b>TikTok</b><small>Bergabung, hadiah, suka, ikuti, bagikan, langganan</small></span><i>&#8250;</i></button>
+      <button class="plat" data-pf="twitch" data-pg="dock_tw"><img src="/tw.png" alt=""><span><b>Twitch</b><small>Bits, subscribe, gift sub, raid, pengumuman, chatter baru</small></span><i>&#8250;</i></button>
+      <button class="plat" data-pf="kick" data-pg="dock_kk"><img src="/kick.png" alt=""><span><b>Kick</b><small>Kicks, subscribe, gift sub, follow, raid, hadiah poin</small></span><i>&#8250;</i></button></div>
   <div id="pp_b"></div>
     <div class="card"><h3>Jendela</h3><div class="row"><span>Sembunyikan dari OBS</span><input type="checkbox" id="protect"></div>
       <label><span>Posisi tombol saat terkunci</span></label><select id="ctrlPos"><option value="top-left">Kiri atas</option><option value="top-center">Tengah atas</option><option value="top-right">Kanan atas</option><option value="bottom-left">Kiri bawah</option><option value="bottom-center">Tengah bawah</option><option value="bottom-right">Kanan bawah</option></select>
       <div class="hint">Saat terkunci ada dua kotak di luar jendela chat: gembok untuk membuka kunci dan ikon empat arah untuk memindahkan jendela (tahan lalu geser). Jendela tidak ikut terekam OBS. Latar baru benar-benar transparan saat dikunci.</div></div>
     <div class="bar"><button class="btn b4" data-reset="dock">Reset</button><button class="btn b1" data-apply="dock">Terapkan</button></div></div>
-  <div class="pane" id="po"><div class="card"><h3>Aktivitas per platform</h3>
-      <button class="plat" data-pg="overlay_yt"><img src="/yt.png" alt=""><span><b>YouTube</b><small>Super Chat, Super Sticker, Member</small></span><i>&#8250;</i></button>
-      <button class="plat" data-pg="overlay_tt"><img src="/tt.png" alt=""><span><b>TikTok</b><small>Bergabung, hadiah, suka, ikuti, bagikan, langganan</small></span><i>&#8250;</i></button>
-      <button class="plat" data-pg="overlay_tw"><img src="/tw.png" alt=""><span><b>Twitch</b><small>Bits, subscribe, gift sub, raid, pengumuman, chatter baru</small></span><i>&#8250;</i></button>
-      <button class="plat" data-pg="overlay_kk"><img src="/kick.png" alt=""><span><b>Kick</b><small>Kicks, subscribe, gift sub, follow, raid, hadiah poin</small></span><i>&#8250;</i></button></div>
+  <div class="pane" id="po"><div class="card"><h3>Aktivitas per platform</h3><div class="hint nop" style="display:none">Belum ada platform yang menyala. Nyalakan dulu di tab Koneksi.</div>
+      <button class="plat" data-pf="youtube" data-pg="overlay_yt"><img src="/yt.png" alt=""><span><b>YouTube</b><small>Super Chat, Super Sticker, Member</small></span><i>&#8250;</i></button>
+      <button class="plat" data-pf="tiktok" data-pg="overlay_tt"><img src="/tt.png" alt=""><span><b>TikTok</b><small>Bergabung, hadiah, suka, ikuti, bagikan, langganan</small></span><i>&#8250;</i></button>
+      <button class="plat" data-pf="twitch" data-pg="overlay_tw"><img src="/tw.png" alt=""><span><b>Twitch</b><small>Bits, subscribe, gift sub, raid, pengumuman, chatter baru</small></span><i>&#8250;</i></button>
+      <button class="plat" data-pf="kick" data-pg="overlay_kk"><img src="/kick.png" alt=""><span><b>Kick</b><small>Kicks, subscribe, gift sub, follow, raid, hadiah poin</small></span><i>&#8250;</i></button></div>
   <div id="po_b"></div>
-    <div class="card"><h3>Pratinjau &amp; OBS</h3>
-      <div class="btns" style="margin-top:0"><button class="btn b3" id="prev">Pratinjau overlay OBS</button><button class="btn b3" id="test">Kirim pesan tes</button></div>
+    <div class="card"><h3>Sambungkan ke OBS</h3>
       <div class="g2"><div style="flex:1"><label><span>Lebar (px)</span></label><input type="number" id="obsW" min="100" max="3840"></div><div style="flex:1"><label><span>Tinggi (px)</span></label><input type="number" id="obsH" min="100" max="2160"></div></div>
       <label><span>Password WebSocket OBS (kosongkan kalau tidak ada)</span></label><input type="text" id="obsPass">
       <div class="btns"><button class="btn b1" id="obsadd">+ Tambahkan overlay ke OBS</button></div>

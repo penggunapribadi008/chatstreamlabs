@@ -23,6 +23,9 @@ async function serverTests(){
     ok((st.global.templates||[]).map(t=>t.id).join()==='kartu,persona,neon,retro,cozy','gaya bawaan di-seed saat pertama jalan');
     await raw('/settings',{view:'global',values:{templates:[]}});await raw('/templates-restore',{});await sleep(250);
     ok(JSON.parse(fs.readFileSync(path.join(dir,'settings.json'),'utf8')).global.templates.length===5,'Pulihkan gaya bawaan bekerja');
+    const pl=await j('/platform',{platform:'kick',on:true,user:'abc'});
+    ok(pl.enabled&&pl.enabled.kick===true&&JSON.parse(fs.readFileSync(path.join(dir,'config.json'),'utf8')).kick==='abc','switch platform tersimpan (/platform)');
+    await raw('/sample',{m:{p:'youtube',name:'a',text:'b'},target:'dock'});
     const s=await j('/send',{text:'halo',targets:['youtube','tiktok']});
     ok(/ekstensi/i.test(s.youtube)&&/ekstensi/i.test(s.tiktok),'kirim chat tanpa ekstensi memberi pesan jelas');
     const o=await j('/obs-add',{});ok(/OBS/.test(o.error||''),'tambah ke OBS memberi pesan jelas bila OBS tidak aktif');
@@ -37,7 +40,7 @@ const seeds=JSON.parse(fs.readFileSync(path.join(root,'src/seeds.json'),'utf8'))
 const rivals=fs.readFileSync(path.join(root,'examples/rivals-chat-kiri.css'),'utf8');
 const cozy=fs.readFileSync(path.join(root,'examples/cozy-multichat-earthy.css'),'utf8');
 const TPL=[...seeds,{id:'c_riv',name:'rivals',css:rivals,struct:'std'},{id:'c_cozy',name:'cozy-multichat-earthy',css:cozy,struct:'cozy'}];
-const mk=(ov,dock)=>({settings:{dock:{...(dock||{})},overlay:{...ov},global:{templates:TPL,hotkeys:{}}},cfg:{youtube:'@a',tiktok:'@b'},status:{},viewers:{},
+const mk=(ov,dock)=>({settings:{dock:{...(dock||{})},overlay:{...ov},global:{templates:TPL,hotkeys:{}}},cfg:{youtube:'@a',tiktok:'@b',enabled:{youtube:true,tiktok:true,twitch:true,kick:true}},status:{},viewers:{},
   history:[{p:'tiktok',name:'dewi anggraini',text:'halo teman',t:Date.now(),id:1},{p:'youtube',name:'Andi',text:'hai semua',mod:true,t:Date.now(),id:2},{p:'youtube',name:'Sinta_Rahma',text:'Terima kasih kak!',sc:{amount:'Rp50.000',color:'#ffca28'},t:Date.now(),id:3},
   {p:'tiktok',kind:'join',name:'rizkyy_',t:Date.now(),id:4},{p:'tiktok',kind:'gift',name:'Budi',gift:'Rose',n:5,coins:5,t:Date.now(),id:5},{p:'tiktok',kind:'like',name:'Sinta',others:3,n:48,t:Date.now(),id:6}]});
 async function page(q,ov,dock,after){
@@ -104,7 +107,9 @@ async function uiTests(){
   await page('?view=dock',{},{},(d)=>{
     ok(d.querySelectorAll('#msgs .cs-act').length===2,'dock: join & gift tampil sebagai baris aktivitas, like (bawaan mati) tidak');
     ok(d.querySelectorAll('#msgs .m').length===3,'aktivitas tidak dihitung sebagai chat (.m)');
-    ok(!!d.querySelector('#top #tot.vchip')&&!!d.getElementById('anBtn'),'Total penonton berkotak seperti YouTube/TikTok + tombol laporan');});
+    ok(!!d.querySelector('#top #tot.vchip')&&!d.getElementById('anBtn')&&!d.getElementById('gear'),'Total penonton ada; tombol laporan dan pengaturan sudah dihapus dari dock');});
+  await page('?view=dock',{},{},(d,dom)=>{dom.window.eval("EN.twitch=false;applyEnabled();add({p:'twitch',name:'x',text:'y',t:Date.now()})");
+    ok(!d.querySelector('#msgs .m.tw')&&d.getElementById('cw').classList.contains('off'),'platform yang dimatikan: chat dan kotak header tidak tampil');});
   await page('?view=dock',{},{ttJoin:true,ttJoinBg:true,ttJoinBgC:'#112233',ttJoinBgOp:100,ttJoinFc:'#ff0000',ttLike:true},(d)=>{
     const j=d.querySelector('.cs-act.cs-join');ok(j&&/17, 34, 51/.test(j.style.background)&&/255, 0, 0/.test(j.style.color),'latar & warna font aktivitas mengikuti pengaturan');
     ok(!!d.querySelector('.cs-act.cs-like'),'jenis aktivitas yang dicentang (like) ikut tampil');});

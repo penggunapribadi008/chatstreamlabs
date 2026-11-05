@@ -5,6 +5,11 @@ const CF=path.join(base,'config.json'),SF=path.join(base,'settings.json');
 const stats=require('./stats.js')(path.join(base,'analytics.json'));
 const read=(f,d)=>{try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch{return d}};
 let cfg=read(CF,{port:3000,youtube:'',tiktok:'',twitch:'',kick:'',kickRoom:''});
+// Platform yang dinyalakan (switch di Koneksi). Pertama kali: YouTube & TikTok nyala; Twitch/Kick nyala hanya kalau username-nya sudah pernah diisi.
+const PF4=['youtube','tiktok','twitch','kick'];
+{const e=cfg.enabled||{};cfg.enabled={};PF4.forEach(p=>{cfg.enabled[p]=e[p]!=null?!!e[p]:(p==='youtube'||p==='tiktok'||!!cfg[p]);});}
+const isEn=p=>cfg.enabled[p]!==false;
+const saveCfg=()=>{try{fs.writeFileSync(CF,JSON.stringify(cfg,null,1));}catch{}};
 let settings=read(SF,{});settings.dock=settings.dock||{};settings.overlay=settings.overlay||{};settings.global=settings.global||{};
 if(!settings.global.tplSeeded){settings.global.templates=[...SEEDS,...(settings.global.templates||[]).filter(t=>!SEEDS.some(x=>x.id===t.id))];settings.global.tplSeeded=true;try{fs.writeFileSync(SF,JSON.stringify(settings));}catch{}}
 {const MARK='/* twitch-kick */';let ch=false;
@@ -16,7 +21,7 @@ let seq=0;const crypto=require('crypto');const hooks={};let ytLive='';let _ready
 function autoStart(){if(autoStarted)return;autoStarted=true;setTimeout(()=>{startYT();setTimeout(startTT,600);setTimeout(startTW,1000);setTimeout(startKK,1400);},2500);}
 function chatUrl(p){
   if(p==='youtube'){const t=ytTarget(cfg.youtube);if(!t)return '';if(t.liveId)return 'https://www.youtube.com/watch?v='+t.liveId;if(t.handle)return 'https://www.youtube.com/'+t.handle+'/live';if(t.channelId)return 'https://www.youtube.com/channel/'+t.channelId+'/live';return '';}
-  if(p==='twitch'){const u=twTarget(cfg.twitch);return u?'https://www.twitch.tv/'+u:'';}
+  if(p==='twitch'){const u=twTarget(cfg.twitch);return u?'https://www.twitch.tv/popout/'+u+'/chat?popout=':'';}
   if(p==='kick'){const u=kkTarget(cfg.kick);return u?'https://kick.com/'+u:'';}
   const u=ttTarget(cfg.tiktok);return u?'https://www.tiktok.com/@'+u+'/live':'';}
 function cmd(name){if(name==='clear')history.length=0;emit('cmd',{name});}
@@ -40,7 +45,7 @@ const srv=http.createServer((req,res)=>{
   const body=cb=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>{try{cb(b?JSON.parse(b):{})}catch(e){console.log(e)}res.end('ok')});};
   if(u.pathname==='/events'){
     res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache',Connection:'keep-alive'});
-    res.write(`data: ${JSON.stringify({type:'init',data:{history,settings,cfg:{youtube:cfg.youtube,tiktok:cfg.tiktok,twitch:cfg.twitch||'',kick:cfg.kick||'',kickRoom:cfg.kickRoom||'',port:PORT,wanted:cfg.port||3000,avoid:AVOID},status,viewers}})}\n\n`);
+    res.write(`data: ${JSON.stringify({type:'init',data:{history:history.filter(m=>isEn(m.p)),settings,cfg:{enabled:cfg.enabled,youtube:cfg.youtube,tiktok:cfg.tiktok,twitch:cfg.twitch||'',kick:cfg.kick||'',kickRoom:cfg.kickRoom||'',port:PORT,wanted:cfg.port||3000,avoid:AVOID},status,viewers}})}\n\n`);
     clients.add(res);req.on('close',()=>clients.delete(res));return;
   }
   if(req.method==='POST'){
@@ -52,6 +57,15 @@ const srv=http.createServer((req,res)=>{
         if(!free)return{error:'localhost:'+p+' telah digunakan oleh program lain. Pilih port lain.'};}
       cfg.port=p;fs.writeFileSync(CF,JSON.stringify(cfg,null,1));return{ok:true,restart:p!==PORT};});
     if(u.pathname==='/export-css')return json(async({name,css})=>{if(!hooks.saveCss)return{error:'hanya di aplikasi desktop'};const n=String(name||'gaya-overlay').replace(/[\\/:*?"<>|]+/g,'-').slice(0,80)||'gaya-overlay';return await hooks.saveCss(n,String(css||'').slice(0,400000));});
+    if(u.pathname==='/platform')return json(async({platform,on,user})=>{
+      if(!PF4.includes(platform))return{error:'platform tidak dikenal'};
+      cfg.enabled[platform]=!!on;if(on&&typeof user==='string'&&user.trim())cfg[platform]=user.trim();
+      saveCfg();({youtube:startYT,tiktok:startTT,twitch:startTW,kick:startKK})[platform]();
+      emit('cfg',{enabled:cfg.enabled});return{ok:true,enabled:cfg.enabled};});
+    // chat contoh dari Dashboard (tombol "Kirim Chat ke Dock / Overlay"): hanya ditampilkan di tujuannya, tidak masuk riwayat dan tidak masuk statistik
+    if(u.pathname==='/sample')return body(({m,target})=>{if(!m||typeof m!=='object'||!PF4.includes(m.p)||!isEn(m.p)||(target!=='dock'&&target!=='overlay'))return;
+      emit('msg',{...m,t:Date.now(),id:++seq,sample:true,target});});
+    if(u.pathname==='/sample-clear')return body(()=>emit('sampleclear',{}));
     if(u.pathname==='/analytics-new')return body(()=>stats.end());
     if(u.pathname==='/analytics-del')return body(({id})=>stats.remove(String(id||'')));
     if(u.pathname==='/restart')return body(()=>{if(hooks.relaunch)setTimeout(()=>hooks.relaunch(),300);});
@@ -73,7 +87,7 @@ const srv=http.createServer((req,res)=>{
       if(what==='ext'){hooks.open('ext');return{ok:true};}
       if(what==='tpladd'){hooks.window('/?view=tpladd'+(id?'&id='+encodeURIComponent(id):''),{width:980,height:600,title:'Gaya baru'});return{ok:true};}
       if(what==='templates'){hooks.window('/?view=tpl',{width:980,height:820,title:'Kelola gaya overlay'});return{ok:true};}
-      if(what==='report'){hooks.window('/?view=report',{width:1040,height:840,title:'Laporan penonton'});return{ok:true};}
+      if(what==='report'){if(hooks.openReport)hooks.openReport();else hooks.window('/?view=report',{width:1040,height:840,title:'Laporan penonton'});return{ok:true};}
       if(what==='preview'){hooks.window('/?view=overlay&preview=1',{width:480,height:760,title:'Pratinjau overlay OBS'});return{ok:true};}
       if(['youtube','tiktok','twitch','kick'].includes(what)){const u2=chatUrl(what);if(!u2)return{error:'Isi username '+({youtube:'YouTube',tiktok:'TikTok',twitch:'Twitch',kick:'Kick'})[what]+' dulu di Koneksi.'};hooks.open(u2);return{ok:true};}
       return{error:'tidak dikenal'};});
@@ -93,7 +107,7 @@ const srv=http.createServer((req,res)=>{
   }
   if(u.pathname==='/analytics'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(stats.get(u.searchParams.get('id')||'cur',viewers)));}
   if(u.pathname==='/state'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({protect:settings.global.protect!==false}));}
-  if(u.pathname==='/account'){res.writeHead(200,{'Content-Type':'application/json'});const has=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);return res.end(JSON.stringify({youtube:has('youtube'),tiktok:has('tiktok')}));}
+  if(u.pathname==='/account'){res.writeHead(200,{'Content-Type':'application/json'});const has=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);return res.end(JSON.stringify({youtube:has('youtube'),tiktok:has('tiktok'),twitch:has('twitch'),kick:has('kick')}));}
   if(u.pathname==='/urls'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({youtube:chatUrl('youtube'),tiktok:chatUrl('tiktok'),twitch:chatUrl('twitch'),kick:chatUrl('kick')}));}
   if(FILES[u.pathname]){res.writeHead(200,{'Content-Type':FILES[u.pathname],'Cache-Control':'max-age=3600'});return res.end(fs.readFileSync(path.join(__dirname,u.pathname)));}
   if(u.pathname==='/'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});
@@ -129,7 +143,7 @@ function stopAll(){
   genY++;genT++;genW++;genK++;
   if(stopY){stopY();stopY=null;} if(stopT){stopT();stopT=null;} if(stopW){stopW();stopW=null;} if(stopK){stopK();stopK=null;}
   ytLive='';clearTimeout(vyTimer);clearTimeout(vwTimer);clearTimeout(vkTimer);['youtube','tiktok','twitch','kick'].forEach(k=>setViewers(k,null));
-  ['youtube','tiktok','twitch','kick'].forEach(k=>setStatus(k,'terputus'));
+  ['youtube','tiktok','twitch','kick'].forEach(k=>setStatus(k,isEn(k)?'terputus':'nonaktif'));
 }
 function pollYT(id,my){
   clearTimeout(vyTimer);
@@ -141,6 +155,7 @@ function pollYT(id,my){
 }
 function startYT(){
   const my=++genY;if(stopY){stopY();stopY=null;}clearTimeout(vyTimer);setViewers('youtube',null);
+  if(!isEn('youtube'))return setStatus('youtube','nonaktif');
   if(!cfg.youtube)return setStatus('youtube','belum diisi');
   const t=ytTarget(cfg.youtube);if(!t)return setStatus('youtube','username tidak dikenali');
   let LiveChat;try{({LiveChat}=require('youtube-chat'));}catch(e){return setStatus('youtube','modul gagal dimuat: '+String(e&&e.message||e).split('\n')[0]);}
@@ -161,6 +176,7 @@ let likeBuf=new Map(),likeT=null;
 function likeAdd(name,n){likeBuf.set(name,(likeBuf.get(name)||0)+n);if(!likeT)likeT=setTimeout(()=>{likeT=null;const a=[...likeBuf].sort((x,y)=>y[1]-x[1]);likeBuf=new Map();if(!a.length)return;push({p:'tiktok',kind:'like',name:a[0][0],others:a.length-1,n:a.reduce((s,x)=>s+x[1],0)});},5000);}
 function startTT(){
   const my=++genT;if(stopT){stopT();stopT=null;}setViewers('tiktok',null);
+  if(!isEn('tiktok'))return setStatus('tiktok','nonaktif');
   if(!cfg.tiktok)return setStatus('tiktok','belum diisi');
   const user=ttTarget(cfg.tiktok);if(!user)return setStatus('tiktok','username tidak dikenali');
   let lib;try{lib=require('tiktok-live-connector');}catch(e){return setStatus('tiktok','modul gagal dimuat: '+String(e&&e.message||e).split('\n')[0]);}
@@ -208,6 +224,7 @@ function pollTW(login,my){
 }
 function startTW(){
   const my=++genW;if(stopW){stopW();stopW=null;}clearTimeout(vwTimer);setViewers('twitch',null);
+  if(!isEn('twitch'))return setStatus('twitch','nonaktif');
   if(!cfg.twitch)return setStatus('twitch','belum diisi');
   const login=twTarget(cfg.twitch);if(!login)return setStatus('twitch','username tidak dikenali');
   let WS;try{WS=require('ws');}catch(e){return setStatus('twitch','modul gagal dimuat: '+String(e&&e.message||e).split('\n')[0]);}
@@ -254,6 +271,7 @@ function pollKK(slug,my){
 }
 function startKK(){
   const my=++genK;if(stopK){stopK();stopK=null;}clearTimeout(vkTimer);setViewers('kick',null);
+  if(!isEn('kick'))return setStatus('kick','nonaktif');
   if(!cfg.kick)return setStatus('kick','belum diisi');
   const slug=kkTarget(cfg.kick);if(!slug)return setStatus('kick','username tidak dikenali');
   let WS;try{WS=require('ws');}catch(e){return setStatus('kick','modul gagal dimuat: '+String(e&&e.message||e).split('\n')[0]);}
@@ -323,20 +341,20 @@ const {WebSocketServer}=require('ws');
 const wss=new WebSocketServer({noServer:true}),ext=new Set(),pendingExt={};
 srv.on('upgrade',(req,sock,head)=>{
   const u=new URL(req.url,'http://x'),o=req.headers.origin||'';
-  const okO=!o||/^https:\/\/(www\.)?(youtube|tiktok)\.com$/.test(o)||o.startsWith('chrome-extension://');
+  const okO=!o||/^https:\/\/(www\.)?(youtube\.com|tiktok\.com|twitch\.tv|kick\.com)$/.test(o)||o.startsWith('chrome-extension://');
   if(u.pathname!=='/ext'||!okO){sock.destroy();return;}
   wss.handleUpgrade(req,sock,head,w=>wss.emit('connection',w,req));
 });
 wss.on('connection',ws=>{
   const c={ws,platform:''};ext.add(c);
   ws.on('message',raw=>{try{const m=JSON.parse(raw);
-    if(m.type==='hello'&&(m.platform==='youtube'||m.platform==='tiktok'))c.platform=m.platform;
+    if(m.type==='hello'&&PF4.includes(m.platform))c.platform=m.platform;
     else if(m.type==='result'&&pendingExt[m.id]){pendingExt[m.id](m);delete pendingExt[m.id];}}catch{}});
   ws.on('close',()=>ext.delete(c));ws.on('error',()=>ext.delete(c));
 });
 function extSend(platform,text){return new Promise(resolve=>{
   const c=[...ext].find(x=>x.platform===platform&&x.ws.readyState===1);
-  if(!c)return resolve('ekstensi Chrome belum terhubung. Buka halaman chat '+(platform==='youtube'?'YouTube':'TikTok')+' di Chrome (lihat Pengaturan > Koneksi).');
+  if(!c)return resolve('ekstensi Chrome belum terhubung. Buka halaman chat '+({youtube:'YouTube',tiktok:'TikTok',twitch:'Twitch',kick:'Kick'})[platform]+' di Chrome (lihat Dashboard > Koneksi).');
   const id=String(++seq),t=setTimeout(()=>{delete pendingExt[id];resolve('halaman chat tidak merespons');},9000);
   pendingExt[id]=m=>{clearTimeout(t);resolve(m.ok?'ok':(m.error||'gagal'));};
   c.ws.send(JSON.stringify({type:'send',id,text}));});}

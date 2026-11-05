@@ -172,9 +172,10 @@ function winCtl(which,act){
   else if(act==='max'){if(w.isMaximized())w.unmaximize();else w.maximize();}
   else if(act==='close'){if(which==='dash')askQuit();else w.close();}
 }
+// Laporan penonton = tab di dalam Dashboard (bukan jendela baru)
 function openReport(){
-  if(wins.report&&!wins.report.isDestroyed()){wins.report.show();wins.report.focus();return;}
-  openWin('/?view=report',{width:1040,height:840,title:'Laporan penonton'});
+  showDash();
+  try{if(dash&&!dash.isDestroyed())dash.webContents.executeJavaScript("window.__goTab&&window.__goTab('r')").catch(()=>{});}catch{}
 }
 // Pengaturan sekarang ada di Dashboard
 function openSettings(){showDash();}
@@ -204,7 +205,8 @@ function makeDash(){
 // splash: cek update -> menyambungkan; ditutup setelah Dashboard siap
 function startUp(){
   const t0=Date.now();let finished=false;
-  const sp=new BrowserWindow({width:640,height:480,frame:false,resizable:false,maximizable:false,fullscreenable:false,center:true,title:'ChatStream Labs',icon:ICON,backgroundColor:'#0a0a1c',show:false});
+  // Splash dikunci: tidak bisa digeser, diperkecil, atau ditutup sendiri (hanya aplikasi yang menutupnya lewat destroy()).
+  const sp=new BrowserWindow({width:640,height:480,frame:false,resizable:false,movable:false,minimizable:false,maximizable:false,closable:false,fullscreenable:false,center:true,title:'ChatStream Labs',icon:ICON,backgroundColor:'#0a0a1c',show:false});
   splashWin=sp;sp.loadFile(path.join(__dirname,'splash.html'));
   sp.once('ready-to-show',()=>{if(!sp.isDestroyed())sp.show();});
   sp.on('closed',()=>{splashWin=null;if(!finished&&!quitting)app.quit();});
@@ -253,6 +255,7 @@ const hooks={
   lock:on=>setLock(on),
   drag:on=>dragOn(on),
   openSettings,
+  openReport,
   openChat,
   setHotkeys,
   winCtl,
