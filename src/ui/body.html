@@ -26,9 +26,9 @@
     <div class="card"><h3>Chat</h3>
       <div class="dkr"><div class="dki"><b>Jendela chat</b><small id="dChatSt">Tertutup</small></div><div class="dkb"><button class="btn b1 sm" id="dChat">Buka Chat</button></div></div></div>
     <div id="dDocks"></div>
-    <div class="card dwide" id="dDockAddCard"><h3>Donate Dock</h3><div class="hint" id="dDockHint"></div>
-      <div class="btns"><button class="btn b3 sm" id="dDockAdd">+ Tambah Donate Dock</button></div></div>
+    <div class="hint dwide" id="dDockHint"></div>
     <div class="card"><h3>Status koneksi</h3><div id="dst"></div></div>
+    <button class="fab" id="dDockAdd" title="Tambah Donate Dock" aria-label="Tambah Donate Dock"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
   </div>
   <div class="pane on" id="pk">
     <div class="card"><h3>Sambungkan live</h3>
@@ -125,9 +125,11 @@
   <div class="foot"><button class="btn b3" id="tguide" style="margin-right:auto">Salin panduan struktur (untuk AI)</button><button class="btn b4" id="tcancel">Batal</button><button class="btn b1" id="tsave">Simpan</button></div>
 </div>
 <div id="dnModal" class="avm" hidden><div class="avbox"><h3 id="dnmT">Atur Donate Dock</h3>
+  <label><span>Nama dock</span></label><input type="text" id="dnmName" placeholder="Donate Dock 1" maxlength="40" spellcheck="false">
   <label><span>URL widget donasi</span></label><input type="text" id="dnmUrl" placeholder="https://saweria.co/widgets/..." spellcheck="false">
   <label><span>Opacity <b id="dnmOpV">100%</b></span></label><input type="range" id="dnmOp" min="10" max="100" step="5" value="100">
   <div class="row"><span>Bisukan suara (kalau widget yang sama juga di OBS)</span><input type="checkbox" id="dnmMute" checked></div>
+  <div class="row"><span>Sesuaikan isi widget dengan ukuran jendela (fit)</span><input type="checkbox" id="dnmFit" checked></div>
   <div class="hint" id="dnmMsg"></div>
   <div class="btns"><button class="btn b2 sm" id="dnmDel" style="margin-right:auto">Hapus</button><button class="btn b4 sm" id="dnmCancel">Batal</button><button class="btn b1 sm" id="dnmSave">Simpan</button></div></div></div>
 <div id="avmodal" class="avm" hidden><div class="avbox"><h3>Port yang sebaiknya dihindari</h3>

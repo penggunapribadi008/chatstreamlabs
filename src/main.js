@@ -65,8 +65,8 @@ setInterval(()=>{
   docks.forEach(D=>{if(D.locked&&donOpen(D))setIgn(D.win,!overCtl(D.win));});
 },80);
 function dragOn(on){
-  if(!on){if(dragT){clearInterval(dragT);dragT=null;}return;}
-  if(dragT||!main||main.isDestroyed()||!locked)return;
+  if(!on){if(dragT){clearInterval(dragT);dragT=null;if(!locked&&main&&!main.isDestroyed())saveB({outer:main.getBounds()});}return;}
+  if(dragT||!main||main.isDestroyed())return;
   const c0=screen.getCursorScreenPoint(),m0=main.getBounds(),t0=Date.now();
   dragT=setInterval(()=>{
     if(!main||main.isDestroyed()){clearInterval(dragT);dragT=null;return;}
@@ -303,7 +303,7 @@ async function dockScan(D){
 function dockFit(D){
   if(!donOpen(D)||!D.view||D.view.webContents.isDestroyed())return;
   const c=D.cfg||{},[cw,ch]=D.win.getContentSize();
-  const z=Math.min(10,Math.max(.1,Math.min(cw/(c.refW||1280),ch/(c.refH||720))));
+  const z=c.fit===false?1:Math.min(10,Math.max(.1,Math.min(cw/(c.refW||1280),ch/(c.refH||720))));
   D.zoom=z;try{D.view.webContents.setZoomFactor(z);}catch{}
 }
 // CSS yang disuntik ke halaman widget: latar transparan + Opacity dari pengaturan dock (hanya isi widget; tombol tidak ikut pudar)
@@ -338,7 +338,7 @@ function donSync(){
     if(!donOpen(D))return;
     const cfg=donFind(D.id);
     if(!cfg||!donCheck(cfg).url){D.win.close();return;}
-    D.cfg=cfg;
+    D.cfg=cfg;try{D.win.setTitle(cfg.name);}catch{}
     try{D.view.webContents.setAudioMuted(!!cfg.mute);}catch{}
     if((cfg.opacity||100)!==D.opAp)donCss(D);
     if(cfg.url!==D.loaded){D.tries=0;donGo(D);}

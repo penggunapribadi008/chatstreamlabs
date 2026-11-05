@@ -356,21 +356,23 @@ if(isLocked&&!isAdmin){
   addEventListener('resize',q);addEventListener('animationend',q);setInterval(send,1500);setTimeout(send,300);
 }
 // ---- dua kotak saat terkunci (jendela kecil terpisah) ----
-if(isCtl||(isLocked&&view==='dock'&&!isAdmin&&!isPrev)){
+if(isCtl||(view==='dock'&&!isAdmin&&!isPrev)){
   if(isCtl)bootDone();
   const T=Q.get('t')||'chat',isChat=T==='chat',mv=$('mover'),idb=isChat?{}:{id:T};
-  let lk=isChat;
+  const chatLk=isCtl||isLocked;let lk=isChat&&chatLk;
   mv.addEventListener('pointerdown',e=>{try{mv.setPointerCapture(e.pointerId);}catch{}post('/drag',{on:true,...idb});});
   ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>mv.addEventListener(ev,()=>post('/drag',{on:false,...idb})));
-  $('unlock').onclick=()=>post('/lock',{on:isChat?false:!lk,...idb});
+  $('unlock').onclick=()=>post('/lock',{on:isChat?!chatLk:!lk,...idb});
   $('cclose').onclick=()=>post('/win',{which:isChat?'main':'donate:'+T,act:'close'});
   const eyeSt=async()=>{try{const r=await(await fetch('/dash-state')).json();
     document.body.classList.toggle('prot',!!r.protect);document.documentElement.classList.toggle('prot',!!r.protect);$('eye').title=r.protect?'Tersembunyi dari OBS (klik untuk menampilkan)':'Terlihat di OBS (klik untuk menyembunyikan)';
     if(!isChat){const d=r.docks&&r.docks[T];if(d)lk=!!d.locked;}
     document.body.classList.toggle('islocked',lk);$('unlock').title=lk?'Buka kunci':'Kunci jendela';}catch{}};
   $('eye').onclick=async()=>{await post('/protect-toggle');eyeSt();};eyeSt();setInterval(eyeSt,700);
-  if(!isCtl){ // chat terkunci: kotak tombol ada di dalam halaman chat, posisinya mengikuti pengaturan "Posisi tombol saat terkunci"
+  if(!isCtl){ // chat (terkunci maupun tidak): kotak tombol ada di dalam halaman chat, posisinya mengikuti pengaturan "Posisi tombol saat terkunci"; atas = di atas bar penonton, bawah = di bawah chat
+    document.documentElement.classList.add('cs');
     const placeCtl=()=>{const P=(S.global&&S.global.ctrlPos)||'top-right',e=$('ctl').style,top=P.startsWith('top');
+      document.documentElement.classList.toggle('cst',top);document.documentElement.classList.toggle('csb',!top);
       e.top=top?'4px':'auto';e.bottom=top?'auto':'4px';e.left=P.endsWith('left')?'4px':P.endsWith('right')?'auto':'calc(50% - 81px)';e.right=P.endsWith('right')?'4px':'auto';};
     placeCtl();setInterval(placeCtl,700);
   }
@@ -570,22 +572,23 @@ let dashSt={chat:{},docks:{}};
 const DN_MAX=5;
 const dnList=()=>{const g=S.global||{};return Array.isArray(g.donateDocks)?g.donateDocks:[];};
 function dashDocks(){const box=$('dDocks');if(!box)return;const L=dnList(),full=L.length>=DN_MAX;
-  $('dDockHint').textContent=L.length?'':'Belum ada Donate Dock. Tambahkan satu untuk menampilkan widget donasi (alert / media share) di layar game.';
-  $('dDockAddCard').style.display=full?'none':'';
+  $('dDockHint').textContent=L.length?'':'Belum ada Donate Dock. Klik tombol + di kanan bawah untuk menambahkan widget donasi (alert / media share) di layar game.';
+  $('dDockAdd').style.display=full?'none':'';
   box.textContent='';
   L.forEach(d=>{const st=(dashSt.docks||{})[d.id]||{},c=document.createElement('div');c.className='card dkc';
     const h=document.createElement('h3'),sm=document.createElement('small'),bt=document.createElement('div'),i=document.createElement('div');
     h.textContent=d.name||d.id;i.className='dki';sm.className=st.open?(st.locked?'lk':'on'):'';sm.textContent=!d.url?'URL belum diisi':st.open?(st.locked?'Terbuka, terkunci':'Terbuka'):'Tertutup';i.appendChild(sm);bt.className='dkb';
     const mk=(t,cls,fn)=>{const b=document.createElement('button');b.className='btn sm '+cls;b.textContent=t;b.onclick=fn;bt.appendChild(b);return b;};
     const act=async a=>{const x=await(await post('/donate',{act:a,id:d.id})).json();if(x&&x.error)sm.textContent=x.error;setTimeout(dashPoll,250);};
-    if(st.open){mk('Muat ulang','b4',()=>act('reload'));mk('Tutup','b2',()=>act('close'));}else mk('Buka','b1',()=>act('open')).disabled=!d.url;
-    mk('Atur Donate Dock','b3',()=>dnOpen(d,false));
+    const mkI=(svg,t,cls,fn)=>{const b=mk('',cls+' ic',fn);b.innerHTML='<svg viewBox="0 0 24 24">'+svg+'</svg>';b.title=t;b.setAttribute('aria-label',t);return b;};
+    if(st.open){mkI('<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>','Muat ulang','b4',()=>act('reload'));mkI('<path d="M6 6l12 12M18 6L6 18"/>','Tutup','b2',()=>act('close'));}else mk('Buka','b1',()=>act('open')).disabled=!d.url;
+    mkI('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>','Pengaturan','b3',()=>dnOpen(d,false));
     c.append(h,i,bt);box.appendChild(c);});}
 let dnCur=null,dnDelArm=false;
 const dnOpLbl=()=>{const e=$('dnmOp');$('dnmOpV').textContent=e.value+'%';e.style.setProperty('--pct',((e.value-e.min)/(e.max-e.min)*100)+'%');};
 function dnOpen(d,isNew){dnCur={d:copy(d),isNew};dnDelArm=false;
   $('dnmT').textContent=isNew?'Tambah Donate Dock':'Atur '+(d.name||'Donate Dock');
-  $('dnmUrl').value=d.url||'';$('dnmOp').value=d.opacity||100;dnOpLbl();$('dnmMute').checked=isNew?true:!!d.mute;
+  $('dnmName').value=d.name||'';$('dnmUrl').value=d.url||'';$('dnmOp').value=d.opacity||100;dnOpLbl();$('dnmMute').checked=isNew?true:!!d.mute;$('dnmFit').checked=d.fit!==false;
   $('dnmMsg').className='hint';$('dnmMsg').textContent='';$('dnmDel').textContent='Hapus';$('dnmDel').style.display=isNew?'none':'';
   $('dnModal').hidden=false;$('dnmUrl').focus();}
 async function dnPost(L){const r=await(await post('/donate-docks',{docks:L})).json();if(r.error){$('dnmMsg').className='hint no';$('dnmMsg').textContent=r.error;return false;}
@@ -596,13 +599,13 @@ function initDnModal(){
   $('dnModal').onclick=e=>{if(e.target===$('dnModal')){$('dnModal').hidden=true;dnCur=null;}};
   $('dnmSave').onclick=async()=>{if(!dnCur)return;const url=$('dnmUrl').value.trim();
     if(!url){$('dnmMsg').className='hint no';$('dnmMsg').textContent='Isi URL widget donasi dulu.';return;}
-    const d={...dnCur.d,url,opacity:+$('dnmOp').value,mute:$('dnmMute').checked},L=copy(dnList()),i=L.findIndex(x=>x.id===d.id);
+    const d={...dnCur.d,name:$('dnmName').value.trim()||dnCur.d.name,url,opacity:+$('dnmOp').value,mute:$('dnmMute').checked,fit:$('dnmFit').checked},L=copy(dnList()),i=L.findIndex(x=>x.id===d.id);
     if(i>=0)L[i]=d;else L.push(d);await dnPost(L);};
   $('dnmDel').onclick=async()=>{if(!dnCur||dnCur.isNew)return;
     if(!dnDelArm){dnDelArm=true;$('dnmDel').textContent='Yakin hapus?';return;}
     await dnPost(dnList().filter(x=>x.id!==dnCur.d.id));};
   $('dDockAdd').onclick=()=>{const L=dnList();if(L.length>=DN_MAX)return;let n=1;while(L.some(x=>x.name==='Donate Dock '+n))n++;
-    dnOpen({id:'d'+Date.now().toString(36),name:'Donate Dock '+n,url:'',opacity:100,mute:true,refW:1280,refH:720},true);};
+    dnOpen({id:'d'+Date.now().toString(36),name:'Donate Dock '+n,url:'',opacity:100,mute:true,fit:true,refW:1280,refH:720},true);};
 }
 async function dashPoll(){if(!isDash||document.hidden)return;try{dashSt=await(await fetch('/dash-state')).json();}catch{return;}
   const c=dashSt.chat||{},b=$('dChat'),s2=$('dChatSt');if(b){b.textContent=c.open?'Tutup Chat':'Buka Chat';b.className='btn sm '+(c.open?'b2':'b1');}

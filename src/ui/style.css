@@ -12,10 +12,9 @@ body.overlay{--text:#fff;--yc:#ff8f8a;--tcl:#6fe3ee;--wc:#b794ff;--kc:#53fc18}
 body.locked{background:transparent;--text:#fff;--yc:#ff8f8a;--tcl:#6fe3ee;--wc:#b794ff;--kc:#53fc18;--base:15,15,22}
 body.preview{background:repeating-conic-gradient(#2a2a35 0 25%,#1c1c25 0 50%) 0 0/24px 24px}
 #app{position:absolute;inset:0;display:flex;flex-direction:column;background:rgba(var(--base),var(--bg))}
-body.dock:not(.locked):not(.preview) #app{top:34px}
 /* judul jendela (tanpa bingkai) */
 #tb{display:none;position:fixed;top:0;left:0;right:0;height:34px;z-index:50;align-items:center;justify-content:space-between;padding-left:12px;background:var(--card-bg);border-bottom:1px solid var(--line);backdrop-filter:var(--blur);-webkit-app-region:drag}
-body.dock:not(.locked):not(.preview) #tb,body.settings #tb,body.tplwin #tb,body.addwin #tb,body.reportwin #tb,body.donatewin #tb{display:flex}
+body.settings #tb,body.tplwin #tb,body.addwin #tb,body.reportwin #tb,body.donatewin #tb{display:flex}
 #tb .ttl{display:flex;align-items:center;gap:8px;font:600 12px 'Segoe UI',sans-serif;color:var(--muted)}#tb .ttl img{width:16px;height:16px}
 #tb .wb{width:46px;height:34px;border:0;background:transparent;color:var(--text);cursor:pointer;font-size:14px;-webkit-app-region:no-drag}
 #tb .wb:hover{background:rgba(127,127,127,.2)}#tb .wb.x:hover{background:#e5484d;color:#fff}
@@ -110,6 +109,9 @@ body.ctlwin{--eyec:#ffd166}body.ctlwin.prot{--eyec:#5eead4}
 body.ctlwin .cb2,body.locked #ctl .cb2{opacity:.35}body.ctlwin .cb2:hover,body.locked #ctl .cb2:hover{opacity:1}
 /* kotak tombol di dalam jendela chat terkunci (posisi diatur lewat JS dari pengaturan) */
 body.locked #ctl{display:flex;position:fixed;z-index:60;gap:6px;--eyec:#ffd166}html.prot body.locked #ctl{--eyec:#5eead4}
+/* chat tidak terkunci: tanpa bilah judul, kotak tombol sama seperti saat terkunci. Atas = di atas bar penonton, bawah = di bawah chat */
+html.cs body.dock:not(.locked):not(.preview) #ctl{display:flex;position:fixed;z-index:60;gap:6px;--eyec:#ffd166}html.cs.prot body.dock:not(.locked):not(.preview) #ctl{--eyec:#5eead4}
+html.cs.cst body.dock:not(.preview) #app{top:44px}html.cs.csb body.dock:not(.preview) #app{bottom:44px}
 #mover{cursor:move;touch-action:none}
 /* ===== jendela pengaturan / kelola gaya / gaya baru ===== */
 #panel,#tpl,#addwin,#rep{display:none}
@@ -206,7 +208,7 @@ body.overlay #boot,body.ctlwin #boot,body.locked #boot,body.preview #boot{displa
 .avbox h3{margin:0 0 6px}.avrow{display:flex;gap:12px;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px}.avrow b{min-width:52px;font-variant-numeric:tabular-nums}.avrow span{color:var(--muted)}
 
 /* ===== aktivitas (bergabung, hadiah, dst.) ===== */
-.cs-act{display:flex;align-items:center;gap:8px;width:fit-content;max-width:100%;padding:5px 12px;border-radius:10px;font-size:calc(var(--fst)*.88);line-height:1.3;word-break:break-word}
+.cs-act{display:flex;align-items:center;gap:12px;width:fit-content;max-width:100%;padding:7px 14px;margin:2px 0;border-radius:10px;font-size:calc(var(--fst)*.88);line-height:1.3;word-break:break-word}
 .cs-act .lg{width:1.2em;height:1.2em;flex:none}.cs-act .ai{flex:none}.cs-act b{font-weight:700}
 .cs-act.sample{opacity:1}
 /* Super Chat: warna font / nominal / member, diatur dari pengaturan YouTube */
@@ -273,7 +275,6 @@ body.dock:not(.locked) #top{gap:18px}
 body.dock:not(.locked) #top>.vchip{background:none;border:0;box-shadow:none;border-radius:0;padding:0}
 /* pratinjau Pribadi di Dashboard = hanya daftar chat, tanpa bar atas dan kolom kirim */
 body.dock.preview #top,body.dock.preview #foot{display:none!important}
-body.dock.preview{background:transparent}
 body.dock.preview #app{top:0;background:transparent}
 .dwel h2{margin:0 0 6px;font-size:20px}
 .dsr{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
@@ -360,4 +361,8 @@ body.dock .wbs{display:flex;flex:none}
 /* Donate Dock di beranda Dashboard: satu kotak per dock (ikut grid dua kolom) */
 #dDocks{display:contents}
 .dkc h3{margin:0 0 6px}.dkc .dkb{flex-wrap:wrap;margin-top:12px}.dkc .dkb .btn{min-width:0}
+.btn.ic{width:38px;padding:0;display:inline-flex;align-items:center;justify-content:center}.btn.ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#dDockHint:empty{display:none}
+.fab{position:absolute;right:22px;bottom:22px;z-index:5;width:54px;height:54px;border:0;border-radius:50%;background:var(--acc);color:var(--acc-t);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 6px 18px rgba(0,0,0,.45);transition:filter .15s,transform .15s}.fab:hover{filter:brightness(1.12);transform:scale(1.05)}
+.fab svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
 #dnModal .row{margin:12px 0 0}#dnModal .btns{margin-top:14px}
