@@ -1,4 +1,4 @@
-const {app,BrowserWindow,dialog,Menu,shell,Tray,globalShortcut,nativeImage,screen}=require('electron');
+const {app,BrowserWindow,WebContentsView,session,dialog,Menu,shell,Tray,globalShortcut,nativeImage,screen}=require('electron');
 const path=require('path'),fs=require('fs');
 const ICON=path.join(__dirname,'icon.png');
 const gotLock=app.requestSingleInstanceLock();
@@ -34,6 +34,7 @@ function prot(w){const f=()=>{try{if(w&&!w.isDestroyed())w.setContentProtection(
 app.on('browser-window-created',(e,w)=>{prot(w);w.on('show',()=>prot(w));w.webContents.on('did-finish-load',()=>prot(w));});
 let srv=null,main=null,dash=null,splashWin=null,ctlWin=null,locked=false,switching=false,tray=null,dragT=null,quitting=false,asking=false;
 let outerAtLock=null,lockStart=null,lastRects=[];
+let donate=null,donView=null,donLoaded='',donTries=0;const donT={};
 let srvReady;const srvP=new Promise(r=>srvReady=r);
 const base=()=>'http://localhost:'+(srv&&srv.port||3000);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -127,7 +128,7 @@ function makeMain(bounds){
   w.on('moved',keep);w.on('resized',keep);
   if(!L)w.on('minimize',()=>{if(!quitting&&!w.isDestroyed())w.hide();}); // diperkecil = masuk tray
   // menutup jendela chat tidak menutup aplikasi (Dashboard tetap ada)
-  w.on('closed',()=>{if(main===w&&!switching){main=null;locked=false;hideCtl();if(tray)tray.setContextMenu(trayMenu());}});
+  w.on('closed',()=>{if(main===w&&!switching){const was=locked;main=null;locked=false;hideCtl();if(was)donRelock();if(tray)tray.setContextMenu(trayMenu());}});
   main=w;
   return w;
 }
@@ -142,6 +143,7 @@ function setLock(on){
   makeMain(bounds);
   if(old&&!old.isDestroyed())old.destroy();
   switching=false;
+  donRelock(); // Donate Dock ikut mengunci / membuka kunci (jendela transparan harus dibuat ulang, lihat jebakan 5)
   if(on)showCtl();else hideCtl();
   if(tray)tray.setContextMenu(trayMenu());
 }
@@ -156,6 +158,7 @@ async function askQuit(){
 const trayMenu=()=>Menu.buildFromTemplate([
   {label:'Buka Dashboard',click:()=>showDash()},
   {label:'Buka Chat',click:()=>openChat()},
+  {label:(donate&&!donate.isDestroyed()&&donate.isVisible())?'Tutup Donate Dock':'Buka Donate Dock',click:()=>donateAct('toggle')},
   {label:locked?'Buka kunci':'Kunci jendela',click:()=>setLock(!locked)},
   {label:'Laporan penonton',click:()=>openReport()},
   {label:'Pengaturan',click:()=>openSettings()},
@@ -170,8 +173,8 @@ function openWin(url,opt){
   return w;
 }
 function winCtl(which,act){
-  const w=which==='main'?main:which==='dash'?dash:wins[which];if(!w||w.isDestroyed())return;
-  if(act==='min'){if(which==='dash'||which==='main')w.hide();else w.minimize();} // Dashboard/Chat: langsung sembunyi ke tray (tanpa status 'minimized', yang bikin jendela macet saat dibuka lagi)
+  const w=which==='main'?main:which==='dash'?dash:which==='donate'?donate:wins[which];if(!w||w.isDestroyed())return;
+  if(act==='min'){if(which==='dash'||which==='main'||which==='donate')w.hide();else w.minimize();} // Dashboard/Chat: langsung sembunyi ke tray (tanpa status 'minimized', yang bikin jendela macet saat dibuka lagi)
   else if(act==='max'){if(w.isMaximized())w.unmaximize();else w.maximize();}
   else if(act==='close'){if(which==='dash')askQuit();else w.close();}
 }
@@ -230,8 +233,110 @@ function startUp(){
     },250);
   });
 }
+// ===== Donate Dock =====
+// Memuat URL widget donasi (alert / media share) di jendela sendiri. Tidak ada integrasi API: aplikasi hanya menampilkan halamannya.
+// Mode biasa: jendela tanpa bingkai + bilah judul sendiri (halaman ?view=donatebar) dan widget di WebContentsView di bawahnya.
+// Mode gembok (ikut gembok chat): transparan, selalu di atas, tidak mencuri fokus, tembus-klik, widget memenuhi seluruh jendela.
+const DBAR=34,DON_MAX=5;
+const donCheck=()=>{
+  const raw=String(G().donateUrl||'').trim();
+  if(!raw)return{error:'Isi URL widget donasi dulu, lalu klik Simpan.'};
+  const u=srv&&srv.cleanDonateUrl?srv.cleanDonateUrl(raw):null;
+  return u?{url:u}:{error:'URL widget donasi tidak valid. Pakai alamat yang diawali http:// atau https://.'};
+};
+const donOpen=()=>!!(donate&&!donate.isDestroyed());
+const refreshTray=()=>{if(tray)tray.setContextMenu(trayMenu());};
+// Jendela tembus-klik penuh tidak bisa disembunyikan Windows dari tangkapan layar (lihat komentar applyLockedInput).
+// Beda dengan chat: isi widget tidak diketahui halaman kita, jadi tidak ada daftar "area gelembung". Saat "Sembunyikan dari OBS" aktif,
+// seluruh jendela dijadikan area terlihat (setShape) dan menerima klik; saat tidak aktif, tembus-klik penuh.
+function applyDonateInput(){
+  if(!locked||!donOpen())return;
+  try{
+    const b=donate.getBounds();donate.setShape([{x:0,y:0,width:b.width,height:b.height}]);
+    donate.setIgnoreMouseEvents(!protect);
+  }catch{}
+}
+function donGo(){
+  if(!donView||donView.webContents.isDestroyed())return;
+  const c=donCheck();if(!c.url)return;
+  donLoaded=c.url;clearTimeout(donT.hang);
+  donView.webContents.loadURL(c.url).catch(()=>{}); // kegagalan ditangani did-fail-load
+  // pengaman halaman menggantung: kalau 25 detik masih memuat, hitung sebagai satu percobaan gagal
+  donT.hang=setTimeout(()=>{const wc=donView&&!donView.webContents.isDestroyed()&&donView.webContents;if(wc&&wc.isLoading())donRetry('halaman terlalu lama memuat');},25000);
+}
+// muat ulang otomatis dengan jeda makin lama (3, 6, 12, 24, 48 dtk), berhenti setelah DON_MAX kali supaya tidak berputar tanpa ujung
+function donRetry(why){
+  if(!donView)return;
+  clearTimeout(donT.hang);clearTimeout(donT.stable);
+  if(++donTries>DON_MAX){log('Donate Dock: berhenti mencoba setelah '+DON_MAX+' kali ('+why+'). Cek URL dan internet, lalu klik "Muat ulang widget".');return;}
+  const d=Math.min(60000,3000*Math.pow(2,donTries-1));
+  log('Donate Dock: '+why+', muat ulang dalam '+Math.round(d/1000)+' dtk ('+donTries+'/'+DON_MAX+')');
+  clearTimeout(donT.retry);donT.retry=setTimeout(donGo,d);
+}
+function donSync(){
+  if(!donOpen()||!donView||donView.webContents.isDestroyed())return;
+  try{donView.webContents.setAudioMuted(!!G().donateMute);}catch{}
+  const c=donCheck();
+  if(!c.url){donate.close();return;} // URL dikosongkan / rusak: jendela ditutup, fitur diam
+  if(c.url!==donLoaded){donTries=0;donGo();}
+}
+function makeDonate(){
+  const L=locked,sv=readJ(BF).donate||{},old=donate;
+  const o={x:sv.x,y:sv.y,width:sv.width||420,height:sv.height||520,title:'Donate Dock',icon:ICON,minWidth:240,minHeight:160,show:false,frame:false,autoHideMenuBar:true,maximizable:false,webPreferences:{spellcheck:false}};
+  if(L)Object.assign(o,{transparent:true,backgroundColor:'#00000000',hasShadow:false,alwaysOnTop:true,resizable:false,skipTaskbar:true,focusable:false,thickFrame:false});
+  else o.backgroundColor=themeBg();
+  const w=new BrowserWindow(o);
+  if(L)w.setAlwaysOnTop(true,'screen-saver');
+  const v=new WebContentsView({webPreferences:{partition:'persist:donate',autoplayPolicy:'no-user-gesture-required',backgroundThrottling:false,contextIsolation:true,nodeIntegration:false,sandbox:true,spellcheck:false}});
+  v.setBackgroundColor('#00000000');
+  w.contentView.addChildView(v);
+  const layout=()=>{if(w.isDestroyed())return;const [cw,ch]=w.getContentSize(),top=L?0:DBAR;v.setBounds({x:0,y:top,width:cw,height:Math.max(0,ch-top)});};
+  layout();w.on('resize',layout);
+  const wc=v.webContents,CSS='html,body{background:transparent!important}';
+  wc.setAudioMuted(!!G().donateMute);
+  wc.setWindowOpenHandler(()=>({action:'deny'}));
+  const onlyHttp=(e,u)=>{if(!/^https?:\/\//i.test(u))e.preventDefault();};
+  wc.on('will-navigate',onlyHttp);wc.on('will-redirect',onlyHttp);
+  wc.on('dom-ready',()=>{wc.insertCSS(CSS).catch(()=>{});});
+  wc.on('did-finish-load',()=>{
+    clearTimeout(donT.hang);wc.insertCSS(CSS).catch(()=>{});
+    clearTimeout(donT.stable);donT.stable=setTimeout(()=>{donTries=0;},30000); // dianggap sehat kalau bertahan 30 dtk
+  });
+  wc.on('did-fail-load',(e,c,d,u,isMain)=>{if(c===-3||isMain===false)return;donRetry('gagal memuat ('+d+')');});
+  wc.on('render-process-gone',()=>donRetry('proses halaman berhenti'));
+  w.on('moved',()=>{if(!L&&!w.isDestroyed())saveB({donate:w.getBounds()});});
+  w.on('resized',()=>{if(!L&&!w.isDestroyed())saveB({donate:w.getBounds()});});
+  w.on('show',refreshTray);w.on('hide',refreshTray);
+  w.on('closed',()=>{if(donate===w){donate=null;donView=null;donLoaded='';clearTimeout(donT.hang);clearTimeout(donT.retry);clearTimeout(donT.stable);refreshTray();}});
+  donate=w;donView=v;donTries=0;
+  showWin(w,L);
+  if(L)[0,300,1200].forEach(t=>setTimeout(()=>{if(donate===w)applyDonateInput();},t));
+  else{
+    let n=0;const bar=()=>{if(!w.isDestroyed())w.loadURL(base()+'/?view=donatebar');};
+    srvP.then(bar);
+    w.webContents.on('did-fail-load',(e,c,d,u)=>{if(c!==-3&&u&&u.startsWith('http://localhost')&&++n<=5)setTimeout(bar,1000);});
+  }
+  donGo();
+  if(old&&!old.isDestroyed())old.destroy();
+  refreshTray();
+  return w;
+}
+// kunci / buka kunci chat: Donate Dock yang sedang terbuka dibuat ulang sesuai mode
+function donRelock(){if(donOpen())makeDonate();}
+function donateAct(act){
+  const open=donOpen();
+  if(act==='close'){if(open)donate.close();return{ok:true};}
+  if(act==='reload'){if(!open)return{error:'Donate Dock belum dibuka.'};donTries=0;donGo();return{ok:true};}
+  if(act==='toggle'){if(open&&donate.isVisible())return donateAct('close');act='open';}
+  if(act==='open'){
+    const c=donCheck();if(!c.url)return{error:c.error};
+    if(open){if(!donate.isVisible())showWin(donate,locked);return{ok:true};}
+    makeDonate();return{ok:true};
+  }
+  return{error:'Perintah tidak dikenal.'};
+}
 // ===== hotkey =====
-const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R'};
+const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R',donate:'Ctrl+Alt+D'};
 const ACTIONS={
   lock:()=>setLock(!locked),
   hide:()=>{if(!main||main.isDestroyed())return;
@@ -240,7 +345,8 @@ const ACTIONS={
   obs:()=>{if(srv){protect=!protect;srv.setGlobal({protect});}},
   up:()=>srv&&srv.cmd('up'),down:()=>srv&&srv.cmd('down'),clear:()=>srv&&srv.cmd('clear'),filter:()=>srv&&srv.cmd('filter'),
   settings:()=>openSettings(),
-  report:()=>openReport()
+  report:()=>openReport(),
+  donate:()=>{donateAct('toggle');}
 };
 function setHotkeys(map){
   globalShortcut.unregisterAll();const res={};
@@ -251,7 +357,7 @@ function setHotkeys(map){
   return res;
 }
 const hooks={
-  protect:on=>{protect=on;BrowserWindow.getAllWindows().forEach(w=>prot(w));applyLockedInput();},
+  protect:on=>{protect=on;BrowserWindow.getAllWindows().forEach(w=>prot(w));applyLockedInput();applyDonateInput();},
   open:what=>{if(what==='ext')shell.openPath(app.isPackaged?path.join(process.resourcesPath,'extension'):path.join(__dirname,'..','extension'));else shell.openExternal(what);},
   window:(url,opt)=>openWin(url,opt||{}),
   saveCss:async(name,css)=>{const w=BrowserWindow.getFocusedWindow();const r=await dialog.showSaveDialog(w||undefined,{title:'Ekspor gaya (.css)',defaultPath:path.join(app.getPath('documents'),name+'.css'),filters:[{name:'CSS',extensions:['css']}]});
@@ -267,11 +373,13 @@ const hooks={
   setHotkeys,
   winCtl,
   shape:rects=>{lastRects=rects;applyLockedInput();},
-  global:g=>{ctrlPos=(g&&g.ctrlPos)||'top-right';if(locked)showCtl();}
+  global:g=>{ctrlPos=(g&&g.ctrlPos)||'top-right';if(locked)showCtl();donSync();},
+  donate:act=>donateAct(act)
 };
 app.whenReady().then(()=>{
   if(!gotLock)return;
   Menu.setApplicationMenu(null);
+  try{session.fromPartition('persist:donate').setPermissionRequestHandler((wc,perm,cb)=>cb(false));}catch{}
   startUp();
   try{tray=new Tray(nativeImage.createFromPath(ICON).resize({width:16,height:16}));tray.setToolTip('ChatStream Labs');tray.setContextMenu(trayMenu());tray.on('click',()=>showDash());}catch{}
   setTimeout(()=>{

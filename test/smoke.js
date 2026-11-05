@@ -31,6 +31,18 @@ async function serverTests(){
     const o=await j('/obs-add',{});ok(/OBS/.test(o.error||''),'tambah ke OBS memberi pesan jelas bila OBS tidak aktif');
     const forbidden=await fetch(base+'/send',{method:'POST',headers:{Origin:'https://evil.example'},body:'{}'});
     ok(forbidden.status===403,'POST dari origin asing ditolak');
+    // Donate Dock: pengaturan URL widget (tanpa Electron, jadi hooks.donate kosong)
+    const rd=()=>JSON.parse(fs.readFileSync(path.join(dir,'settings.json'),'utf8')).global;
+    const d1=await j('/donate-set',{url:'javascript:alert(1)'});ok(/tidak valid/i.test(d1.error||''),'Donate Dock menolak URL javascript:');
+    ok(/tidak valid/i.test((await j('/donate-set',{url:'file:///C:/rahasia.txt'})).error||'')&&/tidak valid/i.test((await j('/donate-set',{url:'bukan url'})).error||''),'Donate Dock menolak file: dan teks biasa');
+    const d3=await j('/donate-set',{url:'  https://saweria.co/widgets/alert?streamKey=abc  '});await sleep(250);
+    ok(d3.ok&&rd().donateUrl==='https://saweria.co/widgets/alert?streamKey=abc','Donate Dock menyimpan URL https (spasi dipangkas) di settings.global.donateUrl');
+    await j('/donate-set',{url:'http://localhost:9999/w'});await sleep(150);
+    ok(rd().donateUrl==='http://localhost:9999/w','Donate Dock menerima http');
+    await raw('/donate-mute',{on:true});await sleep(250);ok(rd().donateMute===true,'saklar bisu Donate Dock tersimpan (donateMute)');
+    ok(/desktop/i.test((await j('/donate',{act:'open'})).error||''),'/donate di luar aplikasi desktop memberi pesan jelas');
+    const d6=await j('/donate-set',{url:''});await sleep(150);ok(d6.ok&&rd().donateUrl==='','URL kosong diterima (fitur diam)');
+    ok(rd().donateMute===true&&(rd().templates||[]).length>0,'menyimpan pengaturan Donate Dock tidak menghapus pengaturan global lain');
   }catch(e){ok(false,'server error: '+e.message);}
   p.kill();
 }
@@ -135,6 +147,25 @@ async function uiTests(){
     ok(d.querySelectorAll('#msgs .m,#msgs .cs-act').length>=4,'pratinjau overlay terus menerima pesan acak');
     const pf=new Set([...d.querySelectorAll('#msgs [data-platform]')].map(x=>x.dataset.platform));ok(pf.size>=2,'pesan acak berasal dari beberapa platform');});
   await page('?view=report',{},{},async(d,dom)=>{await sleep(200);ok(/reportwin/.test(d.body.className)&&!!d.getElementById('rbody'),'jendela laporan dimuat');});
+  // ---- Kirim Chat dimatikan: hanya kotak isi chat dan tombol kirim yang hilang ----
+  await page('?view=dock',{},{},(d,dom)=>{
+    dom.window.eval("S.global.sendOn=false;applyStyle()");
+    ok(/\bnosend\b/.test(d.body.className),'Kirim Chat mati: body diberi kelas nosend');
+    const css=fs.readFileSync(path.join(root,'src/ui/style.css'),'utf8');
+    ok(/body\.nosend #msg,body\.nosend #send\{display:none!important\}/.test(css)&&!/body\.nosend #foot/.test(css),'Kirim Chat mati: CSS hanya menyembunyikan #msg dan #send (bukan seluruh #foot)');
+    ok(!!d.querySelector('#foot #flt')&&!!d.querySelector('#foot #lock'),'filter platform dan gembok tetap ada di kolom bawah');});
+  // ---- Donate Dock ----
+  await page('?view=donatebar',{},{},(d,dom,posts)=>{
+    ok(/donatewin/.test(d.body.className)&&d.getElementById('tbt').textContent==='Donate Dock'&&dom.window.__ready===true,'bilah judul Donate Dock dimuat dan menandai siap');
+    d.getElementById('wclose').click();ok(posts.some(x=>x[0]==='/win'&&/"which":"donate"/.test(x[1])&&/"act":"close"/.test(x[1])),'tombol tutup bilah judul memanggil /win which=donate');});
+  await page('?view=dashboard',{},{},async(d,dom,posts)=>{
+    ok(!!d.getElementById('pn')&&!!d.querySelector('.sbi[data-t="n"]'),'Dashboard punya tab Donate Dock');
+    d.getElementById('dnUrl').value='https://saweria.co/widgets/alert?streamKey=x';d.getElementById('dnSave').click();
+    d.getElementById('dnOpen').click();d.getElementById('dnClose').click();d.getElementById('dnReload').click();
+    d.getElementById('dnMute').checked=true;d.getElementById('dnMute').dispatchEvent(new dom.window.Event('change'));await sleep(80);
+    const has=(u,re)=>posts.some(x=>x[0]===u&&re.test(x[1]||''));
+    ok(has('/donate-set',/saweria/)&&has('/donate',/"open"/)&&has('/donate',/"close"/)&&has('/donate',/"reload"/)&&has('/donate-mute',/true/),'tombol Simpan, Buka, Tutup, Muat ulang, dan saklar bisu memanggil endpoint yang benar');
+    ok(/Donate Dock/.test(d.getElementById('hkl').textContent),'hotkey Buka / tutup Donate Dock muncul di tab Hotkey');});
   await page('?view=ctl',{},{},(d)=>{ok(!!d.getElementById('eye')&&!!d.getElementById('unlock')&&!!d.getElementById('mover'),'jendela kecil gembok punya 3 kotak');});
 }
 (async()=>{parserTests();await serverTests();await uiTests();console.log(fail?'\n'+fail+' pemeriksaan GAGAL':'\nsemua pemeriksaan lulus');process.exit(fail?1:0);})();

@@ -13,7 +13,7 @@
 <div id="sb">
   <button class="sbi" data-t="d">Dashboard</button><button class="sbi" data-t="k">Koneksi</button>
   <div class="sbl"></div>
-  <button class="sbi" data-t="p">Pribadi</button><button class="sbi" data-t="o">Overlay</button><button class="sbi" data-t="h">Hotkey</button>
+  <button class="sbi" data-t="p">Pribadi</button><button class="sbi" data-t="o">Overlay</button><button class="sbi" data-t="n">Donate Dock</button><button class="sbi" data-t="h">Hotkey</button>
   <div class="sbl"></div>
   <button class="sbi" data-t="r">Laporan penonton</button>
   <div class="sbsp"></div>
@@ -82,6 +82,25 @@
       </ol>
       <label><span>Alamat overlay (kalau mau pasang manual)</span></label><input type="text" readonly id="u2"></div>
     <div class="bar"><button class="btn b4" data-reset="overlay">Reset</button><button class="btn b1" data-apply="overlay">Terapkan</button></div></div>
+  <div class="pane" id="pn"><div class="card"><h3>Donate Dock</h3>
+      <div class="hint">Tampilkan widget donasi (alert dan media share) langsung di layar game, tanpa Alt Tab. Aplikasi hanya memuat halaman widget-mu di jendelanya sendiri, jadi Chrome tidak perlu dibuka dan tidak perlu login.</div>
+      <label><span>URL widget donasi</span></label><input type="text" id="dnUrl" placeholder="https://saweria.co/widgets/..." spellcheck="false">
+      <div class="btns"><button class="btn b1" id="dnSave">Simpan</button></div>
+      <div id="dnMsg" class="hint"></div></div>
+    <div class="card"><h3>Jendela</h3>
+      <div class="btns"><button class="btn b1" id="dnOpen">Buka Donate Dock</button><button class="btn b2" id="dnClose">Tutup Donate Dock</button><button class="btn b3" id="dnReload">Muat ulang widget</button></div>
+      <div class="row"><span>Bisukan suara di Donate Dock</span><input type="checkbox" id="dnMute"></div>
+      <div class="hint">Nyalakan bisu kalau widget yang sama juga dipasang di OBS, supaya suaranya tidak dobel.</div>
+      <div id="dnMsg2" class="hint"></div></div>
+    <div class="card"><h3>Cara pakai</h3>
+      <ol class="steps">
+        <li><div class="sn">1</div><div class="sb"><b>Ambil URL widget</b><span>Buka dashboard layanan donasimu (misalnya Saweria), masuk ke menu Widget, lalu salin alamat widget alert atau media share. Itu alamat yang sama dengan yang dipasang sebagai Browser Source di OBS.</span></div></li>
+        <li><div class="sn">2</div><div class="sb"><b>Tempel dan simpan</b><span>Tempel alamatnya di kolom atas, lalu klik <b>Simpan</b>. Chrome tidak perlu dibuka.</span></div></li>
+        <li><div class="sn">3</div><div class="sb"><b>Buka dan atur posisi</b><span>Klik <b>Buka Donate Dock</b>, geser dan ubah ukurannya lewat bilah judul. Posisi dan ukurannya diingat.</span></div></li>
+        <li><div class="sn">4</div><div class="sb"><b>Kunci</b><span>Waktu jendela chat dikunci (tombol gembok), Donate Dock ikut terkunci: transparan, di atas game, dan tembus klik. Buka kunci untuk kembali ke mode biasa.</span></div></li>
+      </ol>
+      <div class="hint">Kalau <b>Sembunyikan dari OBS</b> menyala, jendela Donate Dock yang terkunci tidak bisa tembus klik penuh (batasan Windows), jadi area jendelanya menerima klik. Kecilkan ukurannya atau matikan opsi itu kalau mengganggu.</div></div>
+  </div>
   <div class="pane" id="ph"><div class="card"><h3>Hotkey</h3>
     <div id="hkl"></div></div>
     <div class="bar"><button class="btn b4" id="hkdef">Kembalikan default</button><button class="btn b1" id="hkapply">Terapkan</button></div></div>

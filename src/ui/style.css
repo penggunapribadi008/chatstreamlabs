@@ -15,7 +15,7 @@ body.preview{background:repeating-conic-gradient(#2a2a35 0 25%,#1c1c25 0 50%) 0 
 body.dock:not(.locked):not(.preview) #app{top:34px}
 /* judul jendela (tanpa bingkai) */
 #tb{display:none;position:fixed;top:0;left:0;right:0;height:34px;z-index:50;align-items:center;justify-content:space-between;padding-left:12px;background:var(--card-bg);border-bottom:1px solid var(--line);backdrop-filter:var(--blur);-webkit-app-region:drag}
-body.dock:not(.locked):not(.preview) #tb,body.settings #tb,body.tplwin #tb,body.addwin #tb,body.reportwin #tb{display:flex}
+body.dock:not(.locked):not(.preview) #tb,body.settings #tb,body.tplwin #tb,body.addwin #tb,body.reportwin #tb,body.donatewin #tb{display:flex}
 #tb .ttl{display:flex;align-items:center;gap:8px;font:600 12px 'Segoe UI',sans-serif;color:var(--muted)}#tb .ttl img{width:16px;height:16px}
 #tb .wb{width:46px;height:34px;border:0;background:transparent;color:var(--text);cursor:pointer;font-size:14px;-webkit-app-region:no-drag}
 #tb .wb:hover{background:rgba(127,127,127,.2)}#tb .wb.x:hover{background:#e5484d;color:#fff}
@@ -98,6 +98,9 @@ body.dock #foot{display:flex}body.locked #foot,body.locked #tobottom{display:non
 /* jendela kecil gembok + pindah */
 #ctl{display:none;gap:6px}
 body.ctlwin{background:transparent}
+/* bilah judul Donate Dock (isi widget ada di jendela terpisah di bawahnya) */
+body.donatewin{background:var(--winbg)}
+body.donatewin #app,body.donatewin #panel,body.donatewin #tpl,body.donatewin #addwin,body.donatewin #rep,body.donatewin #sb,body.donatewin #dpv{display:none!important}
 body.ctlwin #app,body.ctlwin #panel,body.ctlwin #tpl,body.ctlwin #addwin,body.ctlwin #tb{display:none!important}
 body.ctlwin #ctl{display:flex;position:static;padding:0}
 #eye .e-open{display:block}#eye .e-shut{display:none}body.prot #eye .e-open{display:none}body.prot #eye .e-shut{display:block}
@@ -267,8 +270,8 @@ body.dock:not(.locked) #top{gap:18px}
 body.dock:not(.locked) #top>.vchip{background:none;border:0;box-shadow:none;border-radius:0;padding:0}
 /* pratinjau Pribadi di Dashboard = hanya daftar chat, tanpa bar atas dan kolom kirim */
 body.dock.preview #top,body.dock.preview #foot{display:none!important}
-body.dock.preview{background:var(--winbg)}
-body.dock.preview #app{top:0}
+body.dock.preview{background:transparent}
+body.dock.preview #app{top:0;background:transparent}
 .dwel h2{margin:0 0 6px;font-size:20px}
 .dsr{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
 .dsr:first-child{border-top:0}.dsr span:first-child{display:flex;align-items:center;gap:8px;font-weight:600}.dsr img{width:18px;height:18px}
@@ -289,8 +292,9 @@ body.dashboard .wbs{display:flex;flex:none}
 .cn.off input[type=text],.cn.off input[type=number]{opacity:.45}
 .stat{flex-wrap:wrap}.stat .chip2{flex:1 1 40%}
 
-/* kirim chat dimatikan: kolom kirim di dock hilang */
-body.nosend #foot{display:none!important}
+/* kirim chat dimatikan: kotak isi chat dan tombol kirim hilang; filter platform dan gembok tetap ada */
+body.nosend #msg,body.nosend #send{display:none!important}
+body.nosend #lock{margin-left:auto}
 .h3sw{display:flex;align-items:center;justify-content:space-between}
 /* status koneksi yang rapi */
 #st{white-space:normal}

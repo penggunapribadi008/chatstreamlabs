@@ -20,6 +20,8 @@ Satu aplikasi untuk streamer YouTube + TikTok + Twitch + Kick: gabungkan chat du
 - Twitch (Bits, subscribe, gift sub, raid, pengumuman, chatter baru, emote) dan Kick (Kicks, subscribe, gift sub, follow, raid, hadiah poin, emote), masing-masing punya halaman pengaturan di Pribadi dan Overlay (belum diuji dengan live sungguhan; kirim chat baru untuk YouTube dan TikTok)
 - Pratinjau overlay menampilkan pesan acak terus-menerus dari semua platform dan jenis aktivitas
 - Kotak Total penonton (penonton yang sedang menonton, bukan puncak) dan tombol Laporan penonton: grafik, puncak, rata-rata, chat, hadiah, Super Chat, riwayat sesi
+- Donate Dock: tempel URL widget donasi (alert dan media share, misalnya Saweria), lalu widget tampil di jendela sendiri di atas game. Ikut mode gembok (transparan, tembus klik, tidak mencuri fokus), posisi dan ukuran tersimpan, ada saklar bisu, hotkey (Ctrl+Alt+D) dan menu tray. Chrome tidak perlu dibuka. Belum diuji dengan widget asli
+- Kolom kirim chat bisa dimatikan: kotak isi chat dan tombol Kirim hilang, filter platform dan gembok tetap ada
 
 ## Membuat installer lewat GitHub (tanpa Node.js di komputermu)
 Baca **`PANDUAN-GITHUB.md`**: unggah kode ke repositori, jalankan workflow *Build installer Windows*, unduh installer-nya.

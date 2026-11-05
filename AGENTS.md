@@ -28,7 +28,7 @@ Electron main (src/main.js)  ──require──▶  server lokal in-process (sr
 - **Server** menyimpan semua keadaan: `settings.json` (`{dock, overlay, global}`), `config.json` (username YT/TikTok),
   `log.txt`. Lokasinya `CG_DATA` (= folder userData Electron). Semua halaman sinkron lewat SSE `/events`
   (`init`, `msg`, `settings`, `draft`, `draftclear`, `status`, `viewers`, `cmd`).
-- **Hooks**: `server.hooks.*` diisi `main.js` (protect, open, window, lock, drag, shape, setHotkeys, global, winCtl, openSettings).
+- **Hooks**: `server.hooks.*` diisi `main.js` (protect, open, window, lock, drag, shape, setHotkeys, global, winCtl, openSettings, donate).
   Server tidak boleh mengimpor `electron`; semua hal OS lewat hooks.
 - **Konektor chat** (di server): YouTube = `youtube-chat` (scrape, tanpa API key), TikTok = `tiktok-live-connector` v2.
   Setiap pesan masuk lewat `push()` → disimpan di riwayat (300) → `emit('msg')`.
@@ -40,7 +40,7 @@ Electron main (src/main.js)  ──require──▶  server lokal in-process (sr
 ## 3. Peta berkas
 | Berkas | Isi |
 |---|---|
-| `src/main.js` | jendela, mode kunci, tray, hotkey global, konfirmasi keluar, single-instance, watchdog muat halaman |
+| `src/main.js` | jendela, mode kunci, tray, hotkey global, konfirmasi keluar, single-instance, watchdog muat halaman, Donate Dock |
 | `src/stats.js` | statistik sesi live (sampel penonton, chat, hadiah, Super Chat) + `analytics.json` |
 | `src/server.js` | HTTP/SSE/WebSocket, konektor YT/TikTok, jembatan ekstensi, OBS, seeding gaya, deteksi bot |
 | `src/seeds.json` | gaya overlay bawaan yang bisa diedit (Kartu, Persona 5, Neon, Retro) — CSS biasa |
@@ -226,3 +226,21 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
 - **Laporan penonton** = tab `r` di Dashboard (`#rep`, `body.rview`, `initReport(true)`), bukan jendela baru; `hooks.openReport` memunculkan Dashboard lalu `window.__goTab('r')`.
 - **Kirim chat Twitch/Kick**: `extension/tw.js`, `kk.js` (v1.2). Pemilih kolom chat adalah tebakan terbaik dan BELUM diuji di situs asli; pengguna harus memuat ulang ekstensi di chrome://extensions.
 - Pengujian: sandbox pengembangan ini memakai Chromium (Playwright) untuk uji perilaku; `test/smoke.js` (jsdom) sudah diperbarui tetapi belum dijalankan di sana.
+
+## 13. Donate Dock dan perubahan kecil (v14.6.1)
+- **Donate Dock** memuat URL widget donasi (alert / media share, mis. Saweria) di jendela sendiri. Tidak ada integrasi API; aplikasi hanya menampilkan halamannya.
+  Pengaturan di `settings.global`: `donateUrl` (kosong = fitur diam) dan `donateMute`. Server: `POST /donate-set` (validasi lewat `cleanDonateUrl`, hanya http/https, selain itu pesan Indonesia),
+  `/donate-mute`, `/donate` (`act` = open|close|toggle|reload, lewat `hooks.donate`). Server tidak mengimpor `electron`. Tab Dashboard = `#pn` (sidebar `data-t="n"`), hotkey `donate` (Ctrl+Alt+D), item menu tray.
+- **Jendela** (`makeDonate`, `main.js`): BrowserWindow tanpa bingkai + `WebContentsView` berisi widget (partition `persist:donate`, `autoplayPolicy:'no-user-gesture-required'`, `backgroundThrottling:false`, sandbox, contextIsolation).
+  Mode biasa: bilah judul = halaman lokal `?view=donatebar` (`isDB` di `app.js`, statis, tanpa SSE, `body.donatewin`), widget di bawahnya (tinggi bilah `DBAR`=34). Mode gembok: transparan, `screen-saver`, `focusable:false`, `skipTaskbar`, widget memenuhi jendela.
+  CSS `html,body{background:transparent!important}` disuntik di `dom-ready` dan `did-finish-load`. Navigasi non-http(s) dan jendela popup ditolak; semua permintaan izin ditolak.
+- **Gembok**: Donate Dock IKUT gembok chat (dipilih karena paling sederhana dan konsisten dengan satu tombol gembok). `setLock` memanggil `donRelock()` yang membuat ulang jendela Donate Dock (jendela transparan tidak bisa berubah mode, lihat jebakan 5);
+  menutup jendela chat yang sedang terkunci juga mengembalikan Donate Dock ke mode biasa. Posisi dan ukuran di `window.json` kunci `donate` (hanya disimpan di mode biasa), terpisah dari `outer` (chat) dan `dash`.
+- **Sembunyikan dari OBS**: isi widget tidak diketahui halaman kita, jadi tidak ada daftar area klik seperti chat. `applyDonateInput()`: protect aktif = `setIgnoreMouseEvents(false)` + `setShape` penuh (jendela menerima klik di areanya);
+  protect mati = `setShape` penuh + `setIgnoreMouseEvents(true)` (tembus-klik penuh). Pakai `setShape` KECIL (mis. 1x1) akan membuat widget tidak terlihat: bentuk jendela memotong tampilannya.
+- **Pemulihan**: `donRetry` (did-fail-load, render-process-gone, halaman menggantung >25 dtk) mencoba ulang dengan jeda 3/6/12/24/48 dtk, berhenti setelah `DON_MAX`=5 kali dan mencatat ke `log.txt`; hitungan baru di-reset kalau halaman bertahan 30 dtk,
+  atau lewat tombol "Muat ulang widget". Jangan menghapus batas ini (URL salah / offline tidak boleh membuat loop tanpa ujung). Mengubah / mengosongkan URL saat jendela terbuka ditangani `donSync` (dipanggil `hooks.global`).
+- **Hide**: tombol perkecil Donate Dock langsung `hide()` (lewat `winCtl`, sama seperti Dashboard/Chat), BUKAN minimize lalu hide; tombol tutup menutup jendela. Tray / hotkey toggle: tutup kalau terlihat, tampilkan kalau tersembunyi, buka kalau belum ada.
+- **Kirim Chat dimatikan** (`body.nosend`): hanya `#msg` dan `#send` yang disembunyikan; filter platform (`#flt`) dan gembok (`#lock`) tetap tampil (sebelumnya seluruh `#foot` hilang, sehingga gembok ikut hilang).
+- **Pratinjau Pribadi**: `body.dock.preview` dan `#app`-nya tidak punya latar sendiri lagi (transparan; yang terlihat latar panel pratinjau). Akibatnya slider "Gelap latar jendela" tidak terlihat efeknya di pratinjau Pribadi (tetap berlaku di jendela chat asli).
+- **Belum teruji**: seluruh perilaku Donate Dock di Windows (pemutaran video/suara media share, gembok di atas game, tembus-klik, perilaku protect, simpan posisi). `npm test` belum dijalankan setelah perubahan ini (sandbox tanpa internet, `npm install` tidak bisa); tes baru ada di `test/smoke.js`.

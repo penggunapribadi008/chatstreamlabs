@@ -25,8 +25,10 @@ function chatUrl(p){
   if(p==='kick'){const u=kkTarget(cfg.kick);return u?'https://kick.com/'+u:'';}
   const u=ttTarget(cfg.tiktok);return u?'https://www.tiktok.com/@'+u+'/live':'';}
 function cmd(name){if(name==='clear')history.length=0;emit('cmd',{name});}
+// URL widget Donate Dock: kosong = fitur diam (''), hanya http/https yang diterima, selain itu null (ditolak)
+function cleanDonateUrl(u){const v=String(u==null?'':u).trim();if(!v)return '';let x;try{x=new URL(v);}catch{return null;}return(x.protocol==='http:'||x.protocol==='https:')?x.href:null;}
 function setGlobal(v){settings.global={...settings.global,...v};fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);if(v.protect!==undefined&&hooks.protect)hooks.protect(settings.global.protect!==false);if(hooks.global)hooks.global(settings.global);}
-module.exports={hooks,ready,cmd,setGlobal,flush:()=>stats.flush(),get port(){return PORT;}};
+module.exports={hooks,ready,cmd,setGlobal,cleanDonateUrl,flush:()=>stats.flush(),get port(){return PORT;}};
 process.on('exit',()=>{try{stats.flush();}catch{}});
 const AVOID=[[3306,'MySQL'],[3389,'Remote Desktop Windows'],[4200,'Angular'],[4455,'OBS WebSocket (dipakai tombol Tambahkan overlay ke OBS)'],[5000,'Flask / AirPlay'],[5173,'Vite'],[5432,'PostgreSQL'],[5500,'Live Server VS Code'],[5900,'VNC'],[6379,'Redis'],[8000,'server web lokal'],[8080,'server web / proxy'],[8888,'Jupyter'],[27017,'MongoDB']].map(([port,name])=>({port,name}));
 const BOTS=['nightbot','streamelements','streamlabs','moobot','fossabot','wizebot','soundalerts','restreambot','botrix','sery_bot','pretzelrocks','coebot','deepbot','phantombot','ankhbot','vivbot'];
@@ -76,6 +78,9 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/hotkeys')return json(async({hotkeys})=>{settings.global={...settings.global,hotkeys};fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);return hooks.setHotkeys?hooks.setHotkeys(hotkeys||{}):{};});
     if(u.pathname==='/templates-restore')return body(()=>{const have=new Set((settings.global.templates||[]).map(t=>t.id));settings.global.templates=[...SEEDS.filter(x=>!have.has(x.id)),...(settings.global.templates||[])];fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);});
     if(u.pathname==='/send-set')return body(({on})=>setGlobal({sendOn:on!==false}));
+    if(u.pathname==='/donate-set')return json(async({url})=>{const v=cleanDonateUrl(url);if(v===null)return{error:'URL tidak valid. Pakai alamat widget yang diawali http:// atau https://, contoh https://saweria.co/widgets/...'};setGlobal({donateUrl:v});return{ok:true,url:v};});
+    if(u.pathname==='/donate-mute')return body(({on})=>setGlobal({donateMute:!!on}));
+    if(u.pathname==='/donate')return json(async({act})=>{if(!hooks.donate)return{error:'hanya di aplikasi desktop'};return(await hooks.donate(String(act||'')))||{ok:true};});
     if(u.pathname==='/protect-toggle')return body(()=>setGlobal({protect:settings.global.protect===false}));
     if(u.pathname==='/shape')return body(({rects})=>{if(hooks.shape)hooks.shape(Array.isArray(rects)?rects:[]);});
     if(u.pathname==='/ready')return body(()=>autoStart());

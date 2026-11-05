@@ -1,4 +1,4 @@
-const Q=new URLSearchParams(location.search),V=Q.get('view'),view=V==='overlay'?'overlay':'dock',isDash=V==='dashboard',isSet=V==='settings'||isDash,isTpl=V==='tpl',isAdd=V==='tpladd',isCtl=V==='ctl',isRep=V==='report',isAdmin=isSet||isTpl||isAdd||isCtl||isRep,isPrev=!!Q.get('preview'),isStatic=!!Q.get('static'),isLocked=!!Q.get('locked'),forceId=Q.get('force');
+const Q=new URLSearchParams(location.search),V=Q.get('view'),view=V==='overlay'?'overlay':'dock',isDash=V==='dashboard',isSet=V==='settings'||isDash,isTpl=V==='tpl',isAdd=V==='tpladd',isCtl=V==='ctl',isRep=V==='report',isDB=V==='donatebar',isAdmin=isSet||isTpl||isAdd||isCtl||isRep||isDB,isPrev=!!Q.get('preview'),isStatic=!!Q.get('static'),isLocked=!!Q.get('locked'),forceId=Q.get('force');
 const COMMON={fsName:16,fsText:16,gap:12,bg:90,max:300,fade:0,time:false,viewers:true,botTag:true,hideBots:false,preset:'polos',anim:'slide',order:'bottom',chatBg:false,chatBgColor:'#000000',chatBgOp:60};
 // registri platform: nama penuh -> huruf kelas (y/t/w/k), akhiran kelas (yt/tt/tw/kk), logo
 const PK={youtube:'y',tiktok:'t',twitch:'w',kick:'k'},PC={y:'yt',t:'tt',w:'tw',k:'kk'},PN={y:'youtube',t:'tiktok',w:'twitch',k:'kick'},PL={youtube:'/yt.png',tiktok:'/tt.png',twitch:'/tw.png',kick:'/kick.png'};
@@ -37,7 +37,7 @@ const copy=o=>JSON.parse(JSON.stringify(o));
 const post=(u,b)=>fetch(u,{method:'POST',body:JSON.stringify(b||{})});
 document.addEventListener('dragstart',e=>e.preventDefault());
 const wrap=$('msgs');
-const BASECLS=isDash?'settings dashboard':isSet?'settings':isTpl?'tplwin':isAdd?'addwin':isCtl?'ctlwin':isRep?'reportwin':'';
+const BASECLS=isDash?'settings dashboard':isSet?'settings':isTpl?'tplwin':isAdd?'addwin':isCtl?'ctlwin':isRep?'reportwin':isDB?'donatewin':'';
 const BOOTTH=[...document.body.classList].find(c=>c.startsWith('th-'))||'';
 if(BASECLS)document.body.className=BASECLS+(BOOTTH?' '+BOOTTH:'');
 let booting=true;
@@ -67,9 +67,9 @@ function chatColors(s,pid){
   if(view==='dock'){st.setProperty('--yc',L<.55?'#ff8f8a':'#b3262c');st.setProperty('--tcl',L<.55?'#6fe3ee':'#0a7f88');st.setProperty('--wc',L<.55?'#b794ff':'#5b21b6');st.setProperty('--kc',L<.55?'#53fc18':'#2a8a0c');}
 }
 // ---- judul jendela tanpa bingkai ----
-const WHICH=isDash?'dash':isSet?'settings':isTpl?'tpl':isAdd?'tpladd':isRep?'report':'main';
-if(!isPrev&&!isCtl&&view==='dock'||isSet||isTpl||isAdd){
-  $('tbt').textContent=isRep?'Laporan penonton':isDash?'ChatStream Labs - Dashboard':isSet?'Pengaturan':isTpl?'Kelola gaya overlay':isAdd?'Gaya overlay':'ChatStream Labs';
+const WHICH=isDash?'dash':isSet?'settings':isTpl?'tpl':isAdd?'tpladd':isRep?'report':isDB?'donate':'main';
+if(!isPrev&&!isCtl&&view==='dock'||isSet||isTpl||isAdd||isDB){
+  $('tbt').textContent=isDB?'Donate Dock':isRep?'Laporan penonton':isDash?'ChatStream Labs - Dashboard':isSet?'Pengaturan':isTpl?'Kelola gaya overlay':isAdd?'Gaya overlay':'ChatStream Labs';
   $('wmin').onclick=()=>post('/win',{which:WHICH,act:'min'});$('wmax').onclick=()=>post('/win',{which:WHICH,act:'max'});$('wclose').onclick=()=>post('/win',{which:WHICH,act:'close'});
 }
 const detectStruct=css=>/data-color\s*=|data-mode\s*=/.test(css||'')?'cozy':/\.p5-msg/.test(css||'')?'p5':(/\.badge\b/.test(css||'')&&/\.p-(yt|tt)\b/.test(css||''))?'rv':'std';
@@ -316,6 +316,8 @@ if(isStatic){
     else if(d.type==='tpldraft'){draftTpl={css:d.css};applyStyle();resample();}});
   setTimeout(()=>{if(!wrap.children.length&&!feedT)resample();},1500);
   parent.postMessage({type:'ready'},'*');bootDone();
+}else if(isDB){
+  bootDone(); // bilah judul Donate Dock: halaman statis, tanpa SSE
 }else if(!isCtl&&!isRep){
   if(isPrev)applyStyle();
   const es=new EventSource('/events');
@@ -435,7 +437,7 @@ function refreshPresets(){const sel=$('overlay_preset');if(!sel)return;const kee
   sel.value=all.some(x=>x[0]===keep)?keep:(all.some(x=>x[0]===cur('overlay').preset)?cur('overlay').preset:'polos');}
 function fill(v,src){const s=src||cur(v);if(v==='overlay')refreshPresets();
   items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;if(it[0]==='chk')e.checked=!!s[it[1]];else e.value=s[it[1]];if(it[0]==='sl')lbl(v,it);});syncDeps(v);pvAll(v);}
-function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';}
+function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';$('dnUrl').value=g.donateUrl||'';$('dnMute').checked=!!g.donateMute;}
 function collect(v){const o={};items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;o[it[1]]=it[0]==='chk'?e.checked:(it[0]==='sl'?+e.value:e.value);});return o;}
 let dt=null;
 function draftChange(v){items(v).filter(i=>i[0]==='sl').forEach(i=>lbl(v,i));syncDeps(v);pvAll(v);if(v==='dock')applyUi(collect('dock'));if(isDash)pvSend();clearTimeout(dt);dt=setTimeout(()=>post('/draft',{view:v,values:collect(v)}),40);}
@@ -455,8 +457,8 @@ async function acct(){if(document.hidden)return;try{const a=await(await fetch('/
   [['ay',a.youtube],['at',a.tiktok],['aw',a.twitch],['ak',a.kick]].forEach(([i,ok])=>{$(i).textContent=ok?'terhubung':'belum terhubung';$(i).className=ok?'ok':'no';});}catch{}}
 const copyText=async t=>{try{await navigator.clipboard.writeText(t);}catch{try{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}catch{}}};
 // hotkey
-const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R'};
-const HK_LBL={lock:'Kunci / buka kunci jendela',hide:'Sembunyikan / tampilkan jendela',obs:'Sembunyikan dari OBS (on/off)',up:'Gulir chat ke atas',down:'Gulir chat ke bawah',clear:'Bersihkan chat',filter:'Ganti filter (Semua / YouTube / TikTok / Twitch / Kick)',settings:'Buka pengaturan',report:'Buka laporan penonton'};
+const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R',donate:'Ctrl+Alt+D'};
+const HK_LBL={lock:'Kunci / buka kunci jendela',hide:'Sembunyikan / tampilkan jendela',obs:'Sembunyikan dari OBS (on/off)',up:'Gulir chat ke atas',down:'Gulir chat ke bawah',clear:'Bersihkan chat',filter:'Ganti filter (Semua / YouTube / TikTok / Twitch / Kick)',settings:'Buka pengaturan',report:'Buka laporan penonton',donate:'Buka / tutup Donate Dock'};
 let hk={},hkErr={};
 const KEYMAP={ArrowUp:'Up',ArrowDown:'Down',ArrowLeft:'Left',ArrowRight:'Right',PageUp:'PageUp',PageDown:'PageDown',Home:'Home',End:'End',Space:'Space',Insert:'Insert',Delete:'Delete',Backquote:'`',Minus:'-',Equal:'=',Comma:',',Period:'.',Slash:'/',Semicolon:';',Quote:"'",BracketLeft:'[',BracketRight:']',Backslash:'\\',Tab:'Tab',Enter:'Return',NumpadAdd:'numadd',NumpadSubtract:'numsub',NumpadMultiply:'nummult',NumpadDivide:'numdiv',NumpadDecimal:'numdec'};
 function combo(e){
@@ -511,6 +513,13 @@ $('portrestart').onclick=()=>post('/restart');
 $('portavoid').onclick=()=>{$('avlist').innerHTML='';(conf.avoid||[]).forEach(a=>{const r=document.createElement('div');r.className='avrow';const b=document.createElement('b'),n=document.createElement('span');b.textContent=a.port;n.textContent=a.name;r.append(b,n);$('avlist').appendChild(r);});$('avmodal').hidden=false;};
 $('avclose').onclick=()=>{$('avmodal').hidden=true;};$('avmodal').onclick=e=>{if(e.target===$('avmodal'))$('avmodal').hidden=true;};
 $('sendOn').onchange=()=>post('/send-set',{on:$('sendOn').checked}).catch(()=>{});
+// Donate Dock: URL widget, buka/tutup, muat ulang, bisu
+$('dnSave').onclick=async()=>{const m=$('dnMsg');const r=await(await post('/donate-set',{url:$('dnUrl').value})).json();
+  if(r.error){m.className='hint no';m.textContent=r.error;return;}
+  $('dnUrl').value=r.url;m.className='hint ok';m.textContent=r.url?'Tersimpan.':'URL dikosongkan, Donate Dock tidak aktif.';};
+const dnAct=async a=>{const m=$('dnMsg2');const r=await(await post('/donate',{act:a})).json();m.className=r.error?'hint no':'hint';m.textContent=r.error||'';};
+$('dnOpen').onclick=()=>dnAct('open');$('dnClose').onclick=()=>dnAct('close');$('dnReload').onclick=()=>dnAct('reload');
+$('dnMute').onchange=()=>post('/donate-mute',{on:$('dnMute').checked}).catch(()=>{});
 $('u2').onclick=()=>{$('u2').select();try{document.execCommand('copy')}catch{}};
 $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textContent='Menghubungi OBS...';
   const r=await(await post('/obs-add',{width:+$('obsW').value||500,height:+$('obsH').value||900,password:$('obsPass').value})).json();
