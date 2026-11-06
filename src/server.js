@@ -95,6 +95,7 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/analytics-del')return body(({id})=>stats.remove(String(id||'')));
     if(u.pathname==='/restart')return body(()=>{if(hooks.relaunch)setTimeout(()=>hooks.relaunch(),300);});
     if(u.pathname==='/send')return json(async({text,targets})=>{const out={},tx=String(text||'').slice(0,190);for(const t of targets||[])out[t]=await extSend(t,tx);return out;});
+    if(u.pathname==='/update-check')return json(async()=>({status:hooks.checkUpdate?await hooks.checkUpdate():'dev'}));
     if(u.pathname==='/win')return body(({which,act})=>{if(hooks.winCtl)hooks.winCtl(which,act);});
     if(u.pathname==='/draft')return body(d=>emit('draft',d));
     if(u.pathname==='/draft-clear')return body(()=>emit('draftclear',{}));

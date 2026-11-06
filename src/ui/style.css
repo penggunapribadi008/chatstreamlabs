@@ -252,6 +252,8 @@ body.dashboard #sb{display:flex;flex-direction:column;gap:4px;position:absolute;
 .sbi:hover{background:rgba(127,127,127,.14)}.sbi.on{background:var(--btn2)}
 .sbl{height:1px;background:var(--line);margin:8px 4px}.sbsp{flex:1}
 .sbver{padding:6px 12px 2px;font-size:11px;color:var(--muted);letter-spacing:.02em}
+.sbvr{display:flex;align-items:center;justify-content:space-between}
+.sbupd{border:0;background:none;box-shadow:none;padding:6px 12px 2px;font:inherit;font-size:11px;color:var(--muted);letter-spacing:.02em;cursor:pointer;white-space:nowrap}.sbupd:hover{color:var(--text);text-decoration:underline}.sbupd:disabled{cursor:default;text-decoration:none}
 body.dashboard #panel{left:190px}
 body.dashboard.rview #panel{display:none}
 body.dashboard.rview #rep{display:flex;flex-direction:column;position:absolute;top:34px;bottom:0;left:190px;right:0;font-size:13px}
@@ -288,7 +290,7 @@ body.dashboard .wbs{display:flex;flex:none}
 .sw input:disabled{cursor:wait}
 .cn{margin-top:12px;padding:10px 12px 12px;border:1px solid var(--line);border-radius:var(--rad-c)}
 .cnh{display:flex;align-items:center;gap:10px;margin-bottom:8px}.cnh img{width:22px;height:22px;flex:none}.cnh b{flex:1;font-size:14px}
-.cn.off input[type=text],.cn.off input[type=number]{opacity:.45}
+.cn.off input[type=text]{display:none}.cn.off input[type=number]{opacity:.45}
 .stat{flex-wrap:wrap}.stat .chip2{flex:1 1 40%}
 
 /* kirim chat dimatikan: kotak isi chat dan tombol kirim hilang; filter platform dan gembok tetap ada */

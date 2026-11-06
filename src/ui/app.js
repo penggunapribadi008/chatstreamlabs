@@ -510,6 +510,15 @@ $('hkapply').onclick=async()=>{const dups=Object.keys(hk).filter(a=>hk[a]&&Objec
   const r=await(await post('/hotkeys',{hotkeys:hk})).json();hkErr={};Object.keys(r).forEach(a=>{if(r[a]===false)hkErr[a]='Tidak bisa dipakai (sudah dipakai program lain)';});hkRender();};
 $('conn').onclick=()=>post('/connect',{youtube:$('yt').value,tiktok:$('tk').value,twitch:$('twu').value,kick:$('kku').value,kickRoom:$('kkroom').value});
 $('disc').onclick=()=>post('/disconnect');
+// tulisan Cek Update di sidebar (hanya Dashboard): cek update; kalau ada, main.js menampilkan pilihan Ignore / Remind Me Later / Update Now
+if(isDash){const ub=$('sbupd'),t0=ub.textContent;let ut=null;
+  const setU=(t,keep)=>{clearTimeout(ut);ub.textContent=t;if(!keep)ut=setTimeout(()=>{ub.textContent=t0;},3000);};
+  window.updProgress=p=>{ub.disabled=true;setU('Mengunduh '+p+'%',true);};window.updInstall=()=>{setU('Memasang…',true);};
+  ub.onclick=async()=>{if(ub.disabled)return;ub.disabled=true;setU('Mengecek…',true);
+    let st='error';try{st=(await(await post('/update-check')).json()).status||'error';}catch{}
+    ub.disabled=false;if(st==='installing')return;
+    setU({none:'Sudah terbaru',error:'Gagal cek',dev:'Mode pengembang',busy:'Sedang mengecek'}[st]||t0);};
+}
 $('sbot').onclick=()=>post('/settings',{view:'global',values:{botNames:$('botNames').value}});
 $('tplMng').onclick=()=>openC('templates');
 $('oe').onclick=()=>openC('ext');

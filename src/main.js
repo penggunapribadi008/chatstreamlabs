@@ -170,7 +170,8 @@ const setShp=(w,rs,skipSame)=>{const k=JSON.stringify(rs);if(skipSame&&shpC.get(
 //   Kedip dikurangi dengan setIgn/setShp yang tidak menyentuh jendela kalau tidak ada perubahan, bukan dengan menunda lubang.
 // Pengaturan: HOLE = ukuran lubang px (0 mematikan seluruh fitur; naikkan kalau klik kadang tidak tembus, turunkan kalau titiknya kelihatan),
 //   HOLE_WAIT = jumlah tick kursor harus diam sebelum lubang dibuat (0 = ikut terus; 2 = gaya v15.1.1, tanpa kedip tapi tembus-klik hanya saat kursor diam), HOLE_MS = jeda tick.
-const HOLE=3,HOLE_WAIT=0,HOLE_MS=16;
+// v15.1.3: HOLE_MS=0 = tanpa jeda buatan (setInterval 0 dibulatkan Node jadi ~1 ms, itu batas terkecilnya), supaya klik ke jendela di belakang dock langsung responsif.
+const HOLE=3,HOLE_WAIT=0,HOLE_MS=0;
 function carve(rects,cx,cy){
   const hx1=cx,hy1=cy,hx2=cx+HOLE,hy2=cy+HOLE,out=[];
   for(const q of rects){
@@ -293,7 +294,7 @@ async function askQuit(){
   if(quitting||asking)return;asking=true;
   try{
     const parent=(dash&&!dash.isDestroyed()&&dash.isVisible())?dash:undefined;
-    const r=await dialog.showMessageBox(parent,{type:'question',buttons:['Keluar','Batal'],defaultId:1,cancelId:1,noLink:true,title:'Keluar',message:'Keluar dari ChatStream Labs?',detail:'Koneksi ke live YouTube dan TikTok akan terputus, dan overlay di OBS berhenti menampilkan chat.'});
+    const r=await dialog.showMessageBox(parent,{type:'question',buttons:['Keluar','Batal'],defaultId:1,cancelId:1,noLink:true,title:'Keluar',message:'Keluar dari ChatStream Labs?'});
     if(r.response===0){quitting=true;app.quit();}
   }finally{asking=false;}
 }
@@ -374,30 +375,47 @@ function suspendDash(w){
   w.__susp=true;
   try{w.webContents.loadURL('about:blank').catch(()=>{});}catch{}
 }
-// ===== cek update otomatis (electron-updater + GitHub Releases) =====
+// ===== cek update (electron-updater + GitHub Releases) =====
 // Hanya di aplikasi yang sudah terpasang (app.isPackaged); saat `npm start` dilewati. Alurnya:
-//   cek latest.yml di Releases -> ada versi lebih baru? -> unduh (bar splash naik) -> pasang senyap -> aplikasi mulai ulang sendiri.
+//   cek latest.yml di Releases -> ada versi lebih baru? -> tanya pengguna: Ignore / Remind Me Later / Update Now
+//   Update Now -> unduh (bar splash naik; kalau dari tombol Cek Update di sidebar, persennya tampil di tombol itu) -> pasang senyap -> aplikasi mulai ulang sendiri.
+//   Ignore = versi itu tidak ditanyakan lagi saat aplikasi dibuka (tombol Cek Update tetap menanyakannya). Remind Me Later = ditanya lagi saat aplikasi dibuka berikutnya.
 // Gagal apa pun (offline, Releases kosong, repositori private, timeout 10 dtk) hanya dicatat di log.txt dan aplikasi lanjut seperti biasa.
-// Mengembalikan 'installing' kalau pemasang sedang berjalan (aplikasi akan keluar), selain itu 'none'.
-async function checkUpdates(spRun){
-  if(!app.isPackaged)return 'none';
-  let au;try{au=require('electron-updater').autoUpdater;}catch(e){log('update: electron-updater tidak ditemukan ('+(e&&e.message||e)+')');return 'none';}
+// manual=true: dipanggil dari tombol Cek Update. Mengembalikan 'installing' (pemasang berjalan, aplikasi akan keluar), 'none' (sudah terbaru),
+// 'later' / 'ignored' (pilihan pengguna), 'error' (gagal cek), 'dev' (bukan aplikasi terpasang). Saat bukan manual, selain 'installing' semuanya setara 'lanjut'.
+let updBusy=false;
+async function checkUpdates(spRun,manual){
+  if(!app.isPackaged)return manual?'dev':'none';
+  if(updBusy)return manual?'busy':'none';
+  let au;try{au=require('electron-updater').autoUpdater;}catch(e){log('update: electron-updater tidak ditemukan ('+(e&&e.message||e)+')');return manual?'error':'none';}
+  updBusy=true;
   try{
     au.autoDownload=false;au.autoInstallOnAppQuit=false;au.allowPrerelease=false;
     au.logger={info:m=>log('update: '+m),warn:m=>log('update: '+m),error:m=>log('update: '+m),debug(){}};
     const r=await Promise.race([au.checkForUpdates(),new Promise((_,no)=>setTimeout(()=>no(new Error('cek update lebih dari 10 detik')),10000))]);
     if(!r||!r.isUpdateAvailable){log('update: sudah versi terbaru ('+app.getVersion()+')');return 'none';}
-    log('update: versi baru '+((r.updateInfo&&r.updateInfo.version)||'?')+' ditemukan, mengunduh');
-    au.on('download-progress',p=>spRun('window.updProgress&&window.updProgress('+Math.round(p.percent||0)+')'));
+    const nv=String((r.updateInfo&&r.updateInfo.version)||'');
+    log('update: versi baru '+(nv||'?')+' ditemukan');
+    if(!manual&&nv&&nv===String(readJ(BF).skipUpdate||'')){log('update: versi '+nv+' diabaikan pengguna, dilewati');return 'none';}
+    const parent=manual?((dash&&!dash.isDestroyed())?dash:undefined):((splashWin&&!splashWin.isDestroyed())?splashWin:undefined);
+    const ans=await dialog.showMessageBox(parent,{type:'question',buttons:['Ignore','Remind Me Later','Update Now'],defaultId:2,cancelId:1,noLink:true,title:'Update',message:'Versi baru '+(nv?'v'+nv+' ':'')+'tersedia',detail:'Kamu memakai v'+app.getVersion()+'.'});
+    if(ans.response===0){if(nv)saveB({skipUpdate:nv});log('update: Ignore (versi '+(nv||'?')+')');return 'ignored';}
+    if(ans.response!==2){log('update: Remind Me Later');return 'later';}
+    log('update: Update Now, mengunduh');
+    const onP=p=>spRun('window.updProgress&&window.updProgress('+Math.round(p.percent||0)+')');
+    au.on('download-progress',onP);
     await spRun('window.updProgress&&window.updProgress(0)');
-    await au.downloadUpdate();
+    try{await au.downloadUpdate();}finally{au.removeListener('download-progress',onP);}
     await spRun('window.updInstall&&window.updInstall()');
     await sleep(900);
     quitting=true;try{if(splashWin&&!splashWin.isDestroyed())splashWin.setClosable(true);}catch{}
     au.quitAndInstall(true,true); // senyap + jalankan lagi setelah terpasang
     return 'installing';
-  }catch(e){log('update: gagal ('+(e&&e.message||e)+'), lanjut tanpa update');return 'none';}
+  }catch(e){log('update: gagal ('+(e&&e.message||e)+'), lanjut tanpa update');return manual?'error':'none';}
+  finally{updBusy=false;}
 }
+// tombol Cek Update di sidebar Dashboard: hasil dikirim balik ke halaman Dashboard lewat server (/update-check)
+const dashRun=async js=>{try{if(dash&&!dash.isDestroyed())return await dash.webContents.executeJavaScript(js);}catch{}};
 // splash: cek update -> menyambungkan; ditutup setelah Dashboard siap. Dashboard (dan semua jendela lain) baru boleh tampil SETELAH splash ditutup (appReady).
 function startUp(){
   const t0=Date.now();let finished=false;
@@ -691,6 +709,7 @@ const hooks={
   galert:galertPush,
   global:g=>{ctrlPos=(g&&g.ctrlPos)||'top-right';applyLockedInput();docks.forEach(D=>D.layout&&D.layout());posAllCtl();donSync();},
   donate:(act,id)=>donateAct(act,id),
+  checkUpdate:()=>checkUpdates(dashRun,true),
   dashState
 };
 app.whenReady().then(()=>{
