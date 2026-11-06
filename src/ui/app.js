@@ -76,7 +76,7 @@ if(view==='dock'&&!isPrev&&!isAdmin&&$('weye')){
   $('wlock').onclick=()=>post('/lock',{on:true});
   $('weye').onclick=async()=>{await post('/protect-toggle');eyeW();};
   const eyeW=async()=>{try{const r=await(await fetch('/state')).json();document.documentElement.classList.toggle('prot',!!r.protect);$('weye').title=r.protect?'Tersembunyi dari OBS (klik untuk menampilkan)':'Terlihat di OBS (klik untuk menyembunyikan)';}catch{}};
-  eyeW();setInterval(eyeW,1500);
+  eyeW();setInterval(()=>{if(!document.hidden)eyeW();},4000);
 }
 const detectStruct=css=>/data-color\s*=|data-mode\s*=/.test(css||'')?'cozy':/\.p5-msg/.test(css||'')?'p5':(/\.badge\b/.test(css||'')&&/\.p-(yt|tt)\b/.test(css||''))?'rv':'std';
 const customs=()=>((S.global&&S.global.templates)||[]);
@@ -355,10 +355,10 @@ if(isStatic){
 if(isLocked&&!isAdmin){
   // Hanya kotak yang benar-benar terlihat (tiap gelembung chat, dan tiap kotak YouTube / TikTok / Total) yang menerima klik.
   // Ruang kosong di antara kotak tidak masuk daftar, jadi klik menembus ke jendela di belakangnya.
-  let st=null;const send=()=>{const rs=[];[['#msgs>*',8],['#top>*',1]].forEach(([sel,pad])=>document.querySelectorAll(sel).forEach(e=>{const r=e.getBoundingClientRect();if(r.width>0&&r.height>0)rs.push({x:r.left-pad,y:r.top-pad,width:r.width+pad*2,height:r.height+pad*2});}));post('/shape',{rects:rs});};
+  let st=null,lastSg='';const send=()=>{const rs=[];[['#msgs>*',8],['#top>*',1]].forEach(([sel,pad])=>document.querySelectorAll(sel).forEach(e=>{const r=e.getBoundingClientRect();if(r.width>0&&r.height>0)rs.push({x:r.left-pad,y:r.top-pad,width:r.width+pad*2,height:r.height+pad*2});}));const sg=JSON.stringify(rs);if(sg===lastSg)return;lastSg=sg;post('/shape',{rects:rs});};
   const q=()=>{if(st)return;st=setTimeout(()=>{st=null;send();},120);};
   [$('msgs'),$('top')].forEach(n=>new MutationObserver(q).observe(n,{childList:true,subtree:true,characterData:true}));
-  addEventListener('resize',q);addEventListener('animationend',q);setInterval(send,1500);setTimeout(send,300);
+  addEventListener('resize',q);addEventListener('animationend',q);setInterval(send,4000);setTimeout(send,300);
 }
 // ---- jendela alert hadiah TikTok: jendela kecil di LUAR jendela chat; main.js mengisinya lewat window.__ga dan membaca area kotaknya lewat window.__garects ----
 if(isGA){
@@ -378,7 +378,7 @@ if(isCtl){
     document.body.classList.toggle('prot',!!r.protect);document.documentElement.classList.toggle('prot',!!r.protect);$('eye').title=r.protect?'Tersembunyi dari OBS (klik untuk menampilkan)':'Terlihat di OBS (klik untuk menyembunyikan)';
     const d=isChat?r.chat:(r.docks&&r.docks[T]);if(d)lk=!!d.locked;
     document.body.classList.toggle('islocked',lk);$('unlock').title=lk?'Buka kunci':'Kunci jendela';}catch{}};
-  $('eye').onclick=async()=>{await post('/protect-toggle');eyeSt();};eyeSt();setInterval(eyeSt,700);
+  $('eye').onclick=async()=>{await post('/protect-toggle');eyeSt();};eyeSt();setInterval(()=>{if(!document.hidden)eyeSt();},2000);
 }
 // ---- pengaturan ----
 const T=(k,l,o)=>['sel',k,l,o],C=(k,l)=>['chk',k,l],K=(k,l)=>['col',k,l],R=(k,l,a,b,u)=>['sl',k,l,a,b,u||''];
@@ -549,7 +549,7 @@ $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textConte
   if(r.error){m.className='hint no';m.textContent='Gagal: '+r.error;}else{m.className='hint ok';m.textContent='Berhasil. Overlay sudah ada di scene OBS yang sedang aktif (nama sumber: ChatStream Overlay).';}};
 }
 function initSettings(){fill('dock');fill('overlay');fillGlobal();applyUi(cur('dock'));$('yt').value=conf.youtube||'';$('tk').value=conf.tiktok||'';$('twu').value=conf.twitch||'';$('kku').value=conf.kick||'';$('kkroom').value=conf.kickRoom||'';$('u2').value=location.origin+'/?view=overlay';showPort();syncPlats();
-  hk={...HK_DEF,...((S.global&&S.global.hotkeys)||{})};hkRender();setTab(isDash?'d':'k');acct();setInterval(acct,3000);if(isDash)initDash();
+  hk={...HK_DEF,...((S.global&&S.global.hotkeys)||{})};hkRender();setTab(isDash?'d':'k');acct();setInterval(()=>{if(!document.hidden)acct();},5000);if(isDash)initDash();
   addEventListener('beforeunload',()=>{fetch('/draft-clear',{method:'POST',body:'{}',keepalive:true});});}
 // ---- Dashboard: sidebar, halaman beranda, pratinjau kanan (Pribadi / Overlay), laporan ----
 const PVSRC={pvD:'/?view=dock&preview=1&static=1',pvO:'/?view=overlay&preview=1&static=1'};
@@ -640,7 +640,7 @@ async function dashPoll(){if(!isDash||document.hidden)return;try{dashSt=await(aw
 let dashInit=false;
 function initDash(){if(dashInit)return;dashInit=true;
   document.querySelectorAll('.sbi[data-t]').forEach(b=>b.onclick=()=>setTab(b.dataset.t));
-  initDnModal();dashPoll();setInterval(dashPoll,2000);
+  initDnModal();dashPoll();setInterval(()=>{if(!document.hidden)dashPoll();},2500);
   $('pvm_prev').onclick=pvAddOne;$('pvm_live').onclick=pvSendLive;
   // Dashboard disembunyikan (tray): pratinjau dibongkar supaya tidak memakan RAM/CPU, dimuat lagi saat dibuka
   document.addEventListener('visibilitychange',()=>pvLoadFrames(document.hidden?'':document.body.dataset.pv));

@@ -1,6 +1,8 @@
 const {app,BrowserWindow,WebContentsView,session,dialog,Menu,shell,Tray,globalShortcut,nativeImage,screen}=require('electron');
 const path=require('path'),fs=require('fs');
 const ICON=path.join(__dirname,'icon.png');
+// v15.1.4 hemat RAM: batasi heap JavaScript tiap proses tampilan (halaman ini ringan; batas ini hanya mencegah memori membengkak)
+try{app.commandLine.appendSwitch('js-flags','--max-old-space-size=256');}catch{}
 const gotLock=app.requestSingleInstanceLock();
 if(!gotLock)app.exit(0);
 try{
@@ -171,9 +173,12 @@ const setShp=(w,rs,skipSame)=>{const k=JSON.stringify(rs);if(skipSame&&shpC.get(
 // Pengaturan: HOLE = ukuran lubang px (0 mematikan seluruh fitur; naikkan kalau klik kadang tidak tembus, turunkan kalau titiknya kelihatan),
 //   HOLE_WAIT = jumlah tick kursor harus diam sebelum lubang dibuat (0 = ikut terus; 2 = gaya v15.1.1, tanpa kedip tapi tembus-klik hanya saat kursor diam), HOLE_MS = jeda tick.
 // v15.1.3: HOLE_MS=0 = tanpa jeda buatan (setInterval 0 dibulatkan Node jadi ~1 ms, itu batas terkecilnya), supaya klik ke jendela di belakang dock langsung responsif.
-const HOLE=3,HOLE_WAIT=0,HOLE_MS=0;
-function carve(rects,cx,cy){
-  const hx1=cx,hy1=cy,hx2=cx+HOLE,hy2=cy+HOLE,out=[];
+// v15.1.4: lubang dibuat lebih besar (HOLE x HOLE) dengan kursor di dalamnya (HOLE_BACK px dari sisi kiri/atas), dan BARU dipindah kalau kursor mendekati tepi lubang (histeresis).
+//   Sebelumnya lubang 3 px dipindah tiap kursor bergeser 1 px, jadi gerak pelan = setShape terus-menerus = kedip, dan kursor sering keluar dari lubang sedetik (ikon di belakang kehilangan hover = kedip).
+//   Polling adaptif: HOLE_MS (cepat) hanya saat kursor di atas jendela; di luar jendela HOLE_IDLE_MS (lambat). Tidak ada lagi setInterval 0 ms.
+const HOLE=6,HOLE_BACK=2,HOLE_WAIT=0,HOLE_MS=8,HOLE_IDLE_MS=60;
+function carve(rects,hx1,hy1){
+  const hx2=hx1+HOLE,hy2=hy1+HOLE,out=[];
   for(const q of rects){
     const x1=q.x,y1=q.y,x2=q.x+q.width,y2=q.y+q.height;
     if(hx2<=x1||hx1>=x2||hy2<=y1||hy1>=y2){out.push(q);continue;}
@@ -189,32 +194,28 @@ function carve(rects,cx,cy){
 function curIn(w){
   try{const c=screen.getCursorScreenPoint(),b=w.getContentBounds(),x=c.x-b.x,y=c.y-b.y;return(x>=0&&y>=0&&x<b.width&&y<b.height)?{x,y}:null;}catch{return null;}
 }
-let holeT=null,holeSig='',holeStill=0,holeCut=false;
+let holeT=null;
+const holeAt=new WeakMap(); // jendela -> {x,y} pojok kiri-atas lubang yang sedang terpasang, atau tidak ada
 const inAny=(rs,c)=>!!c&&(rs||[]).some(q=>c.x>=q.x&&c.x<q.x+q.width&&c.y>=q.y&&c.y<q.y+q.height);
-function holeStop(){if(holeT){clearInterval(holeT);holeT=null;}holeSig='';holeStill=0;holeCut=false;}
-function holeTick(){
-  const chatOn=locked&&protect&&main&&!main.isDestroyed(),dockOn=protect&&[...docks.values()].some(D=>D.locked&&donOpen(D));
-  if(!HOLE||(!chatOn&&!dockOn)){holeStop();return;}
-  // sig = posisi kursor kalau sedang di atas area gelembung (kosong kalau di luar)
-  let sig='';
-  if(chatOn){const c=curIn(main);if(inAny(lastRects,c))sig+='c'+c.x+','+c.y+';';}
-  if(dockOn)docks.forEach(D=>{if(D.locked&&donOpen(D)){const c=curIn(D.win);if(inAny(D.rects,c))sig+=D.id+c.x+','+c.y+';';}});
-  const reshape=()=>{if(chatOn)applyLockedInput(true);if(dockOn)docks.forEach(D=>applyDockInput(D,true));};
-  if(sig!==holeSig){ // kursor bergerak / masuk / keluar area
-    holeSig=sig;holeStill=0;
-    if(HOLE_WAIT<=0){ // ikut kursor: lubang dipindah ke posisi baru; di luar area lubang dihapus sekali
-      const want=!!sig;
-      if(want||holeCut){holeCut=want;reshape();}
-      return;
-    }
-    if(holeCut){holeCut=false;reshape();} // gaya menunggu: hapus lubang sekali, lalu tunggu kursor diam
-    return;
-  }
-  if(!sig||holeCut)return;      // di luar area, atau lubang sudah ada
-  if(++holeStill<HOLE_WAIT)return; // tunggu kursor benar-benar diam
-  holeCut=true;reshape();
+// posisi lubang untuk kursor c: tetap di tempat selama kursor masih di zona aman di dalam lubang lama; pindah hanya kalau kursor mendekati tepi
+function holeFor(w,c,on){
+  const cur=holeAt.get(w);
+  if(!on){if(cur){holeAt.delete(w);return true;}return false;} // keluar dari area: hapus lubang sekali
+  if(cur&&c.x>=cur.x+1&&c.x<cur.x+HOLE-1&&c.y>=cur.y+1&&c.y<cur.y+HOLE-1)return false; // masih aman: jangan sentuh bentuk jendela
+  holeAt.set(w,{x:c.x-HOLE_BACK,y:c.y-HOLE_BACK});return true;
 }
-function holeStart(){if(HOLE&&!holeT)holeT=setInterval(holeTick,HOLE_MS);}
+function holeStop(){if(holeT){clearTimeout(holeT);holeT=null;}}
+function holeTick(){
+  holeT=null;
+  const chatOn=locked&&protect&&main&&!main.isDestroyed(),dockOn=protect&&[...docks.values()].some(D=>D.locked&&donOpen(D));
+  if(!HOLE||(!chatOn&&!dockOn))return; // tidak perlu polling sama sekali (dimulai lagi lewat holeStart)
+  let changed=false,near=false;
+  if(chatOn){const c=curIn(main);if(c)near=true;if(holeFor(main,c,inAny(lastRects,c)))changed=true;}
+  docks.forEach(D=>{if(D.locked&&donOpen(D)){const c=curIn(D.win);if(c)near=true;if(holeFor(D.win,c,inAny(D.rects,c))){changed=true;applyDockInput(D,true);}}});
+  if(changed&&chatOn)applyLockedInput(true);
+  holeT=setTimeout(holeTick,near?HOLE_MS:HOLE_IDLE_MS); // cepat hanya saat kursor di atas jendela; selain itu hemat CPU
+}
+function holeStart(){if(HOLE&&!holeT)holeT=setTimeout(holeTick,HOLE_MS);}
 function applyLockedInput(light){ // light=true: hanya dipanggil dari holeTick, tidak mengulang setIgn / holeStart (mengurangi kedip)
   if(!locked||!main||main.isDestroyed())return;
   try{
@@ -222,11 +223,11 @@ function applyLockedInput(light){ // light=true: hanya dipanggil dari holeTick, 
     if(protect){
       if(!light)setIgn(main,false);
       const r=(lastRects||[]).map(q=>({x:Math.max(0,Math.round(q.x)),y:Math.max(0,Math.round(q.y)),width:Math.max(1,Math.round(q.width)),height:Math.max(1,Math.round(q.height))}));
-      const cp=(HOLE&&holeCut)?curIn(main):null,rr=cp?carve(r,cp.x,cp.y):r;
-      setShp(main,rr.length?rr:[{x:0,y:0,width:1,height:1}],light); // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
+      const hp=HOLE?holeAt.get(main):null,rr=hp?carve(r,hp.x,hp.y):r;
+      setShp(main,rr.length?rr:[{x:0,y:0,width:1,height:1}],true); // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
       if(!light)holeStart();
     }else{
-      setShp(main,[{x:0,y:0,width:b.width,height:b.height}]);
+      setShp(main,[{x:0,y:0,width:b.width,height:b.height}],true);
       setIgn(main,true);
     }
   }catch{}
@@ -480,8 +481,8 @@ function applyDockInput(D,light){
   if(!D||!D.locked||!donOpen(D))return;
   try{
     const b=D.win.getBounds();
-    if(protect){if(!light)setIgn(D.win,false);const cp=(HOLE&&holeCut)?curIn(D.win):null,rr=cp?carve(D.rects||[],cp.x,cp.y):(D.rects||[]);setShp(D.win,rr.length?rr:[{x:0,y:0,width:1,height:1}],light);if(!light)holeStart();} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
-    else{setShp(D.win,[{x:0,y:0,width:b.width,height:b.height}]);setIgn(D.win,true);}
+    if(protect){if(!light)setIgn(D.win,false);const hp=HOLE?holeAt.get(D.win):null,rr=hp?carve(D.rects||[],hp.x,hp.y):(D.rects||[]);setShp(D.win,rr.length?rr:[{x:0,y:0,width:1,height:1}],true);if(!light)holeStart();} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
+    else{setShp(D.win,[{x:0,y:0,width:b.width,height:b.height}],true);setIgn(D.win,true);}
   }catch{}
 }
 function applyDonateInput(){docks.forEach(applyDockInput);}
@@ -616,7 +617,7 @@ function makeDock(id,L){
   showWin(w,!!L);
   if(L){
     [0,300,1200].forEach(t=>setTimeout(()=>{if(docks.get(id)===D)applyDockInput(D);},t));
-    D.scanT=setInterval(()=>dockScan(D),700);
+    D.scanT=setInterval(()=>dockScan(D),1500);
   }
   donGo(D);
   if(old&&!old.win.isDestroyed()){try{old.view.webContents.setAudioMuted(true);}catch{}old.win.destroy();}

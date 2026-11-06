@@ -276,3 +276,12 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
   `HOLE_WAIT=2` mengembalikan gaya v15.1.1 (tanpa kedip, tembus-klik hanya saat kursor diam). Batas yang tidak bisa dihilangkan selama "Sembunyikan dari OBS" aktif: jendela tidak boleh tembus-klik penuh, jadi lubang selalu tertinggal satu tick dari kursor; klik yang bersamaan dengan gerakan kursor sangat cepat bisa tertangkap gelembung, dan lubang kecil di ujung kursor bisa terlihat sedikit.
   Tembus-klik yang sempurna hanya didapat kalau "Sembunyikan dari OBS" dimatikan (jendela tembus-klik penuh). **Belum teruji di Windows.**
 
+
+## 16. Kedip di kotak penonton + hemat CPU/RAM (v15.1.4)
+- **Laporan**: mode gembok + Sembunyikan dari OBS, kursor digerakkan pelan di atas kotak (mis. "Total penonton") = kotak/ikon di belakangnya berkedip.
+  Penyebab (dari kode, belum diuji di Windows): lubang 3 px dipindah tiap kursor bergeser 1 px (`setShape` terus-menerus) dan kursor sering sempat keluar dari lubang (ikon di belakang kehilangan hover);
+  `applyLockedInput(false)` juga memanggil `setShape` yang sama tiap 1,5 dtk (`/shape` dari halaman) karena `skipSame` tidak aktif.
+- **Perbaikan**: lubang `HOLE`=6 px dengan kursor `HOLE_BACK`=2 px dari sisi kiri/atas (`holeFor`); lubang hanya dipindah kalau kursor mendekati tepinya (histeresis). `setShp` selalu `skipSame=true`.
+  Polling `holeTick` adaptif (`setTimeout`, bukan `setInterval 0`): `HOLE_MS`=8 ms saat kursor di atas jendela, `HOLE_IDLE_MS`=60 ms di luar. Halaman tidak mengirim `/shape` kalau daftar kotak tidak berubah.
+- **Hemat**: `dockScan` 700 -> 1500 ms; polling halaman (`eyeW`, `eyeSt`, `acct`, `dashPoll`) dilewati saat `document.hidden` dan dijarangkan; heap JS dibatasi `--max-old-space-size=256`.
+- Kalau lubang terasa terlihat/mengganggu turunkan `HOLE`; kalau klik kadang tidak tembus naikkan `HOLE`/`HOLE_BACK`. **Belum teruji di Windows.**
