@@ -95,6 +95,7 @@ hapus lalu "Pulihkan gaya bawaan" untuk mendapat versi terbaru.
 4. **`setContentProtection` (sembunyikan dari OBS) tidak bekerja pada jendela `WS_EX_LAYERED`**, dan `setIgnoreMouseEvents(true)`
    membuat jendela layered. Solusi: saat "Sembunyikan dari OBS" aktif, jendela terkunci TIDAK memakai `setIgnoreMouseEvents`; hanya
    area gelembung chat yang menerima klik (`setShape`, dilaporkan halaman lewat `POST /shape`). Jika tidak disembunyikan: tembus-klik penuh.
+   **Catatan v15.1.6**: klaim ini tidak terbukti. Electron sendiri menambahkan `WS_EX_LAYERED` waktu `setContentProtection(true)` dipasang (PR electron/electron#47856), jadi layered + proteksi seharusnya jalan. Sejak v15.1.6 jalur ini hanya dipakai kalau `PROTECT_PASSTHRU=false` (lihat bagian 18).
 5. **Jendela `transparent` tidak bisa di-resize di Windows** dan tidak bisa berubah dari/ke transparan setelah dibuat. Karena itu
    mode kunci = membuat jendela baru (`setLock` menutup yang lama lalu membuat yang baru). Pernah dicoba menukar tanpa kedip
    (buat tersembunyi dulu, tunggu `__ready`, baru tukar), tapi pengguna meminta kembali ke cara sederhana ini. Jangan ulangi tanpa diminta.
@@ -292,3 +293,10 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
 - **Perubahan**: `HOLE`=10, `HOLE_BACK`=4, konstanta baru `HOLE_EDGE`=2 (lubang dipindah saat kursor tinggal 2 px dari tepi, dulu 1 px). Hanya `src/main.js` yang berubah.
 - **Kompromi**: lubang lebih besar = sisi kiri/atas kursor lebih mungkin terlihat. Kalau titik terasa mengganggu, turunkan `HOLE` ke 8. Satu-satunya cara tanpa titik sama sekali: matikan "Sembunyikan dari OBS" (jendela tembus-klik penuh).
 - **Belum teruji di Windows** (sandbox tanpa Electron); hanya diperiksa sintaks dan versi (`node scripts/version.js check`).
+
+## 18. Tanpa dot: mode gembok + Sembunyikan dari OBS tembus-klik penuh (v15.1.6)
+- **Permintaan**: mode gembok + "Sembunyikan dari OBS" aktif harus berperilaku sama seperti keduanya tidak aktif: klik tembus ke belakang dock, tanpa dot/lubang di kursor.
+- **Perubahan** (hanya `src/main.js`): konstanta `PROTECT_PASSTHRU=true` dan helper `useHole()` (= `protect && !PROTECT_PASSTHRU`). Semua tempat yang dulu bercabang pada `protect` untuk input (jendela chat `applyLockedInput`, Donate Dock `applyDockInput`, `dockScan`, `holeTick`, jendela alert hadiah) sekarang bercabang pada `useHole()`.
+  Dengan `PROTECT_PASSTHRU=true`, jendela terkunci selalu `setShape` penuh + `setIgnoreMouseEvents(true)`, sementara `setContentProtection(protect)` tetap dipasang apa adanya. Lubang, `holeTick`, dan pemindaian area widget tidak jalan sama sekali.
+- **Dasar**: jebakan 4 (proteksi tidak jalan di jendela layered) tidak terbukti; Electron justru menambahkan `WS_EX_LAYERED` saat proteksi dipasang (PR #47856).
+- **BELUM DIUJI di Windows.** Risiko: kalau di Windows pengguna chat ternyata masih tertangkap OBS, set `PROTECT_PASSTHRU=false` untuk kembali ke cara lama (lubang + dot). Minta pengguna mengetes di OBS (Window Capture dan Display Capture) sebelum live.

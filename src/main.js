@@ -32,6 +32,12 @@ const readJ=f=>{try{return JSON.parse(fs.readFileSync(f,'utf8'));}catch{return{}
 const saveB=b=>{try{fs.writeFileSync(BF,JSON.stringify({...readJ(BF),...b}));}catch{}};
 const G=()=>readJ(SFILE).global||{};
 let protect=G().protect!==false,ctrlPos=G().ctrlPos||'top-right';
+// v15.1.6: PROTECT_PASSTHRU=true -> saat mode gembok + "Sembunyikan dari OBS" aktif, jendela TETAP tembus-klik penuh (setIgnoreMouseEvents(true), sama persis seperti saat OBS tidak disembunyikan).
+//   Tidak ada lagi lubang/dot di ujung kursor. Dasarnya: Electron sendiri menambahkan WS_EX_LAYERED saat setContentProtection(true) dipasang (electron/electron#47856),
+//   jadi jendela layered + proteksi seharusnya aman. BELUM DIUJI di Windows pengguna: setelah mengaktifkan, cek di OBS bahwa chat benar-benar tidak tertangkap.
+//   Kalau ternyata chat masih tertangkap OBS, set false untuk kembali ke cara lama (setShape + lubang di kursor).
+const PROTECT_PASSTHRU=true;
+const useHole=()=>protect&&!PROTECT_PASSTHRU; // true = pakai cara lama (jendela tidak tembus-klik, area klik lewat setShape + lubang)
 function prot(w){const f=()=>{try{if(w&&!w.isDestroyed())w.setContentProtection(protect);}catch{}};f();[150,600,2000].forEach(t=>setTimeout(f,t));}
 app.on('browser-window-created',(e,w)=>{prot(w);w.on('show',()=>prot(w));w.webContents.on('did-finish-load',()=>prot(w));});
 let srv=null,main=null,dash=null,splashWin=null,locked=false,switching=false,tray=null,dragT=null,quitting=false,asking=false;
@@ -115,7 +121,7 @@ function attachAlert(w,L){
     if(!alive()||!c.isVisible())return;
     run('window.__garects?window.__garects():[]').then(rs=>{
       if(!alive())return;
-      if(protect){c.setIgnoreMouseEvents(false);c.setShape(Array.isArray(rs)&&rs.length?rs:[{x:0,y:0,width:1,height:1}]);}
+      if(useHole()){c.setIgnoreMouseEvents(false);c.setShape(Array.isArray(rs)&&rs.length?rs:[{x:0,y:0,width:1,height:1}]);}
       else{c.setShape([{x:0,y:0,width:GAW,height:GAH}]);c.setIgnoreMouseEvents(true);}
     }).catch(()=>{});
   };
@@ -210,7 +216,7 @@ function holeFor(w,c,on){
 function holeStop(){if(holeT){clearTimeout(holeT);holeT=null;}}
 function holeTick(){
   holeT=null;
-  const chatOn=locked&&protect&&main&&!main.isDestroyed(),dockOn=protect&&[...docks.values()].some(D=>D.locked&&donOpen(D));
+  const chatOn=locked&&useHole()&&main&&!main.isDestroyed(),dockOn=useHole()&&[...docks.values()].some(D=>D.locked&&donOpen(D));
   if(!HOLE||(!chatOn&&!dockOn))return; // tidak perlu polling sama sekali (dimulai lagi lewat holeStart)
   let changed=false,near=false;
   if(chatOn){const c=curIn(main);if(c)near=true;if(holeFor(main,c,inAny(lastRects,c)))changed=true;}
@@ -223,7 +229,7 @@ function applyLockedInput(light){ // light=true: hanya dipanggil dari holeTick, 
   if(!locked||!main||main.isDestroyed())return;
   try{
     const b=main.getBounds();
-    if(protect){
+    if(useHole()){
       if(!light)setIgn(main,false);
       const r=(lastRects||[]).map(q=>({x:Math.max(0,Math.round(q.x)),y:Math.max(0,Math.round(q.y)),width:Math.max(1,Math.round(q.width)),height:Math.max(1,Math.round(q.height))}));
       const hp=HOLE?holeAt.get(main):null,rr=hp?carve(r,hp.x,hp.y):r;
@@ -484,7 +490,7 @@ function applyDockInput(D,light){
   if(!D||!D.locked||!donOpen(D))return;
   try{
     const b=D.win.getBounds();
-    if(protect){if(!light)setIgn(D.win,false);const hp=HOLE?holeAt.get(D.win):null,rr=hp?carve(D.rects||[],hp.x,hp.y):(D.rects||[]);setShp(D.win,rr.length?rr:[{x:0,y:0,width:1,height:1}],true);if(!light)holeStart();} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
+    if(useHole()){if(!light)setIgn(D.win,false);const hp=HOLE?holeAt.get(D.win):null,rr=hp?carve(D.rects||[],hp.x,hp.y):(D.rects||[]);setShp(D.win,rr.length?rr:[{x:0,y:0,width:1,height:1}],true);if(!light)holeStart();} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
     else{setShp(D.win,[{x:0,y:0,width:b.width,height:b.height}],true);setIgn(D.win,true);}
   }catch{}
 }
@@ -520,7 +526,7 @@ function scanFn(){
   return out.slice(0,400);
 }
 async function dockScan(D){
-  if(!D.locked||!protect||!donOpen(D)||!D.view||D.view.webContents.isDestroyed())return;
+  if(!D.locked||!useHole()||!donOpen(D)||!D.view||D.view.webContents.isDestroyed())return;
   let a;try{a=await D.view.webContents.executeJavaScript('('+scanFn.toString()+')()');}catch{return;}
   if(!Array.isArray(a)||!donOpen(D))return;
   const z=D.zoom||1,[cw,ch]=D.win.getContentSize();
