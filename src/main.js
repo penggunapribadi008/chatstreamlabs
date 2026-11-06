@@ -156,16 +156,21 @@ function dragOn(on){
 // Jendela transparan yang tembus-klik (setIgnoreMouseEvents) tidak bisa disembunyikan Windows dari tangkapan layar.
 // Jadi saat "Sembunyikan dari OBS" aktif, jendela tidak dibuat tembus-klik; hanya area gelembung chat yang menerima klik
 // (setShape), sisanya diteruskan ke game. Saat tidak disembunyikan, jendela tembus-klik penuh.
-const setIgn=(w,on)=>{try{if(w&&!w.isDestroyed())w.setIgnoreMouseEvents(!!on);}catch{}};
+// v15.1.2: setIgn / setShp hanya menyentuh jendela kalau nilainya benar-benar berubah. Di Windows, setIgnoreMouseEvents(false) mencabut gaya WS_EX_LAYERED jendela transparan;
+// kalau dipanggil berulang (tiap ketukan timer) itu menjadi penyebab utama kedip. setShp(..., true) juga melewati setShape yang bentuknya sama dengan yang terakhir.
+const ignC=new WeakMap(),shpC=new WeakMap();
+const setIgn=(w,on)=>{try{if(!w||w.isDestroyed())return;on=!!on;if(ignC.get(w)===on)return;w.setIgnoreMouseEvents(on);ignC.set(w,on);}catch{}};
+const setShp=(w,rs,skipSame)=>{const k=JSON.stringify(rs);if(skipSame&&shpC.get(w)===k)return;w.setShape(rs);shpC.set(w,k);};
 // ===== klik menembus gelembung chat (mode gembok + "Sembunyikan dari OBS") =====
 // Saat disembunyikan dari OBS jendela TIDAK tembus-klik (lihat atas), jadi area gelembung / kotak penonton menangkap klik dan game di belakangnya tidak kena.
-// Solusi: kalau kursor berhenti di atas salah satu area, dibuat lubang kecil (HOLE px) pada bentuk jendela (setShape), tepat di ujung kursor.
+// Solusi: kalau kursor ada di atas salah satu area, dibuat lubang kecil (HOLE px) pada bentuk jendela (setShape), tepat di ujung kursor.
 // Lubang itu tembus-klik dan tertutup gambar kursor, jadi klik jatuh ke jendela/game di belakangnya, sedangkan gelembung tetap terlihat dan tetap tersembunyi dari OBS.
-// v15.1.1: (1) lubang memanjang ke kanan-bawah dari titik kursor (bukan simetris), karena badan panah kursor ada di sisi itu, jadi tidak ada titik yang kelihatan;
-// (2) lubang TIDAK ikut bergerak: selama kursor bergerak bentuk jendela tidak disentuh sama sekali (tanpa kedip), lubang baru dibuat setelah kursor diam HOLE_WAIT tick
-// dan dihapus sekali lagi begitu kursor mulai bergerak.
-// Kalau mau mematikan perilaku ini: ubah HOLE ke 0.
-const HOLE=2,HOLE_WAIT=2,HOLE_MS=25;
+// v15.1.1: lubang memanjang ke kanan-bawah dari titik kursor (bukan simetris), karena badan panah kursor ada di sisi itu, jadi titiknya tertutup.
+// v15.1.2: lubang IKUT kursor terus (HOLE_WAIT=0), supaya klik tembus juga saat kursor sedang digerakkan. (v15.1.1 menunggu kursor diam dulu, dan itu terasa seperti fitur hilang.)
+//   Kedip dikurangi dengan setIgn/setShp yang tidak menyentuh jendela kalau tidak ada perubahan, bukan dengan menunda lubang.
+// Pengaturan: HOLE = ukuran lubang px (0 mematikan seluruh fitur; naikkan kalau klik kadang tidak tembus, turunkan kalau titiknya kelihatan),
+//   HOLE_WAIT = jumlah tick kursor harus diam sebelum lubang dibuat (0 = ikut terus; 2 = gaya v15.1.1, tanpa kedip tapi tembus-klik hanya saat kursor diam), HOLE_MS = jeda tick.
+const HOLE=3,HOLE_WAIT=0,HOLE_MS=16;
 function carve(rects,cx,cy){
   const hx1=cx,hy1=cy,hx2=cx+HOLE,hy2=cy+HOLE,out=[];
   for(const q of rects){
@@ -194,9 +199,14 @@ function holeTick(){
   if(chatOn){const c=curIn(main);if(inAny(lastRects,c))sig+='c'+c.x+','+c.y+';';}
   if(dockOn)docks.forEach(D=>{if(D.locked&&donOpen(D)){const c=curIn(D.win);if(inAny(D.rects,c))sig+=D.id+c.x+','+c.y+';';}});
   const reshape=()=>{if(chatOn)applyLockedInput(true);if(dockOn)docks.forEach(D=>applyDockInput(D,true));};
-  if(sig!==holeSig){ // kursor bergerak / masuk / keluar area: hapus lubang (kalau ada) sekali, selebihnya jangan sentuh bentuk jendela
+  if(sig!==holeSig){ // kursor bergerak / masuk / keluar area
     holeSig=sig;holeStill=0;
-    if(holeCut){holeCut=false;reshape();}
+    if(HOLE_WAIT<=0){ // ikut kursor: lubang dipindah ke posisi baru; di luar area lubang dihapus sekali
+      const want=!!sig;
+      if(want||holeCut){holeCut=want;reshape();}
+      return;
+    }
+    if(holeCut){holeCut=false;reshape();} // gaya menunggu: hapus lubang sekali, lalu tunggu kursor diam
     return;
   }
   if(!sig||holeCut)return;      // di luar area, atau lubang sudah ada
@@ -212,10 +222,10 @@ function applyLockedInput(light){ // light=true: hanya dipanggil dari holeTick, 
       if(!light)setIgn(main,false);
       const r=(lastRects||[]).map(q=>({x:Math.max(0,Math.round(q.x)),y:Math.max(0,Math.round(q.y)),width:Math.max(1,Math.round(q.width)),height:Math.max(1,Math.round(q.height))}));
       const cp=(HOLE&&holeCut)?curIn(main):null,rr=cp?carve(r,cp.x,cp.y):r;
-      main.setShape(rr.length?rr:[{x:0,y:0,width:1,height:1}]); // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
+      setShp(main,rr.length?rr:[{x:0,y:0,width:1,height:1}],light); // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
       if(!light)holeStart();
     }else{
-      main.setShape([{x:0,y:0,width:b.width,height:b.height}]);
+      setShp(main,[{x:0,y:0,width:b.width,height:b.height}]);
       setIgn(main,true);
     }
   }catch{}
@@ -452,8 +462,8 @@ function applyDockInput(D,light){
   if(!D||!D.locked||!donOpen(D))return;
   try{
     const b=D.win.getBounds();
-    if(protect){if(!light)setIgn(D.win,false);const cp=(HOLE&&holeCut)?curIn(D.win):null,rr=cp?carve(D.rects||[],cp.x,cp.y):(D.rects||[]);D.win.setShape(rr.length?rr:[{x:0,y:0,width:1,height:1}]);if(!light)holeStart();} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
-    else{D.win.setShape([{x:0,y:0,width:b.width,height:b.height}]);setIgn(D.win,true);}
+    if(protect){if(!light)setIgn(D.win,false);const cp=(HOLE&&holeCut)?curIn(D.win):null,rr=cp?carve(D.rects||[],cp.x,cp.y):(D.rects||[]);setShp(D.win,rr.length?rr:[{x:0,y:0,width:1,height:1}],light);if(!light)holeStart();} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
+    else{setShp(D.win,[{x:0,y:0,width:b.width,height:b.height}]);setIgn(D.win,true);}
   }catch{}
 }
 function applyDonateInput(){docks.forEach(applyDockInput);}

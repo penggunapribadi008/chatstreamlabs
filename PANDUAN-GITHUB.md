@@ -17,26 +17,26 @@ GitHub akan membangun installer Windows untukmu secara otomatis. Kamu hanya perl
 5. Buka tab **Actions**. Kalau ada tombol hijau untuk mengizinkan workflow, klik. Pilih **Build installer Windows** di sisi kiri,
    lalu klik **Run workflow** > **Run workflow**.
 6. Tunggu sekitar 5 sampai 10 menit sampai ada tanda centang hijau. Installer-nya berupa **satu file `.exe`** bernama
-   `chatstreamlab-v<versi>.exe` (versi mengikuti `package.json`), tanpa zip. Mulai v15.1.1, hasilnya **tidak otomatis masuk Releases**,
+   `chatstreamlab-v<versi>.exe` (versi mengikuti `package.json`), tanpa zip. Mulai v15.1.2, hasilnya **tidak otomatis masuk Releases**,
    jadi bisa kamu uji dulu: klik proses yang selesai, turun ke **Artifacts**, klik `chatstreamlab-v<versi>.exe` (langsung terunduh sebagai `.exe`).
    Kalau sudah yakin bagus, baru dirilis (lihat bagian "Menguji dulu, baru rilis" di bawah).
 
 ## Satu versi untuk semuanya
-Versi aplikasi cuma ada satu angka, misalnya `15.1.1`, dan harus sama di semua tempat:
-- Nama zip: `chatstream-labs v15.1.1.zip`
+Versi aplikasi cuma ada satu angka, misalnya `15.1.2`, dan harus sama di semua tempat:
+- Nama zip: `chatstream-labs v15.1.2.zip`
 - `package.json`, `package-lock.json`, dan `extension/manifest.json`
 - Tulisan versi di sidebar aplikasi (ikut otomatis dari `package.json` saat build)
-- Nama installer `chatstreamlab-v15.1.1.exe`, serta tag dan nama rilis `v15.1.1` di GitHub (ikut otomatis)
-- Pesan commit saat unggah ke GitHub: tulis `v15.1.1`
+- Nama installer `chatstreamlab-v15.1.2.exe`, serta tag dan nama rilis `v15.1.2` di GitHub (ikut otomatis)
+- Pesan commit saat unggah ke GitHub: tulis `v15.1.2`
 
-Mengganti versi: `node scripts/version.js set 15.1.2` (menyamakan tiga berkas di atas sekaligus). Kalau ada yang beda, `npm run build` dan workflow GitHub berhenti
+Mengganti versi: `node scripts/version.js set 15.1.3` (menyamakan tiga berkas di atas sekaligus). Kalau ada yang beda, `npm run build` dan workflow GitHub berhenti
 dengan pesan yang menunjuk berkas mana yang beda, jadi versi tidak mungkin berbeda-beda tanpa ketahuan.
 
 ## Menguji dulu, baru rilis
 - **Push biasa** (unggah/commit ke `main`) hanya membangun installer dan menaruhnya di **Actions > Artifacts**. Tidak ada Release, dan pengguna lama tidak menerima update.
 - Setelah installer diuji dan bagus, rilis dengan salah satu cara:
   1. **Actions > Build installer Windows > Run workflow**, centang **Rilis ke Releases**, lalu **Run workflow**; atau
-  2. buat tag sesuai versi: `git tag v15.1.1` lalu `git push origin v15.1.1` (workflow berhenti kalau nama tag beda dengan versi aplikasi).
+  2. buat tag sesuai versi: `git tag v15.1.2` lalu `git push origin v15.1.2` (workflow berhenti kalau nama tag beda dengan versi aplikasi).
 - Kalau hasil uji jelek, perbaiki lalu unggah lagi dengan versi berikutnya; tidak ada yang perlu ditarik dari Releases karena belum pernah dirilis.
 
 ## Cara alternatif: GitHub Desktop (lebih mudah untuk folder tersembunyi)
@@ -46,10 +46,10 @@ dengan pesan yang menunjuk berkas mana yang beda, jadi versi tidak mungkin berbe
 4. Lanjut ke langkah 5 di atas.
 
 ## Halaman Releases
-Halaman Releases dibuat oleh workflow **hanya saat kamu memintanya** (lihat "Menguji dulu, baru rilis"), dengan nama `v<versi>` (misalnya `v15.1.1`).
+Halaman Releases dibuat oleh workflow **hanya saat kamu memintanya** (lihat "Menguji dulu, baru rilis"), dengan nama `v<versi>` (misalnya `v15.1.2`).
 Untuk rilis baru, ganti versi lewat `node scripts/version.js set <versi>` sebelum commit; nama file dan nama rilis ikut berubah sendiri.
 Kalau versinya tidak dinaikkan, rilis dengan versi yang sama hanya diperbarui `.exe`-nya.
-Mau membuat rilis dengan tag sendiri juga bisa: `git tag v15.1.1` lalu `git push origin v15.1.1`.
+Mau membuat rilis dengan tag sendiri juga bisa: `git tag v15.1.2` lalu `git push origin v15.1.2`.
 
 ## Setelah installer jadi
 - Windows SmartScreen akan memberi peringatan karena aplikasi belum bertanda tangan digital. Klik **More info > Run anyway**.

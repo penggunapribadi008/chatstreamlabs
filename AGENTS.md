@@ -258,7 +258,7 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
 - **Klik tembus gelembung** (mode gembok + Sembunyikan dari OBS, jebakan 4): jendela tidak tembus-klik, jadi gelembung/kotak penonton menangkap klik. `holeTick` (30 ms) membuat lubang `HOLE`=3 px di `setShape` tepat di bawah kursor selama kursor ada di atas area gelembung (`carve`, juga untuk Donate Dock), sehingga klik jatuh ke game di belakang.
   Gambar kursor menutupi lubang. **Belum teruji di Windows**; kalau malah menimbulkan kedip/lag, set `HOLE=0` untuk mematikan (kembali ke perilaku lama). Klik yang terjadi sebelum lubang sempat pindah (kursor digerakkan sangat cepat) masih bisa tertangkap.
 
-## 15. Versi tunggal, rilis manual, dan lubang klik (v15.1.1)
+## 15. Versi tunggal, rilis manual, dan lubang klik (v15.1.1, v15.1.2)
 - **Aturan versi (WAJIB, permintaan pengguna)**: setiap update, versi harus SAMA di semua tempat: nama zip (`chatstream-labs v<versi>.zip`), `package.json`, `package-lock.json` (2 tempat), `extension/manifest.json`,
   tulisan versi di sidebar aplikasi, nama installer, tag/nama rilis GitHub, dan pesan commit (`v<versi>`). Jangan menulis versi manual di kode/UI: sidebar memakai `{{VERSION}}` di `src/ui/body.html` yang diganti `scripts/build.js` dari `package.json`.
   Ganti versi HANYA lewat `node scripts/version.js set <versi>`; `scripts/version.js check` dipanggil `npm run build` dan workflow, dan berhenti kalau ada yang beda. (Sebelum v15.1.1 sidebar tertulis v15.0.1, lock v15.0.0, ekstensi 1.2, padahal aplikasi 15.1.0.)
@@ -270,4 +270,9 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
   dan dihapus sekali begitu kursor mulai bergerak lagi (`holeCut`). `applyLockedInput(light)` / `applyDockInput(D,light)` dipanggil dari `holeTick` tanpa mengulang `setIgn`/`holeStart`.
   Akibat: klik yang datang kurang dari ±50-75 ms setelah kursor berhenti masih tertangkap gelembung. Di layar dengan skala Windows pecahan (125%/150%) lubang 2 px bisa meleset; kalau klik kadang tidak tembus, naikkan `HOLE` ke 3. `HOLE=0` mematikan seluruh fitur.
   **Belum teruji di Windows** (sandbox tanpa Electron); logika `holeTick` diuji dengan stub di Node.
+- **Revisi v15.1.2 (lubang klik-tembus)**: gaya v15.1.1 (lubang dibuat hanya setelah kursor diam) menghilangkan kedip tetapi pengguna menolaknya: klik tembus hilang selama kursor digerakkan, padahal maunya "seolah-olah tidak ada apa-apa di situ".
+  Sekarang lubang IKUT kursor terus (`HOLE_WAIT=0`, tick `HOLE_MS`=16 ms, `HOLE`=3 px ke kanan-bawah titik kursor). Kedip ditangani di sumbernya: dugaan kuat (dari perilaku `setIgnoreMouseEvents` di Windows, belum diuji) `setIgnoreMouseEvents(false)` mencabut `WS_EX_LAYERED` dan dulu dipanggil tiap tick.
+  Karena itu `setIgn` (cache per jendela) hanya menyentuh jendela kalau nilainya berubah, dan `setShp(w,rs,skipSame)` melewati `setShape` yang bentuknya sama (cache per jendela, kunci JSON). SEMUA perubahan ignore/shape jendela chat dan Donate Dock harus lewat dua helper itu, jangan memanggil `setIgnoreMouseEvents`/`setShape` langsung (jendela alert tetap langsung, terpisah).
+  `HOLE_WAIT=2` mengembalikan gaya v15.1.1 (tanpa kedip, tembus-klik hanya saat kursor diam). Batas yang tidak bisa dihilangkan selama "Sembunyikan dari OBS" aktif: jendela tidak boleh tembus-klik penuh, jadi lubang selalu tertinggal satu tick dari kursor; klik yang bersamaan dengan gerakan kursor sangat cepat bisa tertangkap gelembung, dan lubang kecil di ujung kursor bisa terlihat sedikit.
+  Tembus-klik yang sempurna hanya didapat kalau "Sembunyikan dari OBS" dimatikan (jendela tembus-klik penuh). **Belum teruji di Windows.**
 

@@ -7,7 +7,7 @@ name: Build installer Windows
 #   Actions > proses yang selesai > Artifacts (.exe langsung, tidak dibungkus zip).
 # Release (yang juga memicu auto-update ke semua pengguna) baru dibuat kalau KAMU sengaja memintanya:
 #   - Actions > Build installer Windows > Run workflow > centang "Rilis ke Releases", atau
-#   - push tag v<versi> (contoh: git tag v15.1.1 lalu git push origin v15.1.1).
+#   - push tag v<versi> (contoh: git tag v15.1.2 lalu git push origin v15.1.2).
 # Nama berkas diatur di package.json (build.nsis.artifactName). Versi dipegang satu tempat: package.json
 # (ganti lewat: node scripts/version.js set <versi>); workflow berhenti kalau ada tempat lain yang versinya beda.
 on:

@@ -1,6 +1,6 @@
 // Satu sumber versi untuk SEMUA tempat. Angka versi sebenarnya ada di package.json; skrip ini menyamakan sisanya dan memeriksa kalau ada yang beda.
 //   node scripts/version.js check            -> cek semua tempat sama dengan package.json (build & workflow memanggil ini)
-//   node scripts/version.js set 15.1.2       -> ganti versi di semua tempat sekaligus
+//   node scripts/version.js set 15.1.3       -> ganti versi di semua tempat sekaligus
 // Tempat yang disamakan: package.json, package-lock.json (2 tempat), extension/manifest.json.
 // Yang ikut otomatis: tulisan versi di sidebar aplikasi (disuntik saat build), nama installer (chatstreamlab-v<versi>.exe),
 // nama rilis/tag GitHub (v<versi>), dan versi auto-update. Nama zip dan pesan commit disamakan manual (lihat PANDUAN-GITHUB.md).
@@ -20,7 +20,7 @@ function check(quiet){
   return want;
 }
 function set(v){
-  if(!RE.test(v||'')){console.error('Pemakaian: node scripts/version.js set 15.1.2');process.exit(1);}
+  if(!RE.test(v||'')){console.error('Pemakaian: node scripts/version.js set 15.1.3');process.exit(1);}
   const pkg=rd('pkg');pkg.version=v;wr('pkg',pkg);
   const lock=rd('lock');lock.version=v;if(lock.packages&&lock.packages[''])lock.packages[''].version=v;wr('lock',lock);
   const man=rd('man');man.version=v;wr('man',man);
