@@ -1,85 +1,50 @@
 # ChatStream Labs
 
-**Pusat kendali live streaming untuk Windows.** ChatStream Labs menggabungkan chat dari beberapa platform live ke satu tempat, menampilkannya sebagai overlay di OBS, dan menyediakan dock melayang untuk chat serta widget donasi di atas game, semuanya dari satu aplikasi desktop.
+Satu aplikasi untuk streamer YouTube + TikTok + Twitch + Kick: gabungkan chat dua platform, tampilkan sebagai overlay di OBS dengan banyak gaya
+(bisa tambah CSS sendiri), lihat jumlah penonton, dan balas chat dari satu kolom. Dibuat dengan Electron.
 
+> Proyek ini dikembangkan bersama AI. Kalau kamu ingin melanjutkannya dengan AI-mu sendiri, minta AI itu membaca
+> **`AGENTS.md`** lebih dulu: isinya arsitektur, aturan, dan jebakan yang sudah pernah terjadi.
 
----
+## Fitur
+- Chat YouTube + TikTok + Twitch + Kick dalam satu jendela, filter platform, label BOT/MOD, notifikasi penonton bergabung, riwayat bisa di-scroll
+- Overlay OBS: gaya Default, Kartu, Persona 5, Neon, Retro, dan CSS buatan sendiri (tambah/edit/hapus, pratinjau langsung)
+- Pengaturan ukuran nama/chat, jarak, kiri/kanan, arah muncul, animasi masuk, latar chat
+- Tambah overlay ke OBS satu klik (lewat obs-websocket)
+- Mode kunci (tanpa bingkai, transparan, tembus-klik) + hotkey global yang bisa diatur
+- Sembunyikan jendela dari tangkapan layar OBS
+- Super Chat YouTube tampil menonjol (nominal + warna) di dock dan overlay
+- Kirim chat ke YouTube/TikTok lewat ekstensi Chrome
+- Enam tema tampilan aplikasi
+- Pengaturan per platform (Pribadi dan Overlay): TikTok (bergabung, hadiah, suka, ikuti, bagikan, langganan; masing-masing bisa diberi latar dan warna font) dan YouTube (Super Chat, Super Sticker, Member)
+- Twitch (Bits, subscribe, gift sub, raid, pengumuman, chatter baru, emote) dan Kick (Kicks, subscribe, gift sub, follow, raid, hadiah poin, emote), masing-masing punya halaman pengaturan di Pribadi dan Overlay (belum diuji dengan live sungguhan; kirim chat baru untuk YouTube dan TikTok)
+- Pratinjau overlay menampilkan pesan acak terus-menerus dari semua platform dan jenis aktivitas
+- Kotak Total penonton (penonton yang sedang menonton, bukan puncak) dan tombol Laporan penonton: grafik, puncak, rata-rata, chat, hadiah, Super Chat, riwayat sesi
+- Donate Dock: tempel URL widget donasi (alert dan media share, misalnya Saweria), lalu widget tampil di jendela sendiri di atas game. Ikut mode gembok (transparan, tembus klik, tidak mencuri fokus), posisi dan ukuran tersimpan, ada saklar bisu, hotkey (Ctrl+Alt+D) dan menu tray. Chrome tidak perlu dibuka. Belum diuji dengan widget asli
+- Kolom kirim chat bisa dimatikan: kotak isi chat dan tombol Kirim hilang, filter platform dan gembok tetap ada
 
-## Untuk siapa?
+## Membuat installer lewat GitHub (tanpa Node.js di komputermu)
+Baca **`PANDUAN-GITHUB.md`**: unggah kode ke repositori, jalankan workflow *Build installer Windows*, unduh installer-nya.
 
-Streamer yang live di **YouTube, TikTok, Twitch, dan Kick** (sendiri-sendiri atau bersamaan) dan ingin:
+## Menjalankan dari kode sumber
+Butuh Node.js 20+ dan Windows (untuk membuat installer).
+```bash
+npm install
+npm start        # mode pengembangan
+npm test         # tes asap
+npm run dist     # buat installer di folder dist/
+```
+Pertama kali jalan, buka **Pengaturan → Koneksi**, isi username YouTube (`@nama`) dan TikTok, lalu Sambungkan.
+Untuk kirim chat, pasang ekstensi dari folder `extension/` (Chrome → `chrome://extensions` → Developer mode → Load unpacked).
 
-- membaca semua chat di satu jendela, bukan berpindah-pindah tab,
-- menampilkan chat yang rapi dan bisa diatur gayanya di layar stream,
-- memasang widget donasi (alert / media share) di layar tanpa mengganggu game.
-
----
-
-## Fitur utama
-
-### Dashboard
-Halaman pertama yang terbuka setelah splash. Dari sini kamu bisa:
-
-- membuka, menutup, memuat ulang, dan mengunci **jendela chat** serta tiap **Donate Dock**,
-- mengatur koneksi tiap platform, tampilan, overlay, dan hotkey,
-- melihat status koneksi dan jumlah penonton,
-- membuka **Laporan penonton**.
-
-### Chat gabungan
-- Chat YouTube, TikTok, Twitch, dan Kick dalam satu jendela.
-- Filter per platform, label BOT/MOD, dan riwayat yang bisa di-scroll.
-- Notifikasi aktivitas: penonton bergabung, hadiah, Super Chat, subscribe, gift sub, raid, follow, dan lainnya, sesuai platform.
-- Super Chat YouTube tampil menonjol (nominal dan warna).
-- Kolom kirim chat (lewat ekstensi Chrome) yang bisa dimatikan.
-
-### Overlay OBS
-- Banyak gaya bawaan (Default, Kartu, Persona 5, Neon, Retro) dan **CSS buatan sendiri** dengan pratinjau langsung.
-- Pengaturan ukuran huruf, jarak, posisi kiri/kanan, arah muncul, animasi masuk, dan latar chat.
-- Pengaturan terpisah untuk tampilan pribadi dan overlay, serta per platform dan jenis aktivitas.
-- Tambah overlay ke OBS dengan satu klik (lewat obs-websocket).
-
-### Dock melayang: Chat dan Donate Dock
-- Jendela tanpa bingkai yang selalu bisa ditaruh di atas game.
-- **Mode gembok:** transparan, tembus klik, tidak mencuri fokus. Isi widget tidak bisa diklik saat terkunci.
-- **Kotak tombol terpisah di luar jendela** (mata, gembok, pindah, tutup), tanpa bingkai dan transparan rendah. Posisinya bisa diatur: atas atau bawah, kiri, tengah, atau kanan.
-- Posisi dan ukuran tersimpan.
-- Saat belum dikunci, dock berperilaku seperti jendela biasa, jadi Dashboard tetap bisa naik ke depan saat diklik.
-
-### Donate Dock
-- Tempel URL widget donasi (alert / media share, misalnya Saweria) dan widget tampil di jendelanya sendiri.
-- **Bisa lebih dari satu dock** (sampai 5), masing-masing dengan pengaturan sendiri: nama, opacity, bisukan suara, dan ukuran acuan.
-- Isi widget otomatis diskalakan mengikuti ukuran jendela.
-- Memuat ulang otomatis kalau halaman gagal dimuat.
-- Tidak butuh integrasi API; aplikasi hanya menampilkan halaman widget.
-
-### Sembunyikan dari OBS
-Jendela aplikasi (dock chat, Donate Dock, dan kotak tombolnya) bisa disembunyikan dari tangkapan layar OBS, jadi hanya kamu yang melihatnya. Saklarnya ada pada tombol **mata**.
-
-### Laporan penonton
-Grafik jumlah penonton, puncak, rata-rata, jumlah chat, hadiah, Super Chat, dan riwayat sesi.
-
-### Lainnya
-- **Hotkey global** yang bisa diatur (kunci, sembunyikan, OBS, scroll, bersihkan, filter, pengaturan, laporan, Donate Dock).
-- **Ikon tray**: akses cepat ke Dashboard, Chat, Donate Dock, kunci, laporan, dan keluar.
-- **Enam tema tampilan** aplikasi.
-- **Splash screen** saat aplikasi dibuka.
-- Pengaturan dan data tersimpan lokal.
-
----
-
-## Memulai
-
-1. Instal dan buka aplikasi.
-2. Di Dashboard, buka **Pengaturan → Koneksi**, isi username YouTube (`@nama`), TikTok, Twitch, atau Kick, lalu **Sambungkan**.
-3. Buka **Chat** dari Dashboard, atau tambahkan **Donate Dock** dengan tombol **+**.
-4. Tambahkan overlay ke OBS dari menu Overlay.
-5. Kunci jendela dengan tombol gembok (atau `Ctrl+Alt+L`) saat mulai bermain.
-
----
+## Struktur singkat
+`src/main.js` (Electron) · `src/server.js` (server lokal + konektor) · `src/ui/*` (tampilan) · `extension/` (ekstensi Chrome) ·
+`scripts/build.js` · `test/smoke.js` · `examples/` (contoh CSS gaya). Rinciannya ada di `AGENTS.md`.
 
 ## Catatan penting
-
-- Pengambilan chat YouTube dan TikTok **tidak resmi** dan bisa berhenti bekerja kapan saja; memakainya bisa melanggar ketentuan layanan platform. Pakai dengan risiko sendiri.
-- Dukungan Twitch dan Kick belum diuji dengan live sungguhan.
-- Aplikasi belum bertanda tangan digital, jadi Windows SmartScreen bisa memberi peringatan saat instal.
-- Hanya untuk Windows.
+- Cara mengambil chat YouTube/TikTok **tidak resmi** dan bisa berhenti bekerja kapan saja; memakainya bisa melanggar ketentuan layanan
+  platform. Pakai dengan risiko sendiri.
+- `tiktok-live-proto` (dipakai oleh `tiktok-live-connector`) berlisensi **AGPL-3.0**. Kalau kamu membagikan aplikasi hasil build,
+  baca ketentuannya dan sediakan kode sumbernya.
+- Belum ada lisensi untuk kode proyek ini sendiri. Pemiliknya perlu memilih lisensi sebelum dipublikasikan.
+- Aplikasi belum bertanda tangan digital, jadi Windows SmartScreen akan memberi peringatan saat instal.

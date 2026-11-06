@@ -77,6 +77,67 @@ function attachCtl(w,t,L){
   return c;
 }
 const posAllCtl=()=>{[main,...[...docks.values()].map(D=>D.win)].forEach(x=>{try{if(x&&!x.isDestroyed()&&x.__pos)x.__pos();}catch{}});};
+// ===== alert hadiah TikTok = jendela kecil transparan di LUAR jendela chat =====
+// Muncul di sebelah KIRI jendela chat; kalau kiri tidak muat (mepet ujung layar) pindah ke sebelah KANAN. Ikut bergerak bersama jendela chat.
+// Jendela ini hanya terlihat selama ada alert (beberapa detik), jadi tidak menghalangi klik / tangkapan layar di waktu lain.
+const GAW=320,GAH=230,GAM=6;
+function galertBounds(wb){
+  let side='left',x=wb.x-GAW-GAM,y=wb.y;
+  try{
+    const wa=screen.getDisplayMatching(wb).workArea;
+    if(x<wa.x){
+      side='right';x=wb.x+wb.width+GAM;
+      if(x+GAW>wa.x+wa.width){ // kanan pun tidak muat: pakai sisi yang lebih lega dan tetap di dalam layar
+        if(wb.x-wa.x>=wa.x+wa.width-(wb.x+wb.width)){side='left';x=wa.x;}else x=wa.x+wa.width-GAW;
+      }
+    }
+    y=Math.min(Math.max(y,wa.y),wa.y+wa.height-GAH);
+  }catch{}
+  return{x,y,side};
+}
+function attachAlert(w,L){
+  const c=new BrowserWindow({width:GAW,height:GAH,useContentSize:true,title:'ChatStream Labs - alert',icon:ICON,frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,resizable:false,maximizable:false,minimizable:false,fullscreenable:false,skipTaskbar:true,focusable:false,thickFrame:false,show:false,parent:w,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true,spellcheck:false}});
+  if(L)c.setAlwaysOnTop(true,'screen-saver');
+  const st={ok:false,q:[],side:'left',hideT:null,poll:null};
+  const alive=()=>!c.isDestroyed()&&!w.isDestroyed();
+  const run=js=>{try{return c.webContents.executeJavaScript(js);}catch{return Promise.resolve();}};
+  const sendSide=()=>{if(st.ok)run('window.__gaside&&window.__gaside('+JSON.stringify(st.side)+')').catch(()=>{});};
+  const pos=()=>{try{if(!alive())return;const r=galertBounds(w.getBounds()),b=c.getPosition();
+    if(b[0]!==r.x||b[1]!==r.y)c.setPosition(r.x,r.y,false);
+    if(r.side!==st.side){st.side=r.side;sendSide();}}catch{}};
+  // area yang menerima klik: "Sembunyikan dari OBS" aktif = hanya kotak alert (bentuk jendela); tidak aktif = tembus-klik penuh (lihat applyLockedInput)
+  const input=()=>{
+    if(!alive()||!c.isVisible())return;
+    run('window.__garects?window.__garects():[]').then(rs=>{
+      if(!alive())return;
+      if(protect){c.setIgnoreMouseEvents(false);c.setShape(Array.isArray(rs)&&rs.length?rs:[{x:0,y:0,width:1,height:1}]);}
+      else{c.setShape([{x:0,y:0,width:GAW,height:GAH}]);c.setIgnoreMouseEvents(true);}
+    }).catch(()=>{});
+  };
+  const stop=()=>{clearTimeout(st.hideT);clearInterval(st.poll);st.poll=null;try{if(!c.isDestroyed())c.hide();}catch{}};
+  const push=m=>{
+    if(!alive())return;
+    if(!st.ok){st.q.push(m);if(st.q.length>5)st.q.shift();return;}
+    pos();
+    try{c.showInactive();}catch{}
+    run('window.__ga&&window.__ga('+JSON.stringify(m)+')').catch(()=>{});
+    clearTimeout(st.hideT);st.hideT=setTimeout(stop,7500); // alert tampil 6 dtk + 0,45 dtk memudar
+    if(!st.poll)st.poll=setInterval(input,400);
+    setTimeout(input,60);
+  };
+  const prevPos=w.__pos;w.__pos=()=>{if(prevPos)prevPos();pos();};
+  w.__galert=push;pos();
+  const go=()=>{if(!c.isDestroyed())c.loadURL(base()+'/?view=galert');};
+  srvP.then(go);
+  c.webContents.on('did-fail-load',(e,code,d,u)=>{if(code!==-3&&u&&u.startsWith('http://localhost'))setTimeout(go,1000);});
+  c.webContents.on('did-finish-load',()=>{st.ok=true;sendSide();st.q.splice(0).forEach(push);});
+  w.on('move',pos);w.on('resize',pos);
+  w.on('hide',stop);w.on('minimize',stop);
+  w.on('closed',()=>{clearTimeout(st.hideT);clearInterval(st.poll);try{if(!c.isDestroyed())c.destroy();}catch{}});
+  return c;
+}
+// dipanggil server (POST /galert) tiap ada hadiah TikTok yang lolos pengaturan dock; hanya tampil kalau jendela chat sedang terlihat
+function galertPush(m){try{if(main&&!main.isDestroyed()&&main.__galert&&main.isVisible()&&!main.isMinimized())main.__galert(m);}catch{}}
 function dragOn(on){
   if(!on){if(dragT){clearInterval(dragT);dragT=null;if(!locked&&main&&!main.isDestroyed())saveB({outer:main.getBounds()});}return;}
   if(dragT||!main||main.isDestroyed())return;
@@ -121,7 +182,7 @@ function watchLoad(w,go,wc){ // wc = webContents yang dipantau (default: milik j
 function makeMain(bounds){
   const L=locked;
   const b=bounds||readJ(BF).outer||{};
-  const o={x:b.x,y:b.y,width:b.width||460,height:b.height||800,title:'ChatStream Labs',icon:ICON,minWidth:300,minHeight:300,show:false,webPreferences:{spellcheck:false}};
+  const o={x:b.x,y:b.y,width:b.width||460,height:b.height||800,title:'ChatStream Labs',icon:ICON,minWidth:300,minHeight:300,show:false,skipTaskbar:true,webPreferences:{spellcheck:false}};
   if(L)Object.assign(o,{frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,alwaysOnTop:true,resizable:false,skipTaskbar:true,focusable:false,thickFrame:false});
   else Object.assign(o,{frame:false,backgroundColor:themeBg()});
   const w=new BrowserWindow(o);
@@ -134,6 +195,7 @@ function makeMain(bounds){
   const fit=()=>{if(w.isDestroyed())return;const [cw,ch]=w.getContentSize();v.setBounds({x:0,y:0,width:cw,height:ch});};
   fit();w.on('resize',fit);
   attachCtl(w,'chat',L);
+  attachAlert(w,L);
   const go=()=>{if(!w.isDestroyed()&&!wc.isDestroyed())wc.loadURL(base()+'/?view=dock'+(L?'&locked=1':'')).catch(()=>{});};
   showWin(w,L);if(L)applyLockedInputSoon(w);else wc.loadURL(splash()).catch(()=>{});
   srvP.then(()=>{go();watchLoad(w,go,wc);});
@@ -522,6 +584,7 @@ const hooks={
   setHotkeys,
   winCtl,
   shape:rects=>{lastRects=rects;applyLockedInput();},
+  galert:galertPush,
   global:g=>{ctrlPos=(g&&g.ctrlPos)||'top-right';applyLockedInput();docks.forEach(D=>D.layout&&D.layout());posAllCtl();donSync();},
   donate:(act,id)=>donateAct(act,id),
   dashState

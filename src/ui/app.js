@@ -1,4 +1,4 @@
-const Q=new URLSearchParams(location.search),V=Q.get('view'),view=V==='overlay'?'overlay':'dock',isDash=V==='dashboard',isSet=V==='settings'||isDash,isTpl=V==='tpl',isAdd=V==='tpladd',isCtl=V==='ctl',isRep=V==='report',isDB=V==='donatebar',isAdmin=isSet||isTpl||isAdd||isCtl||isRep||isDB,isPrev=!!Q.get('preview'),isStatic=!!Q.get('static'),isLocked=!!Q.get('locked'),forceId=Q.get('force');
+const Q=new URLSearchParams(location.search),V=Q.get('view'),view=V==='overlay'?'overlay':'dock',isDash=V==='dashboard',isSet=V==='settings'||isDash,isTpl=V==='tpl',isAdd=V==='tpladd',isCtl=V==='ctl',isRep=V==='report',isDB=V==='donatebar',isGA=V==='galert',isAdmin=isSet||isTpl||isAdd||isCtl||isRep||isDB||isGA,isPrev=!!Q.get('preview'),isStatic=!!Q.get('static'),isLocked=!!Q.get('locked'),forceId=Q.get('force');
 const COMMON={fsName:16,fsText:16,gap:12,bg:90,max:300,fade:0,time:false,viewers:true,botTag:true,hideBots:false,preset:'polos',anim:'slide',order:'bottom',chatBg:false,chatBgColor:'#000000',chatBgOp:60};
 // registri platform: nama penuh -> huruf kelas (y/t/w/k), akhiran kelas (yt/tt/tw/kk), logo
 const PK={youtube:'y',tiktok:'t',twitch:'w',kick:'k'},PC={y:'yt',t:'tt',w:'tw',k:'kk'},PN={y:'youtube',t:'tiktok',w:'twitch',k:'kick'},PL={youtube:'/yt.png',tiktok:'/tt.png',twitch:'/tw.png',kick:'/kick.png'};
@@ -37,7 +37,7 @@ const copy=o=>JSON.parse(JSON.stringify(o));
 const post=(u,b)=>fetch(u,{method:'POST',body:JSON.stringify(b||{})});
 document.addEventListener('dragstart',e=>e.preventDefault());
 const wrap=$('msgs');
-const BASECLS=isDash?'settings dashboard':isSet?'settings':isTpl?'tplwin':isAdd?'addwin':isCtl?'ctlwin':isRep?'reportwin':isDB?'donatewin':'';
+const BASECLS=isDash?'settings dashboard':isSet?'settings':isTpl?'tplwin':isAdd?'addwin':isCtl?'ctlwin':isRep?'reportwin':isDB?'donatewin':isGA?'galertwin':'';
 const BOOTTH=[...document.body.classList].find(c=>c.startsWith('th-'))||'';
 if(BASECLS)document.body.className=BASECLS+(BOOTTH?' '+BOOTTH:'');
 let booting=true;
@@ -68,7 +68,7 @@ function chatColors(s,pid){
 }
 // ---- judul jendela tanpa bingkai ----
 const WHICH=isDash?'dash':isSet?'settings':isTpl?'tpl':isAdd?'tpladd':isRep?'report':isDB?'donate':'main';
-if(!isPrev&&!isCtl&&view==='dock'||isSet||isTpl||isAdd||isDB){
+if(!isPrev&&!isCtl&&!isGA&&view==='dock'||isSet||isTpl||isAdd||isDB){
   $('tbt').textContent=isDB?'Donate Dock':isRep?'Laporan penonton':isDash?'ChatStream Labs - Dashboard':isSet?'Pengaturan':isTpl?'Kelola gaya overlay':isAdd?'Gaya overlay':'ChatStream Labs';
   $('wmin').onclick=()=>post('/win',{which:WHICH,act:'min'});$('wclose').onclick=()=>post('/win',{which:WHICH,act:'close'});
 }
@@ -231,7 +231,11 @@ function styleMsg(d,m,s){
   if(m.member&&!s[mk+'Badge'])d.classList.add('nomem1');
   if(m.vip&&VIPK[m.p]&&!s[VIPK[m.p]])d.classList.add('novip1');
   if(m.hl&&s.twHl)d.classList.add('ishl');}
-// alert hadiah TikTok: strip sendiri di bawah kotak penonton, di atas chat (tidak menimpa chat) beberapa detik (gambar hadiah bisa beranimasi)
+// alert hadiah TikTok: muncul beberapa detik di jendela kecil terpisah di LUAR jendela chat (kiri; pindah ke kanan kalau kiri mepet ujung layar).
+// Halaman dock hanya meneruskan datanya (POST /galert -> main.js); yang menggambar adalah halaman ?view=galert (giftAlert di bawah).
+function galertSend(m){
+  if(Date.now()-(m.t||0)>8000)return;
+  post('/galert',{m:{name:m.name,gift:m.gift,n:m.n,img:m.img,t:m.t}}).catch(()=>{});}
 function giftAlert(m){
   if(Date.now()-(m.t||0)>8000)return;
   const box=$('galert');if(!box)return;
@@ -245,7 +249,7 @@ function addAct(m,re,s,stick){
   const A=ACT[m.p];if(!A||!s[A.pre+'Act']||!s[A.pre+cap(m.kind)])return;
   if(m.kind==='gift'&&(m.p==='tiktok'?(m.coins||0):(m.n||1))<(s[A.pre+'GiftMin']||0))return;
   if(!re&&view==='overlay'){msgsData.push(m);if(msgsData.length>80)msgsData.shift();}
-  if(view==='dock'&&m.p==='tiktok'&&m.kind==='gift')giftAlert(m);
+  if(view==='dock'&&!isPrev&&m.p==='tiktok'&&m.kind==='gift')galertSend(m);
   const d=actEl(m,s);put(d);trim();if(stick)toLatest();
   if(s.fade>0&&!isPrev&&!m.sample&&!re)setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),450);},s.fade*1000);}
 function add(m,re){
@@ -319,11 +323,12 @@ if(isStatic){
   addEventListener('message',e=>{const d=e.data||{};
     if(d.type==='cfg'){S=copy(d.settings);S.global=S.global||{};setEN(d.enabled);if(d.feed!=null)feedOn=!!d.feed;applyStyle();resample();}
     else if(d.type==='one'){if(!draftEmpty()){const m=pickScen();if(m)add({...m,t:Date.now(),sample:true});}}
+    else if(d.type==='add'&&d.m&&typeof d.m==='object'){if(!draftEmpty())add({...d.m,t:Date.now(),sample:true});}
     else if(d.type==='tpldraft'){draftTpl={css:d.css};applyStyle();resample();}});
   setTimeout(()=>{if(!wrap.children.length&&!feedT)resample();},1500);
   parent.postMessage({type:'ready'},'*');bootDone();
-}else if(isDB){
-  bootDone(); // bilah judul Donate Dock: halaman statis, tanpa SSE
+}else if(isDB||isGA){
+  bootDone(); // bilah judul Donate Dock / jendela alert hadiah: halaman statis, tanpa SSE
 }else if(!isCtl&&!isRep){
   if(isPrev)applyStyle();
   const es=new EventSource('/events');
@@ -350,10 +355,16 @@ if(isStatic){
 if(isLocked&&!isAdmin){
   // Hanya kotak yang benar-benar terlihat (tiap gelembung chat, dan tiap kotak YouTube / TikTok / Total) yang menerima klik.
   // Ruang kosong di antara kotak tidak masuk daftar, jadi klik menembus ke jendela di belakangnya.
-  let st=null;const send=()=>{const rs=[];[['#msgs>*',8],['#top>*',1],['#galert>*',1]].forEach(([sel,pad])=>document.querySelectorAll(sel).forEach(e=>{const r=e.getBoundingClientRect();if(r.width>0&&r.height>0)rs.push({x:r.left-pad,y:r.top-pad,width:r.width+pad*2,height:r.height+pad*2});}));post('/shape',{rects:rs});};
+  let st=null;const send=()=>{const rs=[];[['#msgs>*',8],['#top>*',1]].forEach(([sel,pad])=>document.querySelectorAll(sel).forEach(e=>{const r=e.getBoundingClientRect();if(r.width>0&&r.height>0)rs.push({x:r.left-pad,y:r.top-pad,width:r.width+pad*2,height:r.height+pad*2});}));post('/shape',{rects:rs});};
   const q=()=>{if(st)return;st=setTimeout(()=>{st=null;send();},120);};
-  [$('msgs'),$('top'),$('galert')].forEach(n=>new MutationObserver(q).observe(n,{childList:true,subtree:true,characterData:true}));
+  [$('msgs'),$('top')].forEach(n=>new MutationObserver(q).observe(n,{childList:true,subtree:true,characterData:true}));
   addEventListener('resize',q);addEventListener('animationend',q);setInterval(send,1500);setTimeout(send,300);
+}
+// ---- jendela alert hadiah TikTok: jendela kecil di LUAR jendela chat; main.js mengisinya lewat window.__ga dan membaca area kotaknya lewat window.__garects ----
+if(isGA){
+  window.__ga=giftAlert;
+  window.__gaside=s=>{document.body.dataset.side=s;};
+  window.__garects=()=>[...document.querySelectorAll('#galert>.ga')].map(e=>{const r=e.getBoundingClientRect();return{x:Math.max(0,Math.floor(r.left)-1),y:Math.max(0,Math.floor(r.top)-1),width:Math.ceil(r.width)+2,height:Math.ceil(r.height)+2};}).filter(r=>r.width>2&&r.height>2);
 }
 // ---- kotak tombol (mata, gembok, pindah, tutup): jendela kecil tanpa bingkai di LUAR jendela chat / Donate Dock ----
 if(isCtl){
@@ -539,9 +550,14 @@ let pvTarget='',repLoad=null;
 function pvLiveStop(){if(pvTarget){pvTarget='';post('/sample-clear').catch(()=>{});}}
 function pvUI(){const t=document.body.dataset.pv;if(t!=='p'&&t!=='o')return;$('pvm_live').textContent=t==='p'?'Kirim Chat ke Dock':'Kirim Chat ke Overlay';}
 // tombol "Kirim Chat Pratinjau": tambah satu chat acak ke pratinjau
-function pvAddOne(){const t=document.body.dataset.pv,f=$(t==='p'?'pvD':t==='o'?'pvO':'');if(f&&f.contentWindow&&f.getAttribute('src')===PVSRC[f.id])f.contentWindow.postMessage({type:'one'},'*');}
+const PV_N=10,PV_GAP=300; // sekali tekan = 10 chat contoh, muncul berurutan tiap 0,3 dtk
+function pvAddOne(){const t=document.body.dataset.pv;if(t!=='p'&&t!=='o')return;
+  pvBatch().forEach((m,i)=>setTimeout(()=>{if(document.body.dataset.pv!==t)return;const f=$(t==='p'?'pvD':'pvO');if(f&&f.contentWindow&&f.getAttribute('src')===PVSRC[f.id])f.contentWindow.postMessage({type:'add',m},'*');},i*PV_GAP));}
 // tombol "Kirim Chat ke Dock/Overlay": kirim satu chat acak ke sana
-function pvSendLive(){const t=document.body.dataset.pv;if(t!=='p'&&t!=='o')return;const target=t==='p'?'dock':'overlay',m=pickScen();if(m&&EN[m.p]!==false){pvTarget=target;post('/sample',{m:{...m},target}).catch(()=>{});}}
+// 10 chat dibuat sekaligus dan semuanya berbeda (nama, isi, jenis, hadiah tidak ada yang kembar), lalu dikirim berurutan; dipakai kedua tombol (pratinjau dan ke Dock / Overlay)
+function pvBatch(){const seen=new Set(),names=new Set(),out=[];for(let g=0;out.length<PV_N&&g<PV_N*10;g++){const m=pickScen();if(!m)break;const k=[m.p,m.kind,m.name,m.text,m.gift].join('|');if(seen.has(k)||(m.name&&names.has(m.name)))continue;seen.add(k);if(m.name)names.add(m.name);out.push(m);}return out;}
+function pvSendLive(){const t=document.body.dataset.pv;if(t!=='p'&&t!=='o')return;const target=t==='p'?'dock':'overlay';
+  pvBatch().forEach((m,i)=>setTimeout(()=>{if(document.body.dataset.pv!==t||EN[m.p]===false)return;pvTarget=target;post('/sample',{m:{...m},target}).catch(()=>{});},i*PV_GAP));}
 // hanya pratinjau tab yang sedang dibuka yang dimuat (hemat RAM); yang lain dikosongkan
 function pvLoadFrames(tab){const want=tab==='p'?'pvD':tab==='o'?'pvO':'';['pvD','pvO'].forEach(id=>{const f=$(id);if(!f)return;const cur=f.getAttribute('src');
   if(id===want){if(cur!==PVSRC[id])f.src=PVSRC[id];}else if(cur&&cur!=='about:blank')f.src='about:blank';});}

@@ -87,6 +87,10 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/sample')return body(({m,target})=>{if(!m||typeof m!=='object'||!PF4.includes(m.p)||!isEn(m.p)||(target!=='dock'&&target!=='overlay'))return;
       emit('msg',{...m,t:Date.now(),id:++seq,sample:true,target});});
     if(u.pathname==='/sample-clear')return body(()=>emit('sampleclear',{}));
+    // alert hadiah TikTok: dock meneruskan datanya, main.js memunculkannya di jendela alert di luar jendela chat
+    if(u.pathname==='/galert')return body(({m})=>{if(!m||typeof m!=='object'||!hooks.galert)return;
+      const t=(v,n)=>typeof v==='string'?v.slice(0,n):'';
+      hooks.galert({name:t(m.name,60),gift:t(m.gift,60),n:Math.max(1,Math.min(99999,Number(m.n)||1)),img:/^https?:\/\//i.test(m.img||'')?t(m.img,500):'',t:Number(m.t)||Date.now()});});
     if(u.pathname==='/analytics-new')return body(()=>stats.end());
     if(u.pathname==='/analytics-del')return body(({id})=>stats.remove(String(id||'')));
     if(u.pathname==='/restart')return body(()=>{if(hooks.relaunch)setTimeout(()=>hooks.relaunch(),300);});
@@ -138,7 +142,7 @@ const srv=http.createServer((req,res)=>{
   if(u.pathname==='/'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});
     let h=fs.readFileSync(path.join(__dirname,'index.html'),'utf8');
     const v=u.searchParams.get('view'),th=(settings.dock&&settings.dock.theme)||'standar';
-    if(['neo','glass','clay','liquid','spatial'].includes(th)&&v!=='overlay'&&v!=='ctl'&&!u.searchParams.get('locked')&&!u.searchParams.get('preview'))h=h.replace('<body class="dock p-polos">','<body class="dock p-polos th-'+th+'">');
+    if(['neo','glass','clay','liquid','spatial'].includes(th)&&v!=='overlay'&&v!=='ctl'&&v!=='galert'&&!u.searchParams.get('locked')&&!u.searchParams.get('preview'))h=h.replace('<body class="dock p-polos">','<body class="dock p-polos th-'+th+'">');
     return res.end(h);}
   res.writeHead(404);res.end();
 });
