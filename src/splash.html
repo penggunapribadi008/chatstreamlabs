@@ -18,9 +18,15 @@ body:not(.s2) #fill{width:30%!important;animation:ind 1.3s ease-in-out infinite;
 <div id="st"><i id="ring"></i><span id="tx">Checking for updates...</span></div>
 <div id="bar"><div id="fill"></div></div>
 <script>
-// Tahap 1: cek update. Tahap 2: menyambungkan; bar naik pelan sampai aplikasi memanggil finish().
-const tx=document.getElementById('tx'),fill=document.getElementById('fill');let p=0,done=false;
-setTimeout(()=>{tx.style.opacity=0;setTimeout(()=>{tx.textContent='Connecting your streaming universe...';tx.style.opacity=1;document.body.classList.add('s2');},350);
-  setInterval(()=>{if(done)return;p+=(0.9-p)*0.025;fill.style.width=(p*100).toFixed(1)+'%';},60);},1900);
-window.finish=()=>{done=true;document.body.classList.add('s2');fill.style.width='100%';};
+// Tahap 1: cek update (bar bergerak bolak-balik). Kalau ada versi baru: unduh (bar naik sesuai persen) lalu pasang.
+// Tahap 2: menyambungkan; bar naik pelan sampai aplikasi memanggil finish(). Semua tahap dikendalikan main.js.
+const tx=document.getElementById('tx'),fill=document.getElementById('fill');let p=0,done=false,tick=null;
+window.updProgress=n=>{document.body.classList.add('s2');tx.style.opacity=1;tx.textContent='Downloading update... '+n+'%';fill.style.width=n+'%';};
+window.updInstall=()=>{document.body.classList.add('s2');tx.textContent='Installing update...';fill.style.width='100%';};
+window.toConnect=()=>{
+  tx.style.opacity=0;
+  setTimeout(()=>{tx.textContent='Connecting your streaming universe...';tx.style.opacity=1;document.body.classList.add('s2');p=0;fill.style.width='0%';
+    if(!tick)tick=setInterval(()=>{if(done)return;p+=(0.9-p)*0.025;fill.style.width=(p*100).toFixed(1)+'%';},60);},350);
+};
+window.finish=()=>{done=true;document.body.classList.add('s2');tx.style.opacity=1;fill.style.width='100%';};
 </script></body></html>

@@ -151,7 +151,7 @@ npm run dist:dir    # folder tanpa installer (untuk uji cepat)
 - Ubah pelan-pelan dan jelaskan ke pengguna dengan bahasa awam; jujur soal apa yang belum teruji.
 
 ## 9. Ide pengembangan berikutnya
-- Cek update otomatis lewat GitHub Releases (`electron-updater`), dengan banner "Versi baru tersedia".
+- Banner "Versi baru tersedia" di Dashboard + tombol "Cek pembaruan" manual (cek otomatis di splash sudah ada, bagian 14).
 - Pindahkan server+konektor ke `utilityProcess` agar UI tidak pernah tersendat.
 - Penandatanganan kode (hilangkan peringatan SmartScreen); pembaruan senyap.
 - Dukungan platform lain (Twitch, Kick), pesan sorotan (sub/donasi), moderasi dasar, TTS, widget alert.
@@ -212,7 +212,7 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
 - Ikon aplikasi: `assets/icon.png|ico` + `extension/icon.png` dibuat dari logo ChatStream Labs (merah, gelembung chat). Logo platform: `assets/{yt,tt,tw,kick}.png`.
 
 ## 11. Splash + Dashboard (v14.5)
-- Urutan buka aplikasi: `startUp()` (main.js) memunculkan **splash** (`src/splash.html`, latar `assets/splash-bg.webp`, logo `assets/splash-logo.png`; teks "Checking for updates..." lalu "Connecting your streaming universe..." dengan bar buatan sendiri) -> server siap -> **Dashboard** (`?view=dashboard`) dimuat tersembunyi -> setelah `__ready` splash memanggil `finish()` lalu ditutup dan Dashboard tampil. Splash minimal tampil ±3,8 dtk. Cek update di splash baru tampilan (belum benar-benar memeriksa versi).
+- Urutan buka aplikasi: `startUp()` (main.js) memunculkan **splash** (`src/splash.html`, latar `assets/splash-bg.webp`, logo `assets/splash-logo.png`; teks "Checking for updates..." lalu "Connecting your streaming universe..." dengan bar buatan sendiri) -> server siap -> **Dashboard** (`?view=dashboard`) dimuat tersembunyi -> setelah `__ready` splash memanggil `finish()` lalu ditutup dan Dashboard tampil. Splash minimal tampil ±3,8 dtk. Cek update di splash sekarang sungguhan (lihat bagian 14, v15.1.0).
 - **Dashboard** memakai ulang seluruh kode jendela pengaturan (`isSet` ikut true bila `isDash`); sidebar `#sb`, beranda `#pd`, dan pratinjau kanan `#dpv` (dua iframe static: `pvD` dock, `pvO` overlay; data dikirim lewat `pvSend()` dari `draftChange`). Tab Pribadi/Overlay memberi body kelas `split` (kiri pengaturan, kanan pratinjau).
 - Jendela chat (dock) sekarang dibuka dari tombol "Buka Chat" (`/open` what=`chat` -> `hooks.openChat`). Menutup jendela chat tidak menutup aplikasi; menutup Dashboard menanyakan keluar. Tombol gear, hotkey Pengaturan, dan menu tray membuka Dashboard (`openSettings` = `showDash`). `?view=settings` lama masih ada tetapi tidak dipakai.
 
@@ -244,3 +244,16 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
 - **Kirim Chat dimatikan** (`body.nosend`): hanya `#msg` dan `#send` yang disembunyikan; filter platform (`#flt`) dan gembok (`#lock`) tetap tampil (sebelumnya seluruh `#foot` hilang, sehingga gembok ikut hilang).
 - **Pratinjau Pribadi**: `body.dock.preview` dan `#app`-nya tidak punya latar sendiri lagi (transparan; yang terlihat latar panel pratinjau). Akibatnya slider "Gelap latar jendela" tidak terlihat efeknya di pratinjau Pribadi (tetap berlaku di jendela chat asli).
 - **Belum teruji**: seluruh perilaku Donate Dock di Windows (pemutaran video/suara media share, gembok di atas game, tembus-klik, perilaku protect, simpan posisi). `npm test` belum dijalankan setelah perubahan ini (sandbox tanpa internet, `npm install` tidak bisa); tes baru ada di `test/smoke.js`.
+
+## 14. Auto-update, splash, dan klik tembus (v15.1.0)
+- **Auto-update** = `electron-updater` + GitHub Releases. `checkUpdates()` di `main.js` jalan di splash (hanya `app.isPackaged`): `checkForUpdates()` (batas 10 dtk) -> kalau ada versi lebih baru `downloadUpdate()` (bar splash = persen unduhan, `window.updProgress`) -> `window.updInstall` -> `quitAndInstall(true,true)` (senyap, jalan lagi otomatis).
+  Gagal apa pun hanya dicatat di `log.txt` (awalan `update:`) dan aplikasi lanjut. Installer NSIS bukan oneClick, per-user (tanpa UAC), jadi pemasangan senyap berjalan.
+  Syarat: (1) repositori GitHub harus **Public** (aplikasi membaca `latest.yml` tanpa token; repo Private = 404 = tidak pernah ada update), (2) `version` di `package.json` harus naik tiap rilis, (3) Release harus berisi `latest.yml` dan `.blockmap` selain `.exe` (workflow sudah melampirkannya dan gagal kalau `dist/latest.yml` tidak ada),
+  (4) `build.publish` di `package.json` memakai provider github tanpa owner/repo: electron-builder mengambilnya dari git remote saat build di GitHub Actions. Versi pertama yang punya auto-update harus dipasang manual; setelah itu update jalan sendiri.
+  **Belum teruji** di Windows: seluruh alur (sandbox tanpa Electron/Windows). Kalau update tidak jalan, baca `log.txt`.
+  `build/main.js` hanya disalin (bukan dibundel), jadi `electron-updater` harus tetap di `dependencies` supaya ikut terpasang di aplikasi.
+- **Splash**: `splash.html` sekarang dikendalikan `main.js` (`toConnect`, `updProgress`, `updInstall`, `finish`), tidak lagi memakai timer sendiri. Teks "Checking for updates..." tampil minimal 1,9 dtk.
+- **`appReady`** (`main.js`): false selama splash tampil. `showDash`, `openChat`, `setLock`, `donateAct`, hotkey `hide` semuanya berhenti kalau belum siap, jadi tray, hotkey, atau membuka aplikasi kedua kali TIDAK bisa memunculkan Dashboard/Chat/Donate Dock sebelum splash selesai.
+  Urutan akhir: `finish()` -> 700 ms -> splash di-`destroy()` -> `appReady=true` -> `showDash()`. Jangan menampilkan jendela apa pun dari tempat lain tanpa cek `appReady`.
+- **Klik tembus gelembung** (mode gembok + Sembunyikan dari OBS, jebakan 4): jendela tidak tembus-klik, jadi gelembung/kotak penonton menangkap klik. `holeTick` (30 ms) membuat lubang `HOLE`=3 px di `setShape` tepat di bawah kursor selama kursor ada di atas area gelembung (`carve`, juga untuk Donate Dock), sehingga klik jatuh ke game di belakang.
+  Gambar kursor menutupi lubang. **Belum teruji di Windows**; kalau malah menimbulkan kedip/lag, set `HOLE=0` untuk mematikan (kembali ke perilaku lama). Klik yang terjadi sebelum lubang sempat pindah (kursor digerakkan sangat cepat) masih bisa tertangkap.

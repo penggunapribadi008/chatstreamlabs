@@ -50,6 +50,13 @@ jobs:
           echo "file=$FILE" >> "$GITHUB_OUTPUT"
           echo "Installer: $FILE"
 
+      # Auto-update: electron-updater membaca latest.yml dari Releases. Tanpa berkas ini aplikasi tidak tahu ada versi baru.
+      - name: Pastikan latest.yml ada
+        shell: bash
+        run: |
+          if [ ! -f dist/latest.yml ]; then echo "dist/latest.yml tidak ada, auto-update tidak akan jalan"; ls -la dist; exit 1; fi
+          cat dist/latest.yml
+
       # archive: false = diunggah apa adanya (.exe), tidak dibungkus zip. Nama artefak otomatis = nama berkasnya.
       - name: Simpan installer sebagai artefak
         uses: actions/upload-artifact@v7
@@ -65,5 +72,8 @@ jobs:
           tag_name: v${{ steps.pack.outputs.ver }}
           name: v${{ steps.pack.outputs.ver }}
           target_commitish: ${{ github.sha }}
-          files: ${{ steps.pack.outputs.file }}
+          files: |
+            ${{ steps.pack.outputs.file }}
+            ${{ steps.pack.outputs.file }}.blockmap
+            dist/latest.yml
           generate_release_notes: true

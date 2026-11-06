@@ -33,6 +33,9 @@ let protect=G().protect!==false,ctrlPos=G().ctrlPos||'top-right';
 function prot(w){const f=()=>{try{if(w&&!w.isDestroyed())w.setContentProtection(protect);}catch{}};f();[150,600,2000].forEach(t=>setTimeout(f,t));}
 app.on('browser-window-created',(e,w)=>{prot(w);w.on('show',()=>prot(w));w.webContents.on('did-finish-load',()=>prot(w));});
 let srv=null,main=null,dash=null,splashWin=null,locked=false,switching=false,tray=null,dragT=null,quitting=false,asking=false;
+// false selama splash masih tampil (cek update + menyambungkan). Selama false, tidak ada jendela aplikasi (Dashboard, Chat, Donate Dock) yang boleh dibuka atau ditampilkan,
+// baik lewat tray, hotkey, maupun membuka aplikasi kedua kalinya.
+let appReady=false;
 let outerAtLock=null,lockStart=null,lastRects=[];
 let srvReady;const srvP=new Promise(r=>srvReady=r);
 const base=()=>'http://localhost:'+(srv&&srv.port||3000);
@@ -154,6 +157,43 @@ function dragOn(on){
 // Jadi saat "Sembunyikan dari OBS" aktif, jendela tidak dibuat tembus-klik; hanya area gelembung chat yang menerima klik
 // (setShape), sisanya diteruskan ke game. Saat tidak disembunyikan, jendela tembus-klik penuh.
 const setIgn=(w,on)=>{try{if(w&&!w.isDestroyed())w.setIgnoreMouseEvents(!!on);}catch{}};
+// ===== klik menembus gelembung chat (mode gembok + "Sembunyikan dari OBS") =====
+// Saat disembunyikan dari OBS jendela TIDAK tembus-klik (lihat atas), jadi area gelembung / kotak penonton menangkap klik dan game di belakangnya tidak kena.
+// Solusi: tiap ~30 ms posisi kursor dibaca; kalau kursor ada di atas salah satu area, dibuat lubang kecil (HOLE px) tepat di bawah ujung kursor pada bentuk jendela (setShape).
+// Lubang itu tembus-klik dan tertutup gambar kursor, jadi klik jatuh ke jendela/game di belakangnya, sedangkan gelembung tetap terlihat dan tetap tersembunyi dari OBS.
+// Kalau mau mematikan perilaku ini: ubah HOLE ke 0.
+const HOLE=3;
+function carve(rects,cx,cy){
+  const hx1=cx-HOLE,hy1=cy-HOLE,hx2=cx+HOLE+1,hy2=cy+HOLE+1,out=[];
+  for(const q of rects){
+    const x1=q.x,y1=q.y,x2=q.x+q.width,y2=q.y+q.height;
+    if(hx2<=x1||hx1>=x2||hy2<=y1||hy1>=y2){out.push(q);continue;}
+    if(hy1>y1)out.push({x:x1,y:y1,width:q.width,height:hy1-y1});
+    if(hy2<y2)out.push({x:x1,y:hy2,width:q.width,height:y2-hy2});
+    const my1=Math.max(y1,hy1),my2=Math.min(y2,hy2);
+    if(hx1>x1)out.push({x:x1,y:my1,width:hx1-x1,height:my2-my1});
+    if(hx2<x2)out.push({x:hx2,y:my1,width:x2-hx2,height:my2-my1});
+  }
+  return out;
+}
+// kursor relatif terhadap isi jendela, atau null kalau di luar
+function curIn(w){
+  try{const c=screen.getCursorScreenPoint(),b=w.getContentBounds(),x=c.x-b.x,y=c.y-b.y;return(x>=0&&y>=0&&x<b.width&&y<b.height)?{x,y}:null;}catch{return null;}
+}
+let holeT=null,holeSig='';
+const inAny=(rs,c)=>!!c&&(rs||[]).some(q=>c.x>=q.x&&c.x<q.x+q.width&&c.y>=q.y&&c.y<q.y+q.height);
+function holeTick(){
+  const chatOn=locked&&protect&&main&&!main.isDestroyed(),dockOn=protect&&[...docks.values()].some(D=>D.locked&&donOpen(D));
+  if(!HOLE||(!chatOn&&!dockOn)){clearInterval(holeT);holeT=null;holeSig='';return;}
+  // lubang hanya perlu bergerak selama kursor ada di atas area gelembung; di luar itu bentuk jendela tidak diubah
+  let sig='';
+  if(chatOn){const c=curIn(main);if(inAny(lastRects,c))sig+='c'+c.x+','+c.y+';';}
+  if(dockOn)docks.forEach(D=>{if(D.locked&&donOpen(D)){const c=curIn(D.win);if(inAny(D.rects,c))sig+=D.id+c.x+','+c.y+';';}});
+  if(sig===holeSig)return;holeSig=sig;
+  if(chatOn)applyLockedInput();
+  if(dockOn)docks.forEach(applyDockInput);
+}
+function holeStart(){if(HOLE&&!holeT)holeT=setInterval(holeTick,30);}
 function applyLockedInput(){
   if(!locked||!main||main.isDestroyed())return;
   try{
@@ -161,7 +201,9 @@ function applyLockedInput(){
     if(protect){
       setIgn(main,false);
       const r=(lastRects||[]).map(q=>({x:Math.max(0,Math.round(q.x)),y:Math.max(0,Math.round(q.y)),width:Math.max(1,Math.round(q.width)),height:Math.max(1,Math.round(q.height))}));
-      main.setShape(r.length?r:[{x:0,y:0,width:1,height:1}]); // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
+      const cp=HOLE?curIn(main):null,rr=cp?carve(r,cp.x,cp.y):r;
+      main.setShape(rr.length?rr:[{x:0,y:0,width:1,height:1}]); // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
+      holeStart();
     }else{
       main.setShape([{x:0,y:0,width:b.width,height:b.height}]);
       setIgn(main,true);
@@ -215,7 +257,7 @@ function makeMain(bounds){
   return w;
 }
 function setLock(on){
-  if(on===locked&&main)return;
+  if(!appReady||(on===locked&&main))return;
   if(!main||main.isDestroyed()){if(!on)return;openChat();}
   const old=main;let bounds;
   if(old&&old.isMinimized())old.restore();
@@ -274,7 +316,7 @@ function openReport(){
 // Pengaturan sekarang ada di Dashboard
 function openSettings(){showDash();}
 function showDash(){
-  if(!dash||dash.isDestroyed())return;
+  if(!appReady||!dash||dash.isDestroyed())return;
   if(dash.__susp){dash.__susp=false;if(dash.__go)dash.__go();} // halaman sempat dikosongkan untuk hemat RAM: muat lagi
   if(dash.isMinimized())dash.restore();
   if(!dash.isVisible())dash.show();
@@ -283,6 +325,7 @@ function showDash(){
 }
 // jendela chat (dulu jendela utama), dibuka dari tombol di Dashboard
 function openChat(){
+  if(!appReady)return;
   if(main&&!main.isDestroyed()){if(main.isMinimized())main.restore();if(!main.isVisible())showWin(main,locked);if(!locked){main.focus();try{main.__view.webContents.focus();}catch{}}return;}
   locked=false;makeMain();
 }
@@ -311,15 +354,48 @@ function suspendDash(w){
   w.__susp=true;
   try{w.webContents.loadURL('about:blank').catch(()=>{});}catch{}
 }
-// splash: cek update -> menyambungkan; ditutup setelah Dashboard siap
+// ===== cek update otomatis (electron-updater + GitHub Releases) =====
+// Hanya di aplikasi yang sudah terpasang (app.isPackaged); saat `npm start` dilewati. Alurnya:
+//   cek latest.yml di Releases -> ada versi lebih baru? -> unduh (bar splash naik) -> pasang senyap -> aplikasi mulai ulang sendiri.
+// Gagal apa pun (offline, Releases kosong, repositori private, timeout 10 dtk) hanya dicatat di log.txt dan aplikasi lanjut seperti biasa.
+// Mengembalikan 'installing' kalau pemasang sedang berjalan (aplikasi akan keluar), selain itu 'none'.
+async function checkUpdates(spRun){
+  if(!app.isPackaged)return 'none';
+  let au;try{au=require('electron-updater').autoUpdater;}catch(e){log('update: electron-updater tidak ditemukan ('+(e&&e.message||e)+')');return 'none';}
+  try{
+    au.autoDownload=false;au.autoInstallOnAppQuit=false;au.allowPrerelease=false;
+    au.logger={info:m=>log('update: '+m),warn:m=>log('update: '+m),error:m=>log('update: '+m),debug(){}};
+    const r=await Promise.race([au.checkForUpdates(),new Promise((_,no)=>setTimeout(()=>no(new Error('cek update lebih dari 10 detik')),10000))]);
+    if(!r||!r.isUpdateAvailable){log('update: sudah versi terbaru ('+app.getVersion()+')');return 'none';}
+    log('update: versi baru '+((r.updateInfo&&r.updateInfo.version)||'?')+' ditemukan, mengunduh');
+    au.on('download-progress',p=>spRun('window.updProgress&&window.updProgress('+Math.round(p.percent||0)+')'));
+    await spRun('window.updProgress&&window.updProgress(0)');
+    await au.downloadUpdate();
+    await spRun('window.updInstall&&window.updInstall()');
+    await sleep(900);
+    quitting=true;try{if(splashWin&&!splashWin.isDestroyed())splashWin.setClosable(true);}catch{}
+    au.quitAndInstall(true,true); // senyap + jalankan lagi setelah terpasang
+    return 'installing';
+  }catch(e){log('update: gagal ('+(e&&e.message||e)+'), lanjut tanpa update');return 'none';}
+}
+// splash: cek update -> menyambungkan; ditutup setelah Dashboard siap. Dashboard (dan semua jendela lain) baru boleh tampil SETELAH splash ditutup (appReady).
 function startUp(){
   const t0=Date.now();let finished=false;
   // Splash dikunci: tidak bisa digeser, diperkecil, atau ditutup sendiri (hanya aplikasi yang menutupnya lewat destroy()).
   const sp=new BrowserWindow({width:640,height:480,frame:false,resizable:false,movable:false,minimizable:false,maximizable:false,closable:false,fullscreenable:false,center:true,title:'ChatStream Labs',icon:ICON,backgroundColor:'#0a0a1c',show:false});
-  splashWin=sp;sp.loadFile(path.join(__dirname,'splash.html'));
+  splashWin=sp;
+  const spLoaded=new Promise(r=>sp.webContents.once('did-finish-load',r));
+  sp.loadFile(path.join(__dirname,'splash.html'));
   sp.once('ready-to-show',()=>{if(!sp.isDestroyed())sp.show();});
   sp.on('closed',()=>{splashWin=null;if(!finished&&!quitting)app.quit();});
-  srvP.then(()=>{
+  const spRun=async js=>{try{await spLoaded;if(!sp.isDestroyed())return await sp.webContents.executeJavaScript(js);}catch{}};
+  (async()=>{
+    // Tahap 1: cek update (teks "Checking for updates..." tampil minimal 1,9 dtk supaya terbaca)
+    const [upd]=await Promise.all([checkUpdates(spRun),sleep(1900)]);
+    if(upd==='installing')return; // pemasang jalan, aplikasi akan keluar
+    // Tahap 2: menyambungkan (server lokal + Dashboard dimuat tersembunyi)
+    await spRun('window.toConnect&&window.toConnect()');
+    await srvP;
     const w=makeDash();
     const t=setInterval(async()=>{
       if(w.isDestroyed()){clearInterval(t);return;}
@@ -327,10 +403,16 @@ function startUp(){
       if(!ok&&Date.now()-t0<30000)return;
       if(Date.now()-t0<3800)return; // beri waktu tampil kedua teks splash
       clearInterval(t);finished=true;
-      try{if(!sp.isDestroyed())await sp.webContents.executeJavaScript('window.finish&&window.finish()');}catch{}
-      setTimeout(()=>{if(!w.isDestroyed())w.show();if(!sp.isDestroyed())sp.destroy();},500);
+      await spRun('window.finish&&window.finish()');
+      // beri waktu bar splash penuh, lalu tutup splash DULU; baru setelah itu aplikasi dianggap siap dan Dashboard tampil
+      setTimeout(()=>{
+        if(!sp.isDestroyed())sp.destroy();
+        appReady=true;
+        if(!w.isDestroyed())showDash();
+        refreshTray();
+      },700);
     },250);
-  });
+  })();
 }
 // ===== Donate Dock (bisa lebih dari satu) =====
 // Tiap dock memuat satu URL widget donasi (alert / media share) di jendelanya sendiri. Tidak ada integrasi API: aplikasi hanya menampilkan halamannya.
@@ -360,7 +442,7 @@ function applyDockInput(D){
   if(!D||!D.locked||!donOpen(D))return;
   try{
     const b=D.win.getBounds();
-    if(protect){setIgn(D.win,false);D.win.setShape((D.rects&&D.rects.length)?D.rects:[{x:0,y:0,width:1,height:1}]);} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
+    if(protect){setIgn(D.win,false);const cp=HOLE?curIn(D.win):null,rr=cp?carve(D.rects||[],cp.x,cp.y):(D.rects||[]);D.win.setShape(rr.length?rr:[{x:0,y:0,width:1,height:1}]);holeStart();} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
     else{D.win.setShape([{x:0,y:0,width:b.width,height:b.height}]);setIgn(D.win,true);}
   }catch{}
 }
@@ -524,6 +606,7 @@ function dockDrag(id,on){
 }
 // act: open | close | reload | toggle. id kosong = semua dock
 function donateAct(act,id){
+  if(!appReady)return{ok:true};
   if(act==='toggle'){const any=[...docks.values()].some(d=>donOpen(d)&&d.win.isVisible());return donateAct(any?'close':'open',id);}
   if(!['open','close','reload'].includes(act))return{error:'Perintah tidak dikenal.'};
   const ids=id?[String(id)]:donCfg().map(d=>d.id);
@@ -551,7 +634,7 @@ function dashState(){
 const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R',donate:'Ctrl+Alt+D'};
 const ACTIONS={
   lock:()=>setLock(!locked),
-  hide:()=>{if(!main||main.isDestroyed())return;
+  hide:()=>{if(!appReady||!main||main.isDestroyed())return;
     if(main.isVisible())main.hide();
     else{if(locked)main.showInactive();else main.show();}},
   obs:()=>{if(srv){protect=!protect;srv.setGlobal({protect});}},

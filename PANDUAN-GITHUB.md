@@ -5,7 +5,7 @@ GitHub akan membangun installer Windows untukmu secara otomatis. Kamu hanya perl
 ## Yang kamu butuhkan
 1. **Akun GitHub** (gratis) di github.com.
 2. **Isi folder ini** (semua berkas dan folder di dalam zip, termasuk folder `.github`).
-3. Tidak ada kunci rahasia, tidak ada biaya. Repositori boleh **Private**.
+3. Tidak ada kunci rahasia, tidak ada biaya. Repositori boleh **Private** kalau kamu hanya ingin membuat installer. Kalau ingin **auto-update** jalan, repositori harus **Public** (lihat bagian "Auto-update" di bawah).
 
 ## Langkah singkat (lewat browser)
 1. Masuk ke GitHub, klik **+** di kanan atas, pilih **New repository**. Beri nama (contoh: `chatstream-labs`), pilih **Private**, lalu **Create repository**.
@@ -43,3 +43,10 @@ Klik proses yang berwarna merah, buka langkah yang gagal, salin tulisan error-ny
 
 ## Mengganti nama aplikasi
 Satu perintah mengganti nama di seluruh proyek (butuh Node.js): `node scripts/rename.js "Nama Baru"`, lalu unggah ulang.
+
+## Auto-update
+Mulai v15.1.0 aplikasi mengecek Releases di splash, mengunduh versi baru, lalu memasangnya sendiri.
+- Repositori harus **Public**. Aplikasi membaca Releases tanpa login, jadi kalau Private, hasilnya "tidak ada update" selamanya.
+- Tiap rilis baru: **naikkan `version` di `package.json`**, lalu push. Workflow melampirkan `.exe`, `.blockmap`, dan `latest.yml` ke Releases.
+- Versi pertama yang punya fitur ini dipasang manual sekali. Setelah itu semua versi berikutnya terpasang sendiri saat aplikasi dibuka.
+- Kalau tidak ada update atau cek gagal (offline), aplikasi lanjut seperti biasa; alasannya tercatat di `log.txt` (baris berawalan `update:`).
