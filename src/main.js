@@ -179,15 +179,9 @@ const setShp=(w,rs,skipSame)=>{const k=JSON.stringify(rs);if(skipSame&&shpC.get(
 // v15.1.5: lubang lebih besar dan lebih "sabar" supaya tidak tertinggal dari kursor: HOLE 10 px, kursor 4 px dari sisi kiri/atas (HOLE_BACK),
 //   lubang dipindah LEBIH AWAL, yaitu saat kursor tinggal HOLE_EDGE (2) px dari tepi (dulu 1 px), jadi kursor tidak sempat keluar lubang waktu digerakkan cepat.
 //   Lubang itu bukan elemen halaman, tetapi potongan pada bentuk jendela (setShape), jadi opacity tidak berlaku: yang terlihat adalah isi layar di belakang jendela.
-// v15.1.5 (lanjutan): HOLE_ARROW=true -> lubang berbentuk anak tangga yang mengikuti badan panah kursor (HOLE_RECTS, koordinat relatif terhadap pojok lubang;
-//   ujung kursor ada di (HOLE_BACK,HOLE_BACK)), jadi hampir seluruhnya tertutup gambar kursor dan tertinggalnya lubang tidak terlihat. Hanya cocok untuk kursor panah standar.
-//   HOLE_ARROW=false -> kembali ke lubang persegi HOLE x HOLE (lebih toleran tapi terlihat). HOLE=0 tetap mematikan seluruh fitur.
-const HOLE=10,HOLE_EDGE=2,HOLE_WAIT=0,HOLE_MS=8,HOLE_IDLE_MS=60,HOLE_ARROW=true;
-const HOLE_RECTS=HOLE_ARROW?[[0,0,3,3],[1,3,3,3],[1,6,5,3],[1,9,6,3]]:[[0,0,HOLE,HOLE]];
-const HOLE_BACK=HOLE_ARROW?1:4;
-const HOLE_PROBE=HOLE_ARROW?[[0,0],[1,1]]:[[-HOLE_EDGE,-HOLE_EDGE],[HOLE_EDGE,HOLE_EDGE],[-HOLE_EDGE,HOLE_EDGE],[HOLE_EDGE,-HOLE_EDGE]];
-function carve1(rects,hx1,hy1,hw,hh){
-  const hx2=hx1+hw,hy2=hy1+hh,out=[];
+const HOLE=10,HOLE_BACK=4,HOLE_EDGE=2,HOLE_WAIT=0,HOLE_MS=8,HOLE_IDLE_MS=60;
+function carve(rects,hx1,hy1){
+  const hx2=hx1+HOLE,hy2=hy1+HOLE,out=[];
   for(const q of rects){
     const x1=q.x,y1=q.y,x2=q.x+q.width,y2=q.y+q.height;
     if(hx2<=x1||hx1>=x2||hy2<=y1||hy1>=y2){out.push(q);continue;}
@@ -199,8 +193,6 @@ function carve1(rects,hx1,hy1,hw,hh){
   }
   return out;
 }
-function carve(rects,hx1,hy1){return HOLE_RECTS.reduce((r,q)=>carve1(r,hx1+q[0],hy1+q[1],q[2],q[3]),rects);}
-const inHole=(h,x,y)=>HOLE_RECTS.some(q=>x>=h.x+q[0]&&x<h.x+q[0]+q[2]&&y>=h.y+q[1]&&y<h.y+q[1]+q[3]);
 // kursor relatif terhadap isi jendela, atau null kalau di luar
 function curIn(w){
   try{const c=screen.getCursorScreenPoint(),b=w.getContentBounds(),x=c.x-b.x,y=c.y-b.y;return(x>=0&&y>=0&&x<b.width&&y<b.height)?{x,y}:null;}catch{return null;}
@@ -212,7 +204,7 @@ const inAny=(rs,c)=>!!c&&(rs||[]).some(q=>c.x>=q.x&&c.x<q.x+q.width&&c.y>=q.y&&c
 function holeFor(w,c,on){
   const cur=holeAt.get(w);
   if(!on){if(cur){holeAt.delete(w);return true;}return false;} // keluar dari area: hapus lubang sekali
-  if(cur&&HOLE_PROBE.every(d=>inHole(cur,c.x+d[0],c.y+d[1])))return false; // masih aman: jangan sentuh bentuk jendela
+  if(cur&&c.x>=cur.x+HOLE_EDGE&&c.x<cur.x+HOLE-HOLE_EDGE&&c.y>=cur.y+HOLE_EDGE&&c.y<cur.y+HOLE-HOLE_EDGE)return false; // masih aman: jangan sentuh bentuk jendela
   holeAt.set(w,{x:c.x-HOLE_BACK,y:c.y-HOLE_BACK});return true;
 }
 function holeStop(){if(holeT){clearTimeout(holeT);holeT=null;}}

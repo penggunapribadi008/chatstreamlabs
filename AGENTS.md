@@ -292,9 +292,3 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
 - **Perubahan**: `HOLE`=10, `HOLE_BACK`=4, konstanta baru `HOLE_EDGE`=2 (lubang dipindah saat kursor tinggal 2 px dari tepi, dulu 1 px). Hanya `src/main.js` yang berubah.
 - **Kompromi**: lubang lebih besar = sisi kiri/atas kursor lebih mungkin terlihat. Kalau titik terasa mengganggu, turunkan `HOLE` ke 8. Satu-satunya cara tanpa titik sama sekali: matikan "Sembunyikan dari OBS" (jendela tembus-klik penuh).
 - **Belum teruji di Windows** (sandbox tanpa Electron); hanya diperiksa sintaks dan versi (`node scripts/version.js check`).
-
-## 18. Lubang berbentuk anak tangga di bawah panah kursor (v15.1.6)
-- **Laporan**: titik masih terlihat dan tertinggal dari kursor, padahal "Sembunyikan dari OBS" harus tetap nyala.
-- **Penyebab tertinggal (tidak bisa dihapus dari kode aplikasi)**: kursor digambar langsung oleh Windows, sedangkan lubang harus lewat timer `holeTick` -> `setShape` -> DWM (sekitar 2-3 frame). Lubang yang bisa bergerak secepat kursor tidak mungkin selama memakai `setShape`.
-- **Perbaikan**: lubang tidak lagi persegi, tetapi anak tangga `HOLE_RECTS` yang mengikuti badan panah (`HOLE_ARROW=true`), ujung kursor di (`HOLE_BACK`,`HOLE_BACK`)=(1,1) dari pojok lubang, sehingga hampir seluruhnya tertutup gambar kursor. `carve` memotong tiap persegi berurutan (`carve1`); `holeFor` menjaga lubang selama ujung kursor dan titik (+1,+1) masih di dalam lubang (`HOLE_PROBE`).
-- **Kompromi**: toleransi geser lebih kecil, jadi lubang dipindah lebih sering (risiko kedip seperti v15.1.2 muncul lagi, belum teruji); hanya cocok untuk kursor panah standar (kursor tangan/custom tidak pas). `HOLE_ARROW=false` mengembalikan lubang persegi v15.1.5. Logika `carve`/`holeFor` diuji dengan stub di Node; **belum teruji di Windows**.
