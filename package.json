@@ -1,6 +1,6 @@
 {
   "name": "chatstream-labs",
-  "version": "15.1.0",
+  "version": "15.1.1",
   "description": "ChatStream Labs: gabungkan chat live YouTube dan TikTok, tampilkan sebagai overlay OBS, dan balas dari satu tempat.",
   "private": true,
   "main": "build/main.js",
@@ -10,7 +10,9 @@
     "dist": "npm run build && electron-builder --win nsis --publish never",
     "dist:dir": "npm run build && electron-builder --win dir --publish never",
     "test": "npm run build && node test/smoke.js",
-    "rename": "node scripts/rename.js"
+    "rename": "node scripts/rename.js",
+    "version:check": "node scripts/version.js check",
+    "version:set": "node scripts/version.js set"
   },
   "dependencies": {
     "electron-updater": "^6.8.11",

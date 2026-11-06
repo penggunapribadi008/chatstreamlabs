@@ -159,12 +159,15 @@ function dragOn(on){
 const setIgn=(w,on)=>{try{if(w&&!w.isDestroyed())w.setIgnoreMouseEvents(!!on);}catch{}};
 // ===== klik menembus gelembung chat (mode gembok + "Sembunyikan dari OBS") =====
 // Saat disembunyikan dari OBS jendela TIDAK tembus-klik (lihat atas), jadi area gelembung / kotak penonton menangkap klik dan game di belakangnya tidak kena.
-// Solusi: tiap ~30 ms posisi kursor dibaca; kalau kursor ada di atas salah satu area, dibuat lubang kecil (HOLE px) tepat di bawah ujung kursor pada bentuk jendela (setShape).
+// Solusi: kalau kursor berhenti di atas salah satu area, dibuat lubang kecil (HOLE px) pada bentuk jendela (setShape), tepat di ujung kursor.
 // Lubang itu tembus-klik dan tertutup gambar kursor, jadi klik jatuh ke jendela/game di belakangnya, sedangkan gelembung tetap terlihat dan tetap tersembunyi dari OBS.
+// v15.1.1: (1) lubang memanjang ke kanan-bawah dari titik kursor (bukan simetris), karena badan panah kursor ada di sisi itu, jadi tidak ada titik yang kelihatan;
+// (2) lubang TIDAK ikut bergerak: selama kursor bergerak bentuk jendela tidak disentuh sama sekali (tanpa kedip), lubang baru dibuat setelah kursor diam HOLE_WAIT tick
+// dan dihapus sekali lagi begitu kursor mulai bergerak.
 // Kalau mau mematikan perilaku ini: ubah HOLE ke 0.
-const HOLE=3;
+const HOLE=2,HOLE_WAIT=2,HOLE_MS=25;
 function carve(rects,cx,cy){
-  const hx1=cx-HOLE,hy1=cy-HOLE,hx2=cx+HOLE+1,hy2=cy+HOLE+1,out=[];
+  const hx1=cx,hy1=cy,hx2=cx+HOLE,hy2=cy+HOLE,out=[];
   for(const q of rects){
     const x1=q.x,y1=q.y,x2=q.x+q.width,y2=q.y+q.height;
     if(hx2<=x1||hx1>=x2||hy2<=y1||hy1>=y2){out.push(q);continue;}
@@ -180,30 +183,37 @@ function carve(rects,cx,cy){
 function curIn(w){
   try{const c=screen.getCursorScreenPoint(),b=w.getContentBounds(),x=c.x-b.x,y=c.y-b.y;return(x>=0&&y>=0&&x<b.width&&y<b.height)?{x,y}:null;}catch{return null;}
 }
-let holeT=null,holeSig='';
+let holeT=null,holeSig='',holeStill=0,holeCut=false;
 const inAny=(rs,c)=>!!c&&(rs||[]).some(q=>c.x>=q.x&&c.x<q.x+q.width&&c.y>=q.y&&c.y<q.y+q.height);
+function holeStop(){if(holeT){clearInterval(holeT);holeT=null;}holeSig='';holeStill=0;holeCut=false;}
 function holeTick(){
   const chatOn=locked&&protect&&main&&!main.isDestroyed(),dockOn=protect&&[...docks.values()].some(D=>D.locked&&donOpen(D));
-  if(!HOLE||(!chatOn&&!dockOn)){clearInterval(holeT);holeT=null;holeSig='';return;}
-  // lubang hanya perlu bergerak selama kursor ada di atas area gelembung; di luar itu bentuk jendela tidak diubah
+  if(!HOLE||(!chatOn&&!dockOn)){holeStop();return;}
+  // sig = posisi kursor kalau sedang di atas area gelembung (kosong kalau di luar)
   let sig='';
   if(chatOn){const c=curIn(main);if(inAny(lastRects,c))sig+='c'+c.x+','+c.y+';';}
   if(dockOn)docks.forEach(D=>{if(D.locked&&donOpen(D)){const c=curIn(D.win);if(inAny(D.rects,c))sig+=D.id+c.x+','+c.y+';';}});
-  if(sig===holeSig)return;holeSig=sig;
-  if(chatOn)applyLockedInput();
-  if(dockOn)docks.forEach(applyDockInput);
+  const reshape=()=>{if(chatOn)applyLockedInput(true);if(dockOn)docks.forEach(D=>applyDockInput(D,true));};
+  if(sig!==holeSig){ // kursor bergerak / masuk / keluar area: hapus lubang (kalau ada) sekali, selebihnya jangan sentuh bentuk jendela
+    holeSig=sig;holeStill=0;
+    if(holeCut){holeCut=false;reshape();}
+    return;
+  }
+  if(!sig||holeCut)return;      // di luar area, atau lubang sudah ada
+  if(++holeStill<HOLE_WAIT)return; // tunggu kursor benar-benar diam
+  holeCut=true;reshape();
 }
-function holeStart(){if(HOLE&&!holeT)holeT=setInterval(holeTick,30);}
-function applyLockedInput(){
+function holeStart(){if(HOLE&&!holeT)holeT=setInterval(holeTick,HOLE_MS);}
+function applyLockedInput(light){ // light=true: hanya dipanggil dari holeTick, tidak mengulang setIgn / holeStart (mengurangi kedip)
   if(!locked||!main||main.isDestroyed())return;
   try{
     const b=main.getBounds();
     if(protect){
-      setIgn(main,false);
+      if(!light)setIgn(main,false);
       const r=(lastRects||[]).map(q=>({x:Math.max(0,Math.round(q.x)),y:Math.max(0,Math.round(q.y)),width:Math.max(1,Math.round(q.width)),height:Math.max(1,Math.round(q.height))}));
-      const cp=HOLE?curIn(main):null,rr=cp?carve(r,cp.x,cp.y):r;
+      const cp=(HOLE&&holeCut)?curIn(main):null,rr=cp?carve(r,cp.x,cp.y):r;
       main.setShape(rr.length?rr:[{x:0,y:0,width:1,height:1}]); // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
-      holeStart();
+      if(!light)holeStart();
     }else{
       main.setShape([{x:0,y:0,width:b.width,height:b.height}]);
       setIgn(main,true);
@@ -438,11 +448,11 @@ const donSaveBounds=D=>{try{if(donOpen(D))saveB({donates:{...(readJ(BF).donates|
 // Saat terkunci + "Sembunyikan dari OBS" aktif: jendela tidak tembus-klik, tetapi bentuknya (setShape) hanya sebesar isi widget yang sedang terlihat
 // (dibaca dari halaman widget tiap 0,7 dtk). Selama belum ada donasi masuk, bentuknya hanya kotak tombol jadi tidak menghalangi game.
 // Saat tidak disembunyikan dari OBS: tembus-klik penuh.
-function applyDockInput(D){
+function applyDockInput(D,light){
   if(!D||!D.locked||!donOpen(D))return;
   try{
     const b=D.win.getBounds();
-    if(protect){setIgn(D.win,false);const cp=HOLE?curIn(D.win):null,rr=cp?carve(D.rects||[],cp.x,cp.y):(D.rects||[]);D.win.setShape(rr.length?rr:[{x:0,y:0,width:1,height:1}]);holeStart();} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
+    if(protect){if(!light)setIgn(D.win,false);const cp=(HOLE&&holeCut)?curIn(D.win):null,rr=cp?carve(D.rects||[],cp.x,cp.y):(D.rects||[]);D.win.setShape(rr.length?rr:[{x:0,y:0,width:1,height:1}]);if(!light)holeStart();} // kotak tombol sudah jendela sendiri di luar, jadi tidak ikut di sini
     else{D.win.setShape([{x:0,y:0,width:b.width,height:b.height}]);setIgn(D.win,true);}
   }catch{}
 }

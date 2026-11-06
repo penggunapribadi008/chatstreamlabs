@@ -257,3 +257,17 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
   Urutan akhir: `finish()` -> 700 ms -> splash di-`destroy()` -> `appReady=true` -> `showDash()`. Jangan menampilkan jendela apa pun dari tempat lain tanpa cek `appReady`.
 - **Klik tembus gelembung** (mode gembok + Sembunyikan dari OBS, jebakan 4): jendela tidak tembus-klik, jadi gelembung/kotak penonton menangkap klik. `holeTick` (30 ms) membuat lubang `HOLE`=3 px di `setShape` tepat di bawah kursor selama kursor ada di atas area gelembung (`carve`, juga untuk Donate Dock), sehingga klik jatuh ke game di belakang.
   Gambar kursor menutupi lubang. **Belum teruji di Windows**; kalau malah menimbulkan kedip/lag, set `HOLE=0` untuk mematikan (kembali ke perilaku lama). Klik yang terjadi sebelum lubang sempat pindah (kursor digerakkan sangat cepat) masih bisa tertangkap.
+
+## 15. Versi tunggal, rilis manual, dan lubang klik (v15.1.1)
+- **Aturan versi (WAJIB, permintaan pengguna)**: setiap update, versi harus SAMA di semua tempat: nama zip (`chatstream-labs v<versi>.zip`), `package.json`, `package-lock.json` (2 tempat), `extension/manifest.json`,
+  tulisan versi di sidebar aplikasi, nama installer, tag/nama rilis GitHub, dan pesan commit (`v<versi>`). Jangan menulis versi manual di kode/UI: sidebar memakai `{{VERSION}}` di `src/ui/body.html` yang diganti `scripts/build.js` dari `package.json`.
+  Ganti versi HANYA lewat `node scripts/version.js set <versi>`; `scripts/version.js check` dipanggil `npm run build` dan workflow, dan berhenti kalau ada yang beda. (Sebelum v15.1.1 sidebar tertulis v15.0.1, lock v15.0.0, ekstensi 1.2, padahal aplikasi 15.1.0.)
+  Judul bagian AGENTS.md dan PANDUAN-GITHUB.md menyebut versi saat fitur itu dibuat (sejarah), itu bukan versi saat ini.
+- **Release manual (WAJIB, permintaan pengguna)**: push biasa ke `main` hanya membangun installer ke Actions > Artifacts. Langkah "Lampirkan ke Releases" hanya jalan untuk tag `v*` atau Run workflow dengan `release` dicentang.
+  Jangan mengembalikannya jadi otomatis: Release memicu auto-update ke semua pengguna, dan pengguna ingin menguji dulu. Tag harus sama dengan `v<versi>` atau workflow berhenti.
+- **Lubang klik-tembus (perbaikan v15.1.0)**: laporan pengguna: klik di belakang chat dock sudah tembus, tetapi ada titik dan kedip tiap kursor bergerak. Penyebab (dari membaca kode, belum diuji di Windows): lubang 7x7 px simetris di sekitar kursor (sebagian di luar badan panah kursor, jadi terlihat sebagai titik)
+  dan `setShape` dipanggil tiap kursor pindah. Sekarang: `HOLE=2` px memanjang ke kanan-bawah dari titik kursor (tertutup panah), dan lubang tidak mengikuti kursor: selama kursor bergerak bentuk jendela tidak disentuh, lubang dibuat setelah kursor diam `HOLE_WAIT`=2 tick (`HOLE_MS`=25 ms),
+  dan dihapus sekali begitu kursor mulai bergerak lagi (`holeCut`). `applyLockedInput(light)` / `applyDockInput(D,light)` dipanggil dari `holeTick` tanpa mengulang `setIgn`/`holeStart`.
+  Akibat: klik yang datang kurang dari ±50-75 ms setelah kursor berhenti masih tertangkap gelembung. Di layar dengan skala Windows pecahan (125%/150%) lubang 2 px bisa meleset; kalau klik kadang tidak tembus, naikkan `HOLE` ke 3. `HOLE=0` mematikan seluruh fitur.
+  **Belum teruji di Windows** (sandbox tanpa Electron); logika `holeTick` diuji dengan stub di Node.
+

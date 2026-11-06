@@ -3,7 +3,7 @@
 //   src/server.js (+ ws, youtube-chat, tiktok-live-connector, seeds.json) -> build/server.js   (satu bundel CommonJS)
 //   src/main.js + aset -> build/
 const fs=require('fs'),path=require('path'),esbuild=require('esbuild');
-const root=path.join(__dirname,'..'),out=path.join(root,'build'),ui=f=>fs.readFileSync(path.join(root,'src/ui',f),'utf8');
+const root=path.join(__dirname,'..'),out=path.join(root,'build'),VER=require('./version').check(true),ui=f=>fs.readFileSync(path.join(root,'src/ui',f),'utf8').split('{{VERSION}}').join(VER); // {{VERSION}} = versi dari package.json (tidak boleh ditulis manual)
 fs.rmSync(out,{recursive:true,force:true});fs.mkdirSync(out,{recursive:true});
 fs.writeFileSync(path.join(out,'index.html'),
   '<!doctype html><html lang="id"><head><meta charset="utf-8"><title>ChatStream Labs</title>\n<style>'+ui('style.css')+'</style><style id="usercss"></style></head>\n'+ui('body.html')+'<script>\n'+ui('app.js')+'</script></body></html>\n');

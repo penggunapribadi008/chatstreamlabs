@@ -1,15 +1,25 @@
 name: Build installer Windows
 
 # Dijalankan otomatis tiap ada push ke cabang main, atau manual lewat tab Actions > Run workflow.
-# Hasilnya satu berkas .exe bernama chatstreamlab-v<versi>.exe (versi diambil dari package.json), tersedia di dua tempat:
-#   1. Halaman Releases di repositori: unduh langsung berupa .exe (tanpa zip).
-#   2. Tab Actions > proses yang selesai > Artifacts: juga .exe langsung, tidak dibungkus zip.
-# Nama berkas diatur di package.json (build.nsis.artifactName). Naikkan "version" di package.json untuk tiap rilis baru.
+# Hasilnya satu berkas .exe bernama chatstreamlab-v<versi>.exe (versi diambil dari package.json).
+#
+# PENTING (v15.1.1): push biasa TIDAK membuat Release. Installer hanya tersedia untuk diuji di
+#   Actions > proses yang selesai > Artifacts (.exe langsung, tidak dibungkus zip).
+# Release (yang juga memicu auto-update ke semua pengguna) baru dibuat kalau KAMU sengaja memintanya:
+#   - Actions > Build installer Windows > Run workflow > centang "Rilis ke Releases", atau
+#   - push tag v<versi> (contoh: git tag v15.1.1 lalu git push origin v15.1.1).
+# Nama berkas diatur di package.json (build.nsis.artifactName). Versi dipegang satu tempat: package.json
+# (ganti lewat: node scripts/version.js set <versi>); workflow berhenti kalau ada tempat lain yang versinya beda.
 on:
   push:
     branches: [main]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release:
+        description: 'Rilis ke Releases (auto-update untuk semua pengguna). Biarkan kosong untuk hanya menguji.'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -24,6 +34,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      # Versi harus sama di package.json, package-lock.json, dan extension/manifest.json (sidebar aplikasi ikut dari package.json saat build).
+      - name: Cek versi sama di semua tempat
+        shell: bash
+        run: |
+          node scripts/version.js check
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VER=$(node -p "require('./package.json').version")
+            if [ "$GITHUB_REF_NAME" != "v$VER" ]; then echo "Tag $GITHUB_REF_NAME tidak sama dengan versi aplikasi v$VER"; exit 1; fi
+          fi
 
       - name: Pasang dependensi
         run: npm ci
@@ -65,8 +85,9 @@ jobs:
           archive: false
           if-no-files-found: error
 
-      # Dibuat untuk setiap proses (bukan hanya tag), supaya .exe selalu bisa diunduh langsung dari Releases.
+      # Hanya kalau sengaja diminta (tag v*, atau Run workflow dengan "Rilis ke Releases" dicentang). Push biasa berhenti di sini.
       - name: Lampirkan ke Releases
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.pack.outputs.ver }}
