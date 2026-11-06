@@ -176,7 +176,10 @@ const setShp=(w,rs,skipSame)=>{const k=JSON.stringify(rs);if(skipSame&&shpC.get(
 // v15.1.4: lubang dibuat lebih besar (HOLE x HOLE) dengan kursor di dalamnya (HOLE_BACK px dari sisi kiri/atas), dan BARU dipindah kalau kursor mendekati tepi lubang (histeresis).
 //   Sebelumnya lubang 3 px dipindah tiap kursor bergeser 1 px, jadi gerak pelan = setShape terus-menerus = kedip, dan kursor sering keluar dari lubang sedetik (ikon di belakang kehilangan hover = kedip).
 //   Polling adaptif: HOLE_MS (cepat) hanya saat kursor di atas jendela; di luar jendela HOLE_IDLE_MS (lambat). Tidak ada lagi setInterval 0 ms.
-const HOLE=6,HOLE_BACK=2,HOLE_WAIT=0,HOLE_MS=8,HOLE_IDLE_MS=60;
+// v15.1.5: lubang lebih besar dan lebih "sabar" supaya tidak tertinggal dari kursor: HOLE 10 px, kursor 4 px dari sisi kiri/atas (HOLE_BACK),
+//   lubang dipindah LEBIH AWAL, yaitu saat kursor tinggal HOLE_EDGE (2) px dari tepi (dulu 1 px), jadi kursor tidak sempat keluar lubang waktu digerakkan cepat.
+//   Lubang itu bukan elemen halaman, tetapi potongan pada bentuk jendela (setShape), jadi opacity tidak berlaku: yang terlihat adalah isi layar di belakang jendela.
+const HOLE=10,HOLE_BACK=4,HOLE_EDGE=2,HOLE_WAIT=0,HOLE_MS=8,HOLE_IDLE_MS=60;
 function carve(rects,hx1,hy1){
   const hx2=hx1+HOLE,hy2=hy1+HOLE,out=[];
   for(const q of rects){
@@ -201,7 +204,7 @@ const inAny=(rs,c)=>!!c&&(rs||[]).some(q=>c.x>=q.x&&c.x<q.x+q.width&&c.y>=q.y&&c
 function holeFor(w,c,on){
   const cur=holeAt.get(w);
   if(!on){if(cur){holeAt.delete(w);return true;}return false;} // keluar dari area: hapus lubang sekali
-  if(cur&&c.x>=cur.x+1&&c.x<cur.x+HOLE-1&&c.y>=cur.y+1&&c.y<cur.y+HOLE-1)return false; // masih aman: jangan sentuh bentuk jendela
+  if(cur&&c.x>=cur.x+HOLE_EDGE&&c.x<cur.x+HOLE-HOLE_EDGE&&c.y>=cur.y+HOLE_EDGE&&c.y<cur.y+HOLE-HOLE_EDGE)return false; // masih aman: jangan sentuh bentuk jendela
   holeAt.set(w,{x:c.x-HOLE_BACK,y:c.y-HOLE_BACK});return true;
 }
 function holeStop(){if(holeT){clearTimeout(holeT);holeT=null;}}

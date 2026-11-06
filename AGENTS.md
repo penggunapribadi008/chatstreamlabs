@@ -285,3 +285,10 @@ Di jendela "Gaya baru/Edit gaya" ada tombol "Ekspor file .css" (di samping Impor
   Polling `holeTick` adaptif (`setTimeout`, bukan `setInterval 0`): `HOLE_MS`=8 ms saat kursor di atas jendela, `HOLE_IDLE_MS`=60 ms di luar. Halaman tidak mengirim `/shape` kalau daftar kotak tidak berubah.
 - **Hemat**: `dockScan` 700 -> 1500 ms; polling halaman (`eyeW`, `eyeSt`, `acct`, `dashPoll`) dilewati saat `document.hidden` dan dijarangkan; heap JS dibatasi `--max-old-space-size=256`.
 - Kalau lubang terasa terlihat/mengganggu turunkan `HOLE`; kalau klik kadang tidak tembus naikkan `HOLE`/`HOLE_BACK`. **Belum teruji di Windows.**
+
+## 17. Titik (lubang klik-tembus) tertinggal dari kursor (v15.1.5)
+- **Laporan**: titik di ujung kursor tidak secepat kursor (tertinggal saat digerakkan). Pengguna minta lubang diperbesar dan opacity-nya dibuat 0.
+- **Penjelasan**: "titik" itu bukan elemen halaman, tetapi potongan pada bentuk jendela (`setShape`), jadi tidak punya opacity; yang terlihat adalah isi layar di belakang jendela. Tidak bisa dibuat transparan lewat CSS.
+- **Perubahan**: `HOLE`=10, `HOLE_BACK`=4, konstanta baru `HOLE_EDGE`=2 (lubang dipindah saat kursor tinggal 2 px dari tepi, dulu 1 px). Hanya `src/main.js` yang berubah.
+- **Kompromi**: lubang lebih besar = sisi kiri/atas kursor lebih mungkin terlihat. Kalau titik terasa mengganggu, turunkan `HOLE` ke 8. Satu-satunya cara tanpa titik sama sekali: matikan "Sembunyikan dari OBS" (jendela tembus-klik penuh).
+- **Belum teruji di Windows** (sandbox tanpa Electron); hanya diperiksa sintaks dan versi (`node scripts/version.js check`).
