@@ -28,23 +28,69 @@ async function serverTests(){
     await raw('/sample',{m:{p:'youtube',name:'a',text:'b'},target:'dock'});
     const s=await j('/send',{text:'halo',targets:['youtube','tiktok']});
     ok(/ekstensi/i.test(s.youtube)&&/ekstensi/i.test(s.tiktok),'kirim chat tanpa ekstensi memberi pesan jelas');
+    await extTests(base,dir,j,raw);
     const o=await j('/obs-add',{});ok(/OBS/.test(o.error||''),'tambah ke OBS memberi pesan jelas bila OBS tidak aktif');
     const forbidden=await fetch(base+'/send',{method:'POST',headers:{Origin:'https://evil.example'},body:'{}'});
     ok(forbidden.status===403,'POST dari origin asing ditolak');
-    // Donate Dock: pengaturan URL widget (tanpa Electron, jadi hooks.donate kosong)
+    // Donate Dock (multi-dock): pengaturan lewat /donate-docks (tanpa Electron, jadi hooks.donate kosong)
     const rd=()=>JSON.parse(fs.readFileSync(path.join(dir,'settings.json'),'utf8')).global;
-    const d1=await j('/donate-set',{url:'javascript:alert(1)'});ok(/tidak valid/i.test(d1.error||''),'Donate Dock menolak URL javascript:');
-    ok(/tidak valid/i.test((await j('/donate-set',{url:'file:///C:/rahasia.txt'})).error||'')&&/tidak valid/i.test((await j('/donate-set',{url:'bukan url'})).error||''),'Donate Dock menolak file: dan teks biasa');
-    const d3=await j('/donate-set',{url:'  https://saweria.co/widgets/alert?streamKey=abc  '});await sleep(250);
-    ok(d3.ok&&rd().donateUrl==='https://saweria.co/widgets/alert?streamKey=abc','Donate Dock menyimpan URL https (spasi dipangkas) di settings.global.donateUrl');
-    await j('/donate-set',{url:'http://localhost:9999/w'});await sleep(150);
-    ok(rd().donateUrl==='http://localhost:9999/w','Donate Dock menerima http');
-    await raw('/donate-mute',{on:true});await sleep(250);ok(rd().donateMute===true,'saklar bisu Donate Dock tersimpan (donateMute)');
+    const dd=(url,extra)=>j('/donate-docks',{docks:[{id:'a',name:'Widget',url,...(extra||{})}]});
+    ok(/tidak valid/i.test((await dd('javascript:alert(1)')).error||''),'Donate Dock menolak URL javascript:');
+    ok(/tidak valid/i.test((await dd('file:///C:/rahasia.txt')).error||'')&&/tidak valid/i.test((await dd('bukan url')).error||''),'Donate Dock menolak file: dan teks biasa');
+    const d3=await dd('  https://saweria.co/widgets/alert?streamKey=abc  ');await sleep(250);
+    ok(d3.ok&&rd().donateDocks[0].url==='https://saweria.co/widgets/alert?streamKey=abc','Donate Dock menyimpan URL https (spasi dipangkas) di settings.global.donateDocks');
+    await dd('http://localhost:9999/w');await sleep(150);
+    ok(rd().donateDocks[0].url==='http://localhost:9999/w','Donate Dock menerima http');
+    await dd('http://localhost:9999/w',{mute:true});await sleep(250);ok(rd().donateDocks[0].mute===true,'saklar bisu Donate Dock tersimpan (mute)');
     ok(/desktop/i.test((await j('/donate',{act:'open'})).error||''),'/donate di luar aplikasi desktop memberi pesan jelas');
-    const d6=await j('/donate-set',{url:''});await sleep(150);ok(d6.ok&&rd().donateUrl==='','URL kosong diterima (fitur diam)');
-    ok(rd().donateMute===true&&(rd().templates||[]).length>0,'menyimpan pengaturan Donate Dock tidak menghapus pengaturan global lain');
+    const d6=await dd('');await sleep(150);ok(d6.ok&&rd().donateDocks[0].url==='','URL kosong diterima (fitur diam)');
+    ok((rd().templates||[]).length>0&&rd().autoOpen===true,'menyimpan pengaturan Donate Dock tidak menghapus pengaturan global lain');
   }catch(e){ok(false,'server error: '+e.message);}
   p.kill();
+}
+
+// ---- v15.1.7: buka tab chat otomatis lewat service worker (bg), kirim paralel, saklar ----
+// Memakai klien WebSocket palsu: "bg" = service worker ekstensi, "cs" = content script platform. Perilaku Chrome asli TIDAK diuji di sini.
+async function extTests(base,dir,j,raw){
+  console.log('\n[ekstensi: buka tab otomatis & kirim paralel]');
+  const WS=require('ws'),conn=(hello,onMsg)=>new Promise((res,rej)=>{const w=new WS('ws://127.0.0.1:3000/ext');w.on('open',()=>{w.send(JSON.stringify(hello));res(w);});w.on('message',d=>onMsg&&onMsg(JSON.parse(String(d)),w));w.on('error',rej);});
+  const opens=[],bg=await conn({type:'bg'},m=>{if(m.type==='open')opens.push(m);});
+  const cs=(platform,delay)=>conn({type:'hello',platform},(m,w)=>{if(m.type==='send')setTimeout(()=>w.send(JSON.stringify({type:'result',id:m.id,ok:true})),delay||0);});
+  const rdG=()=>JSON.parse(fs.readFileSync(path.join(dir,'settings.json'),'utf8')).global;
+  await j('/platform',{platform:'tiktok',on:true,user:'@abc.def'});
+  await j('/platform',{platform:'youtube',on:true,user:'https://www.youtube.com/watch?v=abcdefghijk'});
+  await sleep(200);
+  // ekstensi platform belum terhubung -> server minta service worker membuka tab; content script terhubung -> pesan terkirim
+  let csT=null;const pr=j('/send',{text:'halo',targets:['tiktok']});
+  await sleep(700);csT=await cs('tiktok');
+  const r1=await pr;
+  ok(r1.tiktok==='ok','kirim: ekstensi belum terhubung -> tab dibuka otomatis -> lalu terkirim (ok)');
+  ok(opens.length===1&&opens[0].platform==='tiktok'&&opens[0].url==='https://www.tiktok.com/@abc.def/live','server mengirim {type:open} ke service worker dengan alamat live TikTok');
+  // sudah terhubung: tidak membuka tab lagi
+  const r2=await j('/send',{text:'lagi',targets:['tiktok']});
+  ok(r2.tiktok==='ok'&&opens.length===1,'ekstensi sudah terhubung: tidak ada perintah buka tab lagi');
+  // YouTube: alamat live_chat popout dari ID video
+  const pY=j('/send',{text:'yt',targets:['youtube']});await sleep(500);
+  ok(opens.length===2&&opens[1].url==='https://www.youtube.com/live_chat?is_popout=1&v=abcdefghijk','YouTube: alamat live_chat?is_popout=1&v=<id> (cocok dengan pola content script)');
+  const csY=await cs('youtube');ok((await pY).youtube==='ok','YouTube: terkirim setelah content script terhubung');
+  // paralel: dua platform lambat (1,2 dtk) selesai ~1,2 dtk, bukan 2,4 dtk
+  const csW=await cs('twitch',1200);csT.close();await sleep(150);const csT2=await cs('tiktok',1200);
+  await j('/platform',{platform:'twitch',on:true,user:'streamer'});
+  const t0=Date.now(),r3=await j('/send',{text:'p',targets:['tiktok','twitch']}),dt=Date.now()-t0;
+  ok(r3.tiktok==='ok'&&r3.twitch==='ok'&&dt<2100,'/send paralel: dua platform lambat selesai bersamaan ('+dt+' ms, bukan berurutan)');
+  // saklar mati: tidak membuka tab, pesan lama dipertahankan
+  csT2.close();csY.close();await sleep(200);
+  await raw('/autoopen-set',{on:false});await sleep(250);
+  ok(rdG().autoOpen===false,'saklar "Buka halaman chat otomatis" tersimpan di settings.global.autoOpen');
+  const n=opens.length,r4=await j('/send',{text:'x',targets:['tiktok']});
+  ok(/ekstensi Chrome belum terhubung/.test(r4.tiktok)&&opens.length===n,'saklar mati: tidak membuka tab, pesan error lama dipertahankan');
+  await raw('/autoopen-set',{on:true});await sleep(250);
+  // service worker tidak ada: pesan jelas (setelah menunggu singkat), tidak menggantung
+  bg.close();await sleep(250);const t1=Date.now(),r5=await j('/send',{text:'x',targets:['tiktok']});
+  ok(/Chrome terbuka/.test(r5.tiktok)&&Date.now()-t1<5000,'tanpa service worker: pesan jelas "pastikan Chrome terbuka..." dan tidak menggantung');
+  // ping bg dijawab pong (jaga service worker tetap hidup)
+  const got=[];const bg2=await conn({type:'bg'},m=>got.push(m.type));bg2.send(JSON.stringify({type:'ping'}));await sleep(150);ok(got.includes('pong'),'ping dari service worker dijawab pong');
+  [bg2,csW].forEach(w=>{try{w.close();}catch{}});
 }
 
 const html=()=>fs.readFileSync(path.join(build,'index.html'),'utf8');
@@ -154,17 +200,32 @@ async function uiTests(){
     const css=fs.readFileSync(path.join(root,'src/ui/style.css'),'utf8');
     ok(/body\.nosend #msg,body\.nosend #send\{display:none!important\}/.test(css)&&!/body\.nosend #foot/.test(css),'Kirim Chat mati: CSS hanya menyembunyikan #msg dan #send (bukan seluruh #foot)');
     ok(!!d.querySelector('#foot #flt')&&!!d.querySelector('#foot #lock'),'filter platform dan gembok tetap ada di kolom bawah');});
+  // ---- v15.1.7: filter "Semua" hanya mengirim ke platform yang dinyalakan DAN terhubung ----
+  await page('?view=dock',{},{},async(d,dom,posts)=>{
+    const w=dom.window,T=(f,en,st)=>JSON.stringify(w.eval('sendTargets')(f,en,st));
+    const EN4={youtube:true,tiktok:true,twitch:false,kick:true};
+    ok(T('all',EN4,{youtube:'gagal: x',tiktok:'terhubung',twitch:'terhubung',kick:'Terhubung'})==='["tiktok","kick"]','Semua: hanya yang dinyalakan + Terhubung (Twitch mati dilewati, YouTube gagal dilewati)');
+    ok(T('all',EN4,{})==='[]'&&T('all',EN4,{youtube:'belum diisi',tiktok:'terputus'})==='[]','Semua: tidak ada yang tersambung -> daftar kosong');
+    ok(T('youtube',EN4,{})==='["youtube"]','filter satu platform yang belum tersambung: tetap dipakai apa adanya (error eksplisit dari server)');
+    // doSend end-to-end (fetch palsu mencatat POST)
+    w.eval("filt='all';status={youtube:'gagal: x',tiktok:'terhubung',twitch:'',kick:''};");
+    d.getElementById('msg').value='halo';d.getElementById('send').click();await sleep(80);
+    const sent=posts.filter(x=>x[0]==='/send').map(x=>JSON.parse(x[1]));
+    ok(sent.length===1&&JSON.stringify(sent[0].targets)==='["tiktok"]','doSend "Semua": POST /send hanya berisi platform yang tersambung');
+    w.eval("status={youtube:'terputus'};");d.getElementById('msg').value='halo';d.getElementById('send').click();
+    ok(posts.filter(x=>x[0]==='/send').length===1&&d.getElementById('msg').placeholder==='Belum ada platform yang tersambung.','doSend "Semua" tanpa yang tersambung: flash "Belum ada platform yang tersambung." dan tidak ada POST');
+    w.eval("filt='youtube'");d.getElementById('send').click();
+    ok(posts.filter(x=>x[0]==='/send').length===2&&JSON.parse(posts.filter(x=>x[0]==='/send')[1][1]).targets[0]==='youtube','filter YouTube yang belum tersambung tetap mengirim (perilaku lama)');
+    ok(!!d.getElementById('autoOpen'),'Koneksi punya saklar "Buka halaman chat otomatis di Chrome"');});
   // ---- Donate Dock ----
   await page('?view=donatebar',{},{},(d,dom,posts)=>{
     ok(/donatewin/.test(d.body.className)&&d.getElementById('tbt').textContent==='Donate Dock'&&dom.window.__ready===true,'bilah judul Donate Dock dimuat dan menandai siap');
     d.getElementById('wclose').click();ok(posts.some(x=>x[0]==='/win'&&/"which":"donate"/.test(x[1])&&/"act":"close"/.test(x[1])),'tombol tutup bilah judul memanggil /win which=donate');});
   await page('?view=dashboard',{},{},async(d,dom,posts)=>{
     ok(!!d.getElementById('pn')&&!!d.querySelector('.sbi[data-t="n"]'),'Dashboard punya tab Donate Dock');
-    d.getElementById('dnUrl').value='https://saweria.co/widgets/alert?streamKey=x';d.getElementById('dnSave').click();
-    d.getElementById('dnOpen').click();d.getElementById('dnClose').click();d.getElementById('dnReload').click();
-    d.getElementById('dnMute').checked=true;d.getElementById('dnMute').dispatchEvent(new dom.window.Event('change'));await sleep(80);
-    const has=(u,re)=>posts.some(x=>x[0]===u&&re.test(x[1]||''));
-    ok(has('/donate-set',/saweria/)&&has('/donate',/"open"/)&&has('/donate',/"close"/)&&has('/donate',/"reload"/)&&has('/donate-mute',/true/),'tombol Simpan, Buka, Tutup, Muat ulang, dan saklar bisu memanggil endpoint yang benar');
+    d.getElementById('dDockAdd').click();ok(!d.getElementById('dnModal').hidden,'tombol Tambah Donate Dock membuka dialog');
+    d.getElementById('dnmUrl').value='https://saweria.co/widgets/alert?streamKey=x';d.getElementById('dnmMute').checked=true;d.getElementById('dnmSave').click();await sleep(80);
+    ok(posts.some(x=>x[0]==='/donate-docks'&&/saweria/.test(x[1]||'')&&/"mute":true/.test(x[1]||'')),'tombol Simpan di dialog memanggil /donate-docks dengan URL dan pilihan bisu');
     ok(/Donate Dock/.test(d.getElementById('hkl').textContent),'hotkey Buka / tutup Donate Dock muncul di tab Hotkey');});
   await page('?view=ctl',{},{},(d)=>{ok(!!d.getElementById('eye')&&!!d.getElementById('unlock')&&!!d.getElementById('mover'),'jendela kecil gembok punya 3 kotak');});
 }

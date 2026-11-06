@@ -458,7 +458,7 @@ function refreshPresets(){const sel=$('overlay_preset');if(!sel)return;const kee
   sel.value=all.some(x=>x[0]===keep)?keep:(all.some(x=>x[0]===cur('overlay').preset)?cur('overlay').preset:'polos');}
 function fill(v,src){const s=src||cur(v);if(v==='overlay')refreshPresets();
   items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;if(it[0]==='chk')e.checked=!!s[it[1]];else e.value=s[it[1]];if(it[0]==='sl')lbl(v,it);});syncDeps(v);pvAll(v);}
-function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';}
+function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn!==false;$('autoOpen').checked=g.autoOpen!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';}
 function collect(v){const o={};items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;o[it[1]]=it[0]==='chk'?e.checked:(it[0]==='sl'?+e.value:e.value);});return o;}
 let dt=null;
 function draftChange(v){items(v).filter(i=>i[0]==='sl').forEach(i=>lbl(v,i));syncDeps(v);pvAll(v);if(v==='dock')applyUi(collect('dock'));if(isDash)pvSend();clearTimeout(dt);dt=setTimeout(()=>post('/draft',{view:v,values:collect(v)}),40);}
@@ -543,6 +543,7 @@ $('portrestart').onclick=()=>post('/restart');
 $('portavoid').onclick=()=>{$('avlist').innerHTML='';(conf.avoid||[]).forEach(a=>{const r=document.createElement('div');r.className='avrow';const b=document.createElement('b'),n=document.createElement('span');b.textContent=a.port;n.textContent=a.name;r.append(b,n);$('avlist').appendChild(r);});$('avmodal').hidden=false;};
 $('avclose').onclick=()=>{$('avmodal').hidden=true;};$('avmodal').onclick=e=>{if(e.target===$('avmodal'))$('avmodal').hidden=true;};
 $('sendOn').onchange=()=>post('/send-set',{on:$('sendOn').checked}).catch(()=>{});
+$('autoOpen').onchange=()=>post('/autoopen-set',{on:$('autoOpen').checked}).catch(()=>{});
 $('u2').onclick=()=>{$('u2').select();try{document.execCommand('copy')}catch{}};
 $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textContent='Menghubungi OBS...';
   const r=await(await post('/obs-add',{width:+$('obsW').value||500,height:+$('obsH').value||900,password:$('obsPass').value})).json();
@@ -723,10 +724,13 @@ if(!isAdmin){
 $('flt').value=filt;
 $('flt').onchange=()=>{filt=$('flt').value;try{localStorage.setItem('flt',filt)}catch{};applyStyle();toLatest();};
 function flash(m){const i=$('msg');if(!i.dataset.ph)i.dataset.ph=i.placeholder;i.classList.add('err');i.placeholder=m;clearTimeout(flash.t);flash.t=setTimeout(()=>{i.classList.remove('err');i.placeholder=i.dataset.ph;},4500);}
+// Tujuan kirim. Filter "Semua" = hanya platform yang dinyalakan DAN berstatus "Terhubung" (yang belum tersambung dilewati tanpa error).
+// Filter satu platform = platform itu apa adanya (kalau belum tersambung, error eksplisit dari server).
+function sendTargets(f,en,st){return f==='all'?PF4.filter(p=>en[p]&&stView((st||{})[p])[1]==='Terhubung'):[f];}
 async function doSend(){
   const text=$('msg').value.trim();if(!text)return;
-  const targets=filt==='all'?PF4.filter(p=>EN[p]):[filt];
-  if(!targets.length){flash('Belum ada platform yang menyala. Nyalakan di Dashboard > Koneksi.');return;}
+  const targets=sendTargets(filt,EN,status);
+  if(!targets.length){flash(PF4.some(p=>EN[p])?'Belum ada platform yang tersambung.':'Belum ada platform yang menyala. Nyalakan di Dashboard > Koneksi.');return;}
   $('send').disabled=true;
   try{const r=await(await post('/send',{text,targets})).json();
     if(r.error)flash('Gagal: '+r.error);

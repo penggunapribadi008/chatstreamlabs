@@ -54,7 +54,7 @@ const BOTS=['nightbot','streamelements','streamlabs','moobot','fossabot','wizebo
 const isBot=n=>{n=(n||'').toLowerCase().trim();const c=(settings.global.botNames||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);return BOTS.includes(n)||c.includes(n);};
 function emit(type,data){const s=`data: ${JSON.stringify({type,data})}\n\n`;clients.forEach(r=>r.write(s));}
 function push(m){m.t=Date.now();m.id=++seq;if(!m.kind)m.bot=isBot(m.name);history.push(m);if(history.length>300)history.shift();emit('msg',m);if(m.kind!=='like'){try{stats.add(m);}catch{}}}
-function setStatus(k,v){status[k]=v;console.log(`[${k}] ${v}`);emit('status',status);}
+function setStatus(k,v){status[k]=v;console.log(`[${k}] ${v}`);emit('status',status);if(v==='terhubung')setTimeout(()=>autoOpen(k),600);}
 function setViewers(k,n){viewers[k]=n;emit('viewers',viewers);if(n!=null&&!stats.active())stats.tick(viewers.youtube,viewers.tiktok,viewers.twitch,viewers.kick);}
 setInterval(()=>{try{stats.tick(viewers.youtube,viewers.tiktok,viewers.twitch,viewers.kick);}catch{}},15000).unref();
 const first=u=>{if(!u)return'';for(const k of['avatarThumb','avatarMedium','avatarLarge','profilePicture']){const i=u[k];if(i){const x=(i.urlList&&i.urlList[0])||(i.urls&&i.urls[0])||i.url;if(x)return x;}}return'';};
@@ -94,7 +94,9 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/analytics-new')return body(()=>stats.end());
     if(u.pathname==='/analytics-del')return body(({id})=>stats.remove(String(id||'')));
     if(u.pathname==='/restart')return body(()=>{if(hooks.relaunch)setTimeout(()=>hooks.relaunch(),300);});
-    if(u.pathname==='/send')return json(async({text,targets})=>{const out={},tx=String(text||'').slice(0,190);for(const t of targets||[])out[t]=await extSend(t,tx);return out;});
+    // Kirim PARALEL (Promise.all): platform yang lambat (mis. membuka tab, timeout 9 dtk) tidak menahan platform lain.
+    if(u.pathname==='/send')return json(async({text,targets})=>{const out={},tx=String(text||'').slice(0,190),ts=[...new Set((Array.isArray(targets)?targets:[]).filter(t=>PF4.includes(t)))];
+      await Promise.all(ts.map(async t=>{try{out[t]=await extSend(t,tx);}catch(e){out[t]=String(e&&e.message||e);}}));return out;});
     if(u.pathname==='/update-check')return json(async()=>({status:hooks.checkUpdate?await hooks.checkUpdate():'dev'}));
     if(u.pathname==='/win')return body(({which,act})=>{if(hooks.winCtl)hooks.winCtl(which,act);});
     if(u.pathname==='/draft')return body(d=>emit('draft',d));
@@ -102,6 +104,7 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/hotkeys')return json(async({hotkeys})=>{settings.global={...settings.global,hotkeys};fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);return hooks.setHotkeys?hooks.setHotkeys(hotkeys||{}):{};});
     if(u.pathname==='/templates-restore')return body(()=>{const have=new Set((settings.global.templates||[]).map(t=>t.id));settings.global.templates=[...SEEDS.filter(x=>!have.has(x.id)),...(settings.global.templates||[])];fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);});
     if(u.pathname==='/send-set')return body(({on})=>setGlobal({sendOn:on!==false}));
+    if(u.pathname==='/autoopen-set')return body(({on})=>setGlobal({autoOpen:on!==false}));
     if(u.pathname==='/donate-docks')return json(async({docks})=>{const r=cleanDocks(docks);if(r.error)return r;setGlobal({donateDocks:r.docks});return{ok:true,docks:r.docks};});
     if(u.pathname==='/donate')return json(async({act,id})=>{if(!hooks.donate)return{error:'hanya di aplikasi desktop'};return(await hooks.donate(String(act||''),id?String(id):''))||{ok:true};});
     if(u.pathname==='/protect-toggle')return body(()=>setGlobal({protect:settings.global.protect===false}));
@@ -118,11 +121,13 @@ const srv=http.createServer((req,res)=>{
       if(what==='templates'){hooks.window('/?view=tpl',{width:980,height:820,title:'Kelola gaya overlay'});return{ok:true};}
       if(what==='report'){if(hooks.openReport)hooks.openReport();else hooks.window('/?view=report',{width:1040,height:840,title:'Laporan penonton'});return{ok:true};}
       if(what==='preview'){hooks.window('/?view=overlay&preview=1',{width:480,height:760,title:'Pratinjau overlay OBS'});return{ok:true};}
-      if(['youtube','tiktok','twitch','kick'].includes(what)){const u2=chatUrl(what);if(!u2)return{error:'Isi username '+({youtube:'YouTube',tiktok:'TikTok',twitch:'Twitch',kick:'Kick'})[what]+' dulu di Koneksi.'};hooks.open(u2);return{ok:true};}
+      if(['youtube','tiktok','twitch','kick'].includes(what)){const u2=extUrl(what)||chatUrl(what);if(!u2)return{error:'Isi username '+({youtube:'YouTube',tiktok:'TikTok',twitch:'Twitch',kick:'Kick'})[what]+' dulu di Koneksi.'};hooks.open(u2);return{ok:true};}
       return{error:'tidak dikenal'};});
     if(u.pathname==='/obs-add')return json(async o=>{await obsAdd({...o,url:`http://localhost:${PORT}/?view=overlay`});return{ok:true};});
     if(u.pathname==='/settings')return body(({view,values})=>{settings[view]=view==='global'?{...settings.global,...values}:values;fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);if(view==='global'){if(hooks.protect)hooks.protect(settings.global.protect!==false);if(hooks.global)hooks.global(settings.global);}});
-    if(u.pathname==='/connect')return body(({youtube,tiktok,twitch,kick,kickRoom})=>{cfg.youtube=youtube||'';cfg.tiktok=tiktok||'';cfg.twitch=twitch||'';cfg.kick=kick||'';cfg.kickRoom=String(kickRoom||'').replace(/\D/g,'');fs.writeFileSync(CF,JSON.stringify(cfg,null,1));startYT();startTT();startTW();startKK();});
+    if(u.pathname==='/connect')return body(({youtube,tiktok,twitch,kick,kickRoom})=>{cfg.youtube=youtube||'';cfg.tiktok=tiktok||'';cfg.twitch=twitch||'';cfg.kick=kick||'';cfg.kickRoom=String(kickRoom||'').replace(/\D/g,'');fs.writeFileSync(CF,JSON.stringify(cfg,null,1));startYT();startTT();startTW();startKK();
+      // Hubungkan ditekan: kalau platform sudah "terhubung" sebelum status berubah lagi, tetap pastikan halaman chat-nya terbuka.
+      setTimeout(()=>PF4.forEach(p=>{if(status[p]==='terhubung')autoOpen(p);}),4000);});
     if(u.pathname==='/disconnect')return body(()=>stopAll());
     if(u.pathname==='/test')return body(()=>{
       [['tiktok','dewi.anggraini','kak main game apa hari ini?'],['youtube','Budi Santoso','mantap bang, gas terus!'],['youtube','Nightbot','Jangan lupa subscribe dan follow ya!'],['youtube','Andi Pratama','selamat datang semuanya',{mod:true}],['tiktok','rizkyy_','seru banget live-nya!!'],['youtube','Sinta_Rahma','Terima kasih banyak kak, semangat terus!',{sc:{amount:'Rp50.000',color:'#ffca28'}}],
@@ -138,7 +143,7 @@ const srv=http.createServer((req,res)=>{
   if(u.pathname==='/dash-state'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify({protect:settings.global.protect!==false,...(hooks.dashState?hooks.dashState():{chat:{},docks:{}})}));}
   if(u.pathname==='/state'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({protect:settings.global.protect!==false}));}
   if(u.pathname==='/account'){res.writeHead(200,{'Content-Type':'application/json'});const has=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);return res.end(JSON.stringify({youtube:has('youtube'),tiktok:has('tiktok'),twitch:has('twitch'),kick:has('kick')}));}
-  if(u.pathname==='/urls'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({youtube:chatUrl('youtube'),tiktok:chatUrl('tiktok'),twitch:chatUrl('twitch'),kick:chatUrl('kick')}));}
+  if(u.pathname==='/urls'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({youtube:extUrl('youtube')||chatUrl('youtube'),tiktok:extUrl('tiktok')||chatUrl('tiktok'),twitch:extUrl('twitch')||chatUrl('twitch'),kick:extUrl('kick')||chatUrl('kick')}));}
   if(FILES[u.pathname]){res.writeHead(200,{'Content-Type':FILES[u.pathname],'Cache-Control':'max-age=3600'});return res.end(fs.readFileSync(path.join(__dirname,u.pathname)));}
   if(u.pathname==='/'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});
     let h=fs.readFileSync(path.join(__dirname,'index.html'),'utf8');
@@ -194,7 +199,7 @@ function startYT(){
     const lc=new LiveChat(t);let dead=false;
     const retry=msg=>{if(dead)return;dead=true;try{lc.stop()}catch{}if(my!==genY)return;setStatus('youtube',msg+' - coba lagi 15 detik');setTimeout(attempt,15000);};
     stopY=()=>{dead=true;try{lc.stop()}catch{}};
-    lc.on('start',id=>{setStatus('youtube','terhubung');if(id){ytLive=id;pollYT(id,my);}});
+    lc.on('start',id=>{if(id)ytLive=id;setStatus('youtube','terhubung');if(id)pollYT(id,my);});
     lc.on('chat',c=>push({p:'youtube',member:!!c.isMembership,sticker:!!(c.superchat&&c.superchat.sticker),sc:c.superchat?{amount:String(c.superchat.amount||''),color:/^#?[0-9a-f]{6}$/i.test(c.superchat.color||'')?('#'+String(c.superchat.color).replace('#','')):'#ffca28'}:undefined,name:c.author.name,avatar:(c.author.thumbnail&&c.author.thumbnail.url)||'',mod:!!c.isModerator,owner:!!c.isOwner,text:(c.message||[]).map(x=>x.text||x.emojiText||x.alt||'').join('')||((c.superchat&&c.superchat.sticker)?'[Super Sticker]':'')}));
     lc.on('error',e=>retry('gagal: '+(e&&e.message||e)));
     lc.on('end',()=>retry('live berakhir/terputus'));
@@ -377,15 +382,60 @@ srv.on('upgrade',(req,sock,head)=>{
   wss.handleUpgrade(req,sock,head,w=>wss.emit('connection',w,req));
 });
 wss.on('connection',ws=>{
-  const c={ws,platform:''};ext.add(c);
+  const c={ws,platform:'',bg:false};ext.add(c);
   ws.on('message',raw=>{try{const m=JSON.parse(raw);
     if(m.type==='hello'&&PF4.includes(m.platform))c.platform=m.platform;
+    else if(m.type==='bg')c.bg=true; // service worker ekstensi (pembuka tab latar); bukan content script platform
+    else if(m.type==='ping'){try{ws.send('{"type":"pong"}');}catch{}}
     else if(m.type==='result'&&pendingExt[m.id]){pendingExt[m.id](m);delete pendingExt[m.id];}}catch{}});
   ws.on('close',()=>ext.delete(c));ws.on('error',()=>ext.delete(c));
 });
-function extSend(platform,text){return new Promise(resolve=>{
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const PNAME={youtube:'YouTube',tiktok:'TikTok',twitch:'Twitch',kick:'Kick'};
+const hasExt=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);
+const bgConn=()=>[...ext].filter(c=>c.bg&&c.ws.readyState===1).pop();
+async function waitUntil(fn,ms,step=250){const end=Date.now()+ms;while(Date.now()<end){if(fn())return true;await sleep(step);}return !!fn();}
+// Alamat yang dibuka di tab latar. HARUS cocok dengan pola content script di extension/manifest.json (YouTube: live_chat*, TikTok: */live*, Twitch: twitch.tv/*, Kick: kick.com/*).
+// YouTube butuh ID video: dari cfg (kalau diisi link video) atau ytLive (diisi konektor YouTube begitu tersambung, termasuk kalau pengguna hanya mengisi @handle). Kosong = belum diketahui.
+function extUrl(p){
+  if(p==='youtube'){const t=ytTarget(cfg.youtube),id=(t&&t.liveId)||ytLive;return id?'https://www.youtube.com/live_chat?is_popout=1&v='+encodeURIComponent(id):'';}
+  if(p==='tiktok'){const u=ttTarget(cfg.tiktok);return u?'https://www.tiktok.com/@'+u+'/live':'';}
+  if(p==='twitch'){const u=twTarget(cfg.twitch);return u?'https://www.twitch.tv/popout/'+u+'/chat?popout=':'';}
+  if(p==='kick'){const u=kkTarget(cfg.kick);return u?'https://kick.com/'+u:'';}
+  return '';}
+// Buka-otomatis hanya jalan kalau saklar nyala DAN kirim chat dinyalakan (kalau kirim chat mati, tab tidak perlu dibuka).
+const autoOpenOn=()=>settings.global.autoOpen!==false&&settings.global.sendOn!==false;
+const OPEN_COOLDOWN=15000,OPEN_WAIT=10000,BG_WAIT=3000,lastOpen={},opening={};
+// Pastikan content script platform terhubung: kalau belum, minta service worker membuka tab latar lalu tunggu. Hasil: '' = terhubung, selain itu = pesan error (bahasa Indonesia).
+function ensureExt(p){
+  if(hasExt(p))return Promise.resolve('');
+  if(opening[p])return opening[p]; // panggilan bersamaan (mis. kirim berulang) berbagi satu proses buka
+  return opening[p]=(async()=>{try{return await doEnsure(p);}finally{delete opening[p];}})();
+}
+async function doEnsure(p){
+  const nm=PNAME[p],manual='Buka halaman chat '+nm+' di Chrome sendiri (lihat Dashboard > Koneksi).';
+  if(!autoOpenOn())return 'ekstensi Chrome belum terhubung. '+manual;
+  const url=extUrl(p);
+  if(!url)return 'ekstensi Chrome belum terhubung dan alamat chat '+nm+' belum diketahui'+(p==='youtube'?' (tunggu YouTube tersambung ke live yang sedang berjalan)':' (isi username dulu di Koneksi)')+'. '+manual;
+  await waitUntil(bgConn,BG_WAIT);
+  const bg=bgConn();
+  if(!bg)return 'ekstensi Chrome belum terhubung. Pastikan Chrome terbuka dan sudah login, ekstensi sudah dimuat ulang di chrome://extensions, lalu coba lagi. '+manual;
+  if(Date.now()-(lastOpen[p]||0)>OPEN_COOLDOWN){lastOpen[p]=Date.now();try{bg.ws.send(JSON.stringify({type:'open',platform:p,url}));}catch{}}
+  if(await waitUntil(()=>hasExt(p),OPEN_WAIT))return '';
+  return 'halaman chat '+nm+' sudah dibuka di Chrome tetapi belum terhubung ke aplikasi (mungkin masih memuat atau belum login). Coba kirim lagi sebentar lagi.';
+}
+function autoOpen(p){if(!autoOpenOn()||!isEn(p)||hasExt(p)||!extUrl(p))return;ensureExt(p).catch(()=>{});}
+function extSendRaw(platform,text){return new Promise(resolve=>{
   const c=[...ext].find(x=>x.platform===platform&&x.ws.readyState===1);
-  if(!c)return resolve('ekstensi Chrome belum terhubung. Buka halaman chat '+({youtube:'YouTube',tiktok:'TikTok',twitch:'Twitch',kick:'Kick'})[platform]+' di Chrome (lihat Dashboard > Koneksi).');
+  if(!c)return resolve('ekstensi Chrome belum terhubung. Buka halaman chat '+PNAME[platform]+' di Chrome (lihat Dashboard > Koneksi).');
   const id=String(++seq),t=setTimeout(()=>{delete pendingExt[id];resolve('halaman chat tidak merespons');},9000);
   pendingExt[id]=m=>{clearTimeout(t);resolve(m.ok?'ok':(m.error||'gagal'));};
   c.ws.send(JSON.stringify({type:'send',id,text}));});}
+// Kirim lewat ekstensi. Kalau content script platform belum terhubung -> buka tab latar dulu (ensureExt), baru kirim.
+// Kalau tab baru dibuka dan kolom chat belum sempat tampil ("tidak ditemukan"), coba SEKALI lagi setelah jeda, baru menyerah.
+async function extSend(platform,text){
+  let fresh=false;
+  if(!hasExt(platform)){const e=await ensureExt(platform);if(e)return e;fresh=true;await sleep(800);}
+  let r=await extSendRaw(platform,text);
+  if(r!=='ok'&&fresh&&/tidak ditemukan/i.test(r)){await sleep(2500);r=await extSendRaw(platform,text);}
+  return r;}

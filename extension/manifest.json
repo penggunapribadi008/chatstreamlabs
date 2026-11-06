@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ChatStream Labs - Pengirim Chat",
-  "version": "15.1.6",
-  "description": "Mengirim chat dari aplikasi ChatStream Labs ke halaman live YouTube / TikTok / Twitch / Kick yang sedang kamu buka di Chrome.",
+  "version": "15.1.7",
+  "description": "Mengirim chat dari aplikasi ChatStream Labs ke halaman live YouTube / TikTok / Twitch / Kick di Chrome. Halaman chat dibuka otomatis sebagai tab latar.",
   "icons": {
     "128": "icon.png"
   },
@@ -47,10 +47,16 @@
     }
   ],
   "permissions": [
-    "storage"
+    "storage",
+    "tabs",
+    "alarms"
   ],
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
-  }
+  },
+  "background": {
+    "service_worker": "bg.js"
+  },
+  "minimum_chrome_version": "116"
 }
