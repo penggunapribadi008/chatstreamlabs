@@ -370,3 +370,18 @@ body.dock .wbs{display:flex;flex:none}
 .fab{position:absolute;right:22px;bottom:22px;z-index:5;width:54px;height:54px;border:0;border-radius:50%;background:var(--acc);color:var(--acc-t);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 6px 18px rgba(0,0,0,.45);transition:filter .15s,transform .15s}.fab:hover{filter:brightness(1.12);transform:scale(1.05)}
 .fab svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
 #dnModal .row{margin:12px 0 0}#dnModal .btns{margin-top:14px}
+
+/* status koneksi tiap platform: di dalam kartu platformnya (Sambungkan live) */
+.cst{font-size:12px;line-height:1.6;color:var(--muted);margin-top:6px}
+.cst:empty{display:none}
+.cst .sv{display:flex;align-items:center;gap:6px}
+.cst .sv::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.cst .sv.ok{color:#4ade80}.cst .sv.ok::before{background:#4ade80}
+.cst .sv.wait{color:#fbbf24}.cst .sv.wait::before{background:#fbbf24}
+.cst .sv.bad{color:#f87171}.cst .sv.bad::before{background:#f87171}
+/* beranda Dashboard dibuat ringkas: kartu dock satu baris (nama + status di kiri, tombol di kanan) */
+#pd.on{gap:14px;padding-bottom:80px}
+#pd .dkc{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;row-gap:0;align-items:center;padding:9px 14px}
+#pd .dkc h3{grid-column:1;margin:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pd .dkc .dki{grid-column:1}#pd .dkc .dki b{display:none}
+#pd .dkc .dkb{grid-column:2;grid-row:1/3;margin:0;flex-wrap:nowrap}

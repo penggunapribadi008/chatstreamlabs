@@ -116,7 +116,7 @@ function showViewers(){$('vy').textContent=fmt(viewers.youtube);$('vt').textCont
   [['chy','youtube'],['cht','tiktok'],['cw','twitch'],['ck','kick']].forEach(([i,p])=>$(i).classList.toggle('off',!EN[p]));
   const a=PF4.filter(p=>EN[p]).map(k=>viewers[k]).filter(x=>x!=null);$('vs').textContent=a.length?fmt(a.reduce((x,y)=>x+y,0)):'-';}
 function stView(v){v=String(v||'-');if(/^terhubung/i.test(v))return['ok','Terhubung'];if(/not found|not online|isn't online|tidak ditemukan|offline/i.test(v))return['wait','Belum live, mencoba lagi'];if(/gagal|coba lagi/i.test(v))return['bad','Gagal tersambung, mencoba lagi'];return['',v.charAt(0).toUpperCase()+v.slice(1)];}
-function showSt(s){status=s;const b=$('st');b.textContent='';PF4.filter(k=>EN[k]).forEach(k=>{const [c,t]=stView(s[k]),r=document.createElement('div'),i=document.createElement('img'),n=document.createElement('b'),v=document.createElement('span');r.className='sr';i.src=PL[k];i.alt='';n.textContent=PNAME[k];v.className='sv'+(c?' '+c:'');v.textContent=t;r.append(i,n,v);b.appendChild(r);});showViewers();if(isDash)dashRender();}
+function showSt(s){status=s;PF4.forEach(k=>{const b=$('st_'+k);if(!b)return;b.textContent='';if(!EN[k])return;const [c,t]=stView(s[k]),v=document.createElement('span');v.className='sv'+(c?' '+c:'');v.textContent=t;b.appendChild(v);});showViewers();if(isDash)dashRender();}
 // dipanggil saat switch platform berubah (dan saat pertama dimuat)
 function fltBuild(){const f=$('flt');if(!f)return;const on=PF4.filter(p=>EN[p]);
   if(filt!=='all'&&!on.includes(filt)){filt='all';try{localStorage.setItem('flt',filt)}catch{}}

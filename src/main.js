@@ -153,6 +153,7 @@ function dragOn(on){
 // Jendela transparan yang tembus-klik (setIgnoreMouseEvents) tidak bisa disembunyikan Windows dari tangkapan layar.
 // Jadi saat "Sembunyikan dari OBS" aktif, jendela tidak dibuat tembus-klik; hanya area gelembung chat yang menerima klik
 // (setShape), sisanya diteruskan ke game. Saat tidak disembunyikan, jendela tembus-klik penuh.
+const setIgn=(w,on)=>{try{if(w&&!w.isDestroyed())w.setIgnoreMouseEvents(!!on);}catch{}};
 function applyLockedInput(){
   if(!locked||!main||main.isDestroyed())return;
   try{
@@ -304,7 +305,7 @@ function makeDash(){
   w.on('closed',()=>{clearTimeout(w.__idle);if(dash===w)dash=null;});
   dash=w;return w;
 }
-const DASH_IDLE_MS=120000;
+const DASH_IDLE_MS=30000;
 function suspendDash(w){
   if(!w||w.isDestroyed()||w.isVisible()||w.isMinimized()||w.__susp||quitting)return;
   w.__susp=true;

@@ -24,10 +24,13 @@
   <div class="tabs"><div class="tabrow"><button class="tab on" data-t="k">Koneksi</button><button class="tab" data-t="p">Pribadi</button><button class="tab" data-t="o">Overlay</button><button class="tab" data-t="h">Hotkey</button></div></div>
   <div id="panes">
   <div class="pane on" id="pd">
-    <div class="dsec"><div class="dsh">Dock</div>
+    <div class="dsec"><div class="dsh">Chat Dock</div>
       <div class="dgrid">
         <div class="card dkc"><h3>Chat</h3>
           <div class="dki"><b>Jendela chat</b><small id="dChatSt">Tertutup</small></div><div class="dkb" id="dChatBtns"></div></div>
+      </div></div>
+    <div class="dsec"><div class="dsh">Donate Dock</div>
+      <div class="dgrid">
         <div id="dDocks"></div>
         <div class="hint dwide" id="dDockHint"></div>
       </div></div>
@@ -37,12 +40,11 @@
   </div>
   <div class="pane on" id="pk">
     <div class="card"><h3>Sambungkan live</h3>
-      <div class="cn" id="cn_youtube"><div class="cnh"><img src="/yt.png" alt=""><b>YouTube</b><label class="sw" title="Aktifkan / nonaktifkan YouTube"><input type="checkbox" id="en_youtube"><i></i></label></div><input type="text" id="yt" placeholder="Username YouTube, contoh @namakamu"></div>
-      <div class="cn" id="cn_tiktok"><div class="cnh"><img src="/tt.png" alt=""><b>TikTok</b><label class="sw" title="Aktifkan / nonaktifkan TikTok"><input type="checkbox" id="en_tiktok"><i></i></label></div><input type="text" id="tk" placeholder="Username TikTok, contoh @namakamu"></div>
-      <div class="cn" id="cn_twitch"><div class="cnh"><img src="/tw.png" alt=""><b>Twitch</b><label class="sw" title="Aktifkan / nonaktifkan Twitch"><input type="checkbox" id="en_twitch"><i></i></label></div><input type="text" id="twu" placeholder="Username Twitch, contoh namakamu"></div>
-      <div class="cn" id="cn_kick"><div class="cnh"><img src="/kick.png" alt=""><b>Kick</b><label class="sw" title="Aktifkan / nonaktifkan Kick"><input type="checkbox" id="en_kick"><i></i></label></div><input type="text" id="kku" placeholder="Username Kick, contoh namakamu"><details class="kkopt"><summary>Kick tidak mau tersambung?</summary><div class="hint">Kick dilindungi Cloudflare, jadi kadang aplikasi gagal mengambil info channelnya. Kalau status Kick berkata gagal, buka <code>kick.com/api/v2/channels/namakamu</code> di browser, cari tulisan <code>"chatroom":{"id":</code> lalu isi angka setelahnya di sini. Dibiarkan kosong = otomatis.</div><input type="number" id="kkroom" placeholder="ID chatroom Kick (opsional)"></details></div>
-      <div class="btns"><button class="btn b1" id="conn">Sambungkan</button><button class="btn b2" id="disc">Putuskan</button></div>
-      <div id="st"></div></div>
+      <div class="cn" id="cn_youtube"><div class="cnh"><img src="/yt.png" alt=""><b>YouTube</b><label class="sw" title="Aktifkan / nonaktifkan YouTube"><input type="checkbox" id="en_youtube"><i></i></label></div><input type="text" id="yt" placeholder="Username YouTube, contoh @namakamu"><div class="cst" id="st_youtube"></div></div>
+      <div class="cn" id="cn_tiktok"><div class="cnh"><img src="/tt.png" alt=""><b>TikTok</b><label class="sw" title="Aktifkan / nonaktifkan TikTok"><input type="checkbox" id="en_tiktok"><i></i></label></div><input type="text" id="tk" placeholder="Username TikTok, contoh @namakamu"><div class="cst" id="st_tiktok"></div></div>
+      <div class="cn" id="cn_twitch"><div class="cnh"><img src="/tw.png" alt=""><b>Twitch</b><label class="sw" title="Aktifkan / nonaktifkan Twitch"><input type="checkbox" id="en_twitch"><i></i></label></div><input type="text" id="twu" placeholder="Username Twitch, contoh namakamu"><div class="cst" id="st_twitch"></div></div>
+      <div class="cn" id="cn_kick"><div class="cnh"><img src="/kick.png" alt=""><b>Kick</b><label class="sw" title="Aktifkan / nonaktifkan Kick"><input type="checkbox" id="en_kick"><i></i></label></div><input type="text" id="kku" placeholder="Username Kick, contoh namakamu"><div class="cst" id="st_kick"></div><details class="kkopt"><summary>Kick tidak mau tersambung?</summary><div class="hint">Kick dilindungi Cloudflare, jadi kadang aplikasi gagal mengambil info channelnya. Kalau status Kick berkata gagal, buka <code>kick.com/api/v2/channels/namakamu</code> di browser, cari tulisan <code>"chatroom":{"id":</code> lalu isi angka setelahnya di sini. Dibiarkan kosong = otomatis.</div><input type="number" id="kkroom" placeholder="ID chatroom Kick (opsional)"></details></div>
+      <div class="btns"><button class="btn b1" id="conn">Sambungkan</button><button class="btn b2" id="disc">Putuskan</button></div></div>
     <div class="card"><h3 class="h3sw">Kirim Chat<label class="sw" title="Aktifkan / nonaktifkan kolom kirim chat di dock"><input type="checkbox" id="sendOn"><i></i></label></h3>
       <div class="stat"><div class="chip2" data-pf="youtube"><img src="/yt.png" alt=""><span>YouTube</span><b id="ay">-</b></div><div class="chip2" data-pf="tiktok"><img src="/tt.png" alt=""><span>TikTok</span><b id="at">-</b></div><div class="chip2" data-pf="twitch"><img src="/tw.png" alt=""><span>Twitch</span><b id="aw">-</b></div><div class="chip2" data-pf="kick"><img src="/kick.png" alt=""><span>Kick</span><b id="ak">-</b></div></div>
       <ol class="steps">
