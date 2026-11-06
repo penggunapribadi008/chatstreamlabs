@@ -48,8 +48,14 @@ app.on('second-instance',()=>{
 });
 // ===== kotak tombol (mata, gembok, pindah, tutup) = jendela kecil tanpa bingkai di LUAR jendela chat / Donate Dock =====
 const CW=162,CH=36,CM=4;
-const hideToTray=w=>{try{if(w&&!w.isDestroyed()){if(w.isMinimized())w.restore();w.hide();}}catch{}}; // diperkecil lewat taskbar: kembalikan dulu ke normal baru sembunyi, supaya saat dibuka lagi tombolnya bisa diklik
-function ctlBounds(wb){ // posisi kotak tombol di luar jendela: atas = tepat di atas jendela, bawah = tepat di bawah (mengikuti pengaturan \"Posisi tombol\"), dijaga tetap di dalam layar
+// paksa jendela menggambar ulang isinya (dipakai setelah jendela tampil / dipulihkan dari minimize, supaya isinya tidak kosong)
+const repaint=w=>{const f=()=>{try{if(w&&!w.isDestroyed()){const c=(w.__view||w).webContents;if(c&&!c.isDestroyed())c.invalidate();}}catch{}};f();setTimeout(f,120);};
+function ctlBounds(wb,inside){ // Chat Dock: posisi kotak tombol di luar jendela: atas = tepat di atas jendela, bawah = tepat di bawah (mengikuti pengaturan "Posisi tombol"), dijaga tetap di dalam layar
+  if(inside){ // Donate Dock: selalu di DALAM jendela, pojok kanan atas (tidak mengikuti pengaturan "Posisi tombol")
+    let x=Math.max(wb.x,wb.x+wb.width-CW-CM),y=wb.y+CM;
+    try{const wa=screen.getDisplayMatching(wb).workArea;x=Math.min(Math.max(x,wa.x),wa.x+wa.width-CW);y=Math.min(Math.max(y,wa.y),wa.y+wa.height-CH);}catch{}
+    return{x,y};
+  }
   const P=ctrlPos||'top-right',top=P.startsWith('top');
   let x=P.endsWith('left')?wb.x:P.endsWith('right')?wb.x+wb.width-CW:Math.round(wb.x+(wb.width-CW)/2),y=top?wb.y-CH-CM:wb.y+wb.height+CM;
   try{const wa=screen.getDisplayMatching(wb).workArea;x=Math.min(Math.max(x,wa.x),wa.x+wa.width-CW);y=Math.min(Math.max(y,wa.y),wa.y+wa.height-CH);}catch{}
@@ -59,7 +65,7 @@ function ctlBounds(wb){ // posisi kotak tombol di luar jendela: atas = tepat di 
 function attachCtl(w,t,L){
   const c=new BrowserWindow({width:CW,height:CH,useContentSize:true,title:'ChatStream Labs - kontrol',icon:ICON,frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,resizable:false,maximizable:false,minimizable:false,fullscreenable:false,skipTaskbar:true,focusable:false,thickFrame:false,show:false,parent:w,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true,spellcheck:false}});
   if(L)c.setAlwaysOnTop(true,'screen-saver');
-  const pos=()=>{try{if(c.isDestroyed()||w.isDestroyed())return;const r=ctlBounds(w.getBounds()),b=c.getPosition();if(b[0]!==r.x||b[1]!==r.y)c.setPosition(r.x,r.y,false);}catch{}};
+  const pos=()=>{try{if(c.isDestroyed()||w.isDestroyed())return;const r=ctlBounds(w.getBounds(),t!=='chat'),b=c.getPosition();if(b[0]!==r.x||b[1]!==r.y)c.setPosition(r.x,r.y,false);}catch{}};
   w.__pos=pos;pos();
   const go=()=>{if(!c.isDestroyed())c.loadURL(base()+'/?view=ctl&t='+encodeURIComponent(t));};
   srvP.then(go);
@@ -103,10 +109,10 @@ function applyLockedInput(){
 function applyLockedInputSoon(w){[0,300,1200].forEach(t=>setTimeout(()=>{if(main===w)applyLockedInput();},t));}
 const showWin=(w,asLocked)=>{if(!w||w.isDestroyed())return;if(asLocked)w.showInactive();else w.show();};
 // pengaman: kalau halaman belum siap (blank), muat ulang sampai 4 kali
-function watchLoad(w,go){
+function watchLoad(w,go,wc){ // wc = webContents yang dipantau (default: milik jendela itu sendiri)
   let tries=0;const t=setInterval(async()=>{
-    if(w.isDestroyed()){clearInterval(t);return;}
-    let ok=false;try{ok=await w.webContents.executeJavaScript('window.__ready===true');}catch{}
+    if(w.isDestroyed()||(wc&&wc.isDestroyed())){clearInterval(t);return;}
+    let ok=false;try{ok=await (wc||w.webContents).executeJavaScript('window.__ready===true');}catch{}
     if(ok){clearInterval(t);return;}
     if(++tries>4){clearInterval(t);log('halaman tidak siap setelah 4 kali percobaan');return;}
     log('halaman belum siap, muat ulang ('+tries+')');go();
@@ -120,18 +126,28 @@ function makeMain(bounds){
   else Object.assign(o,{frame:false,backgroundColor:themeBg()});
   const w=new BrowserWindow(o);
   if(L)w.setAlwaysOnTop(true,'screen-saver');
+  // seperti Donate Dock: jendela hanya wadah, halaman chat ada di WebContentsView yang memenuhi isi jendela
+  const v=new WebContentsView({webPreferences:{spellcheck:false}});
+  v.setBackgroundColor(L?'#00000000':themeBg());
+  w.contentView.addChildView(v);w.__view=v;
+  const wc=v.webContents;
+  const fit=()=>{if(w.isDestroyed())return;const [cw,ch]=w.getContentSize();v.setBounds({x:0,y:0,width:cw,height:ch});};
+  fit();w.on('resize',fit);
   attachCtl(w,'chat',L);
-  const go=()=>{if(!w.isDestroyed())w.loadURL(base()+'/?view=dock'+(L?'&locked=1':''));};
-  showWin(w,L);if(L)applyLockedInputSoon(w);else w.loadURL(splash());
-  srvP.then(()=>{go();watchLoad(w,go);});
-  w.webContents.on('did-fail-load',(e,c,d,u)=>{if(c!==-3&&u&&u.startsWith('http://localhost'))setTimeout(go,1000);});
-  w.webContents.on('render-process-gone',()=>{log('proses tampilan berhenti, memuat ulang');setTimeout(go,500);});
-  w.webContents.on('console-message',(...a)=>{const e=a[0],lv=(e&&e.level!==undefined)?e.level:a[1],msg=(e&&e.message)||a[2];if(lv===3||lv==='error')log('tampilan: '+msg);});
+  const go=()=>{if(!w.isDestroyed()&&!wc.isDestroyed())wc.loadURL(base()+'/?view=dock'+(L?'&locked=1':'')).catch(()=>{});};
+  showWin(w,L);if(L)applyLockedInputSoon(w);else wc.loadURL(splash()).catch(()=>{});
+  srvP.then(()=>{go();watchLoad(w,go,wc);});
+  wc.on('did-finish-load',()=>prot(w));
+  w.on('restore',()=>repaint(w));w.on('show',()=>repaint(w));
+  wc.on('did-fail-load',(e,c,d,u)=>{if(c!==-3&&u&&u.startsWith('http://localhost'))setTimeout(go,1000);});
+  wc.on('render-process-gone',()=>{log('proses tampilan berhenti, memuat ulang');setTimeout(go,500);});
+  wc.on('console-message',(...a)=>{const e=a[0],lv=(e&&e.level!==undefined)?e.level:a[1],msg=(e&&e.message)||a[2];if(lv===3||lv==='error')log('tampilan: '+msg);});
   const keep=()=>{if(!L&&!w.isDestroyed()&&!w.isMinimized())saveB({outer:w.getBounds()});};
   w.on('moved',keep);w.on('resized',keep);
-  if(!L)w.on('minimize',()=>{if(!quitting)hideToTray(w);}); // diperkecil = masuk tray
   // menutup jendela chat tidak menutup aplikasi (Dashboard tetap ada)
-  w.on('closed',()=>{if(main===w&&!switching){const was=locked;main=null;locked=false;if(tray)tray.setContextMenu(trayMenu());}});
+  w.on('closed',()=>{
+    try{if(!wc.isDestroyed())wc.close();}catch{} // WebContentsView tidak ikut tertutup bersama jendelanya: tutup manual supaya prosesnya lepas
+    if(main===w&&!switching){const was=locked;main=null;locked=false;if(tray)tray.setContextMenu(trayMenu());}});
   main=w;
   return w;
 }
@@ -178,17 +194,25 @@ function winCtl(which,act){
   if(act==='min'){if(which==='dash'||which==='main')w.hide();else w.minimize();} // Dashboard/Chat: langsung sembunyi ke tray (tanpa status 'minimized', yang bikin jendela macet saat dibuka lagi)
   else if(act==='max'){if(w.isMaximized())w.unmaximize();else w.maximize();}
   else if(act==='close'){if(which==='dash')askQuit();else w.close();}
-  else if(act==='reload'){try{w.webContents.reload();}catch{}}
+  else if(act==='reload'){try{(w.__view||w).webContents.reload();}catch{}}
 }
 // Laporan penonton = tab di dalam Dashboard (bukan jendela baru)
 function openReport(){
   showDash();
-  try{if(dash&&!dash.isDestroyed())dash.webContents.executeJavaScript("window.__goTab&&window.__goTab('r')").catch(()=>{});}catch{}
+  const w=dash,t0=Date.now();
+  const tryGo=async()=>{
+    if(!w||w.isDestroyed())return;
+    let ok=false;try{ok=await w.webContents.executeJavaScript('window.__ready===true');}catch{}
+    if(!ok){if(Date.now()-t0<10000)setTimeout(tryGo,250);return;}
+    try{await w.webContents.executeJavaScript("window.__goTab&&window.__goTab('r')");}catch{}
+  };
+  tryGo();
 }
 // Pengaturan sekarang ada di Dashboard
 function openSettings(){showDash();}
 function showDash(){
   if(!dash||dash.isDestroyed())return;
+  if(dash.__susp){dash.__susp=false;if(dash.__go)dash.__go();} // halaman sempat dikosongkan untuk hemat RAM: muat lagi
   if(dash.isMinimized())dash.restore();
   if(!dash.isVisible())dash.show();
   dash.focus();dash.moveTop();
@@ -196,7 +220,7 @@ function showDash(){
 }
 // jendela chat (dulu jendela utama), dibuka dari tombol di Dashboard
 function openChat(){
-  if(main&&!main.isDestroyed()){if(main.isMinimized())main.restore();if(!main.isVisible())showWin(main,locked);if(!locked)main.focus();return;}
+  if(main&&!main.isDestroyed()){if(main.isMinimized())main.restore();if(!main.isVisible())showWin(main,locked);if(!locked){main.focus();try{main.__view.webContents.focus();}catch{}}return;}
   locked=false;makeMain();
 }
 // Dashboard = jendela pertama yang terbuka setelah splash
@@ -204,15 +228,25 @@ function makeDash(){
   const b=readJ(BF).dash||{};
   const w=new BrowserWindow({x:b.x,y:b.y,width:b.width||1100,height:b.height||700,minWidth:860,minHeight:540,title:'ChatStream Labs - Dashboard',icon:ICON,frame:false,autoHideMenuBar:true,backgroundColor:themeBg(),show:false,webPreferences:{spellcheck:false}});
   const go=()=>{if(!w.isDestroyed())w.loadURL(base()+'/?view=dashboard');};
-  go();watchLoad(w,go);
+  w.__go=go;go();watchLoad(w,go);
   w.webContents.on('did-fail-load',(e,c,d,u)=>{if(c!==-3&&u&&u.startsWith('http://localhost'))setTimeout(go,1000);});
   w.webContents.on('render-process-gone',()=>{log('proses tampilan Dashboard berhenti, memuat ulang');setTimeout(go,500);});
   const keep=()=>{if(!w.isDestroyed()&&!w.isMinimized()&&!w.isMaximized())saveB({dash:w.getBounds()});};
   w.on('moved',keep);w.on('resized',keep);
-  w.on('minimize',()=>{if(!quitting)hideToTray(w);}); // diperkecil = masuk tray
+  // Hemat RAM: Dashboard yang disembunyikan ke tray > DASH_IDLE_MS dikosongkan halamannya (isi memori dilepas), lalu dimuat lagi saat dibuka.
+  // Diperkecil lewat taskbar Windows = minimize biasa (tidak masuk tray, tidak dikosongkan).
+  w.on('hide',()=>{clearTimeout(w.__idle);w.__idle=setTimeout(()=>suspendDash(w),DASH_IDLE_MS);});
+  w.on('show',()=>{clearTimeout(w.__idle);repaint(w);});
+  w.on('restore',()=>repaint(w));
   w.on('close',e=>{if(!quitting){e.preventDefault();askQuit();}});
-  w.on('closed',()=>{if(dash===w)dash=null;});
+  w.on('closed',()=>{clearTimeout(w.__idle);if(dash===w)dash=null;});
   dash=w;return w;
+}
+const DASH_IDLE_MS=120000;
+function suspendDash(w){
+  if(!w||w.isDestroyed()||w.isVisible()||w.isMinimized()||w.__susp||quitting)return;
+  w.__susp=true;
+  try{w.webContents.loadURL('about:blank').catch(()=>{});}catch{}
 }
 // splash: cek update -> menyambungkan; ditutup setelah Dashboard siap
 function startUp(){
