@@ -117,15 +117,17 @@ async function extensionTests(){
     class WS{constructor(){this.readyState=1;setTimeout(()=>{WSI=this;this.onopen&&this.onopen();},0);}send(x){sent.push(JSON.parse(x));}close(){}}let WSI=null;
     const document={querySelector:q=>map[q]||null,querySelectorAll:q=>map[q]?[map[q]]:[],execCommand:(cmd,_,t)=>{if(cmd==='insertText'&&mode!=='noinsert')box.textContent=t;else if(cmd==='selectAll'){}return true;}};
     const chrome={storage:{local:{get:(k,cb)=>cb({})},onChanged:{addListener(){}}}};
-    const ctx={document,chrome,WebSocket:WS,MutationObserver:class{observe(){}disconnect(){}},Event:class{},KeyboardEvent:class{},HTMLTextAreaElement:{prototype:{}},setTimeout,clearTimeout,setInterval,clearInterval,JSON,String,Object,Promise,console};
+    const ctx={document,location:{href:'https://www.twitch.tv/popout/streamer/chat?popout='},chrome,WebSocket:WS,MutationObserver:class{observe(){}disconnect(){}},Event:class{},KeyboardEvent:class{},HTMLTextAreaElement:{prototype:{}},setTimeout,clearTimeout,setInterval,clearInterval,JSON,String,Object,Promise,console};
     vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(extDir,file),'utf8'),ctx);await sleep(30);
     const t0=Date.now();WSI.onmessage({data:JSON.stringify({type:'send',id:'1',text:'halo dunia'})});
     let r=null;for(let n=0;n<150&&!r;n++){await sleep(20);r=sent.find(x=>x.type==='result');}
     return{r,ms:Date.now()-t0,clicks:btn.clicks,hello:sent.find(x=>x.type==='hello')};
   }
+  const location_fake='https://www.twitch.tv/popout/streamer/chat?popout=';
   for(const f of Object.keys(CFG)){
     let o=await runCs(f,'ok');
     ok(o.hello&&o.hello.platform===CFG[f].plat&&o.r&&o.r.ok===true&&o.clicks===1&&o.ms<500,f+': kolom kosong 120 ms setelah klik -> hasil ok dilaporkan segera ('+o.ms+' ms, jeda lama minimal 1000 ms), tepat 1 klik');
+    ok(o.hello&&o.hello.page===location_fake,f+': hello membawa alamat halaman (location.href) supaya server bisa mencocokkan tab dengan username (v15.3.1)');
     o=await runCs(f,'late');
     ok(o.r&&o.r.ok===true&&o.clicks===1&&o.ms>=140&&o.ms<700,f+': menunggu tombol kirim aktif lalu klik SEKALI ('+o.ms+' ms), tidak mengklik tombol yang masih nonaktif');
     o=await runCs(f,'stuck');
@@ -181,6 +183,26 @@ async function extTests(base,dir,j,raw){
   ok(/Chrome terbuka/.test(r5.tiktok)&&Date.now()-t1<5000,'tanpa service worker: pesan jelas "pastikan Chrome terbuka..." dan tidak menggantung');
   // ping bg dijawab pong (jaga service worker tetap hidup)
   const got=[];const bg2=await conn({type:'bg'},m=>got.push(m.type));bg2.send(JSON.stringify({type:'ping'}));await sleep(150);ok(got.includes('pong'),'ping dari service worker dijawab pong');
+  // v15.3.1: tab chat yang terhubung HARUS milik username yang diisi (dulu cukup platform yang sama -> pesan bisa terkirim ke channel lain)
+  csW.close();await sleep(150);
+  const opens3=[],bg3=await conn({type:'bg'},m=>{if(m.type==='open')opens3.push(m);});
+  const pg=(platform,page,hit)=>conn({type:'hello',platform,page},(m,w)=>{if(m.type==='send'){hit.n++;w.send(JSON.stringify({type:'result',id:m.id,ok:true}));}});
+  const hitW={n:0},hitR={n:0},acc=async()=>(await fetch(base+'/account')).json();
+  const wrongTw=await pg('twitch','https://www.twitch.tv/popout/orang_lain/chat?popout=',hitW);
+  ok((await acc()).twitch===false,'tab Twitch milik channel lain: status \"belum terhubung\" (bukan terhubung)');
+  const rW=await j('/send',{text:'x',targets:['twitch']});
+  ok(/bukan milik username/.test(rW.twitch)&&hitW.n===0,'tab Twitch milik channel lain TIDAK dipakai: pesan tidak dikirim ke sana, error jelas ('+rW.twitch+')');
+  ok(opens3.some(o=>o.platform==='twitch'&&o.url==='https://www.twitch.tv/popout/streamer/chat?popout='),'... dan halaman channel yang benar diminta dibuka lewat service worker');
+  const rightTw=await pg('twitch','https://www.twitch.tv/popout/Streamer/chat?popout=',hitR);
+  ok((await acc()).twitch===true,'tab milik username yang benar (beda huruf besar/kecil): status terhubung');
+  const rR=await j('/send',{text:'y',targets:['twitch']});
+  ok(rR.twitch==='ok'&&hitR.n===1&&hitW.n===0,'dua tab Twitch terbuka: pesan hanya ke tab username yang benar');
+  // YouTube: dicocokkan lewat ID video (username yang diisi = link video abcdefghijk)
+  const wrongYt=await pg('youtube','https://www.youtube.com/live_chat?is_popout=1&v=zzzzzzzzzzz',{n:0});
+  ok((await acc()).youtube===false,'tab YouTube milik video lain: status belum terhubung');
+  const rightYt=await pg('youtube','https://www.youtube.com/live_chat?is_popout=1&v=abcdefghijk',{n:0});
+  ok((await acc()).youtube===true,'tab YouTube dengan video yang benar: status terhubung');
+  [wrongTw,rightTw,wrongYt,rightYt,bg3].forEach(w=>{try{w.close();}catch{}});
   [bg2,csW].forEach(w=>{try{w.close();}catch{}});
 }
 

@@ -34,7 +34,7 @@
   function connect(){
     const L=ports(),port=L[pi%L.length];let ws,opened=false;
     try{ws=new WebSocket('ws://127.0.0.1:'+port+'/ext');}catch{pi++;return setTimeout(connect,1500);}
-    ws.onopen=()=>{opened=true;ws.send(JSON.stringify({type:'hello',platform:'tiktok'}));};
+    ws.onopen=()=>{opened=true;ws.send(JSON.stringify({type:'hello',platform:'tiktok',page:location.href}));};
     ws.onmessage=async e=>{const m=JSON.parse(e.data);if(m.type!=='send')return;let r;try{r=await send(m.text);}catch(err){r={ok:false,error:String(err)};}ws.send(JSON.stringify({type:'result',id:m.id,...r}));};
     ws.onclose=()=>{if(!opened)pi++;setTimeout(connect,opened?3000:400);};ws.onerror=()=>{try{ws.close();}catch{}};
   }

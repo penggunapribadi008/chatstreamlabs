@@ -146,7 +146,7 @@ const srv=http.createServer((req,res)=>{
   if(u.pathname==='/dash-state'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify({protect:settings.global.protect!==false,...(hooks.dashState?hooks.dashState():{chat:{},docks:{}})}));}
   if(u.pathname==='/state'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({protect:settings.global.protect!==false}));}
   if(u.pathname==='/auth-state'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(Object.fromEntries(Object.entries(OFF).map(([k,v])=>[k,v.state()]))));}
-  if(u.pathname==='/account'){res.writeHead(200,{'Content-Type':'application/json'});const has=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);return res.end(JSON.stringify({youtube:has('youtube'),tiktok:has('tiktok'),twitch:has('twitch'),kick:has('kick')}));}
+  if(u.pathname==='/account'){res.writeHead(200,{'Content-Type':'application/json'});const has=p=>hasExt(p);return res.end(JSON.stringify({youtube:has('youtube'),tiktok:has('tiktok'),twitch:has('twitch'),kick:has('kick')}));}
   if(u.pathname==='/urls'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({youtube:extUrl('youtube')||chatUrl('youtube'),tiktok:extUrl('tiktok')||chatUrl('tiktok'),twitch:extUrl('twitch')||chatUrl('twitch'),kick:extUrl('kick')||chatUrl('kick')}));}
   if(FILES[u.pathname]){res.writeHead(200,{'Content-Type':FILES[u.pathname],'Cache-Control':'max-age=3600'});return res.end(fs.readFileSync(path.join(__dirname,u.pathname)));}
   if(u.pathname==='/'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});
@@ -388,7 +388,7 @@ srv.on('upgrade',(req,sock,head)=>{
 wss.on('connection',ws=>{
   const c={ws,platform:'',bg:false};ext.add(c);
   ws.on('message',raw=>{try{const m=JSON.parse(raw);
-    if(m.type==='hello'&&PF4.includes(m.platform))c.platform=m.platform;
+    if(m.type==='hello'&&PF4.includes(m.platform)){c.platform=m.platform;c.page=String(m.page||'').slice(0,500);c.key=pageKey(c.page);}
     else if(m.type==='bg'){c.bg=true; // service worker ekstensi (pembuka tab latar); bukan content script platform
       // v15.2.0: beri tahu versi aplikasi supaya ekstensi yang versinya beda memuat ulang dirinya (lihat extension/bg.js). Ekstensi lama (<=15.1.7) mengabaikan pesan ini.
       const v=appVer();if(v){try{ws.send(JSON.stringify({type:'ver',version:v}));}catch{}}}
@@ -401,7 +401,20 @@ wss.on('connection',ws=>{
 const appVer=()=>{try{return String((hooks.appVersion&&hooks.appVersion())||process.env.CG_VERSION||'').trim();}catch{return '';}};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const PNAME={youtube:'YouTube',tiktok:'TikTok',twitch:'Twitch',kick:'Kick'};
-const hasExt=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);
+// v15.3.1: tab chat yang terhubung HARUS halaman milik username yang diisi. Dulu platform saja yang dicocokkan, jadi tab Twitch/Kick/YouTube/TikTok milik channel LAIN
+// (mis. channel yang sedang kamu tonton) ikut dipakai dan pesan terkirim ke channel yang salah. Kunci halaman SAMA dengan key() di extension/bg.js.
+function pageKey(u){try{const x=new URL(u),h=x.hostname.replace(/^www\./,''),p=x.pathname.toLowerCase();
+  if(h==='youtube.com'){const v=x.searchParams.get('v');return v&&/^\/(live_chat|watch)/.test(p)?'yt:'+v:'';}
+  if(h==='tiktok.com'){const m=p.match(/^\/(@[^/]+)\/live/);return m?'tt:'+m[1]:'';}
+  if(h==='twitch.tv'){const m=p.match(/^\/(?:popout\/)?([a-z0-9_]+)/);return m?'tw:'+m[1]:'';}
+  if(h==='kick.com'){const m=p.match(/^\/(?:popout\/)?([a-z0-9_-]+)/);return m?'kk:'+m[1]:'';}
+}catch{}return '';}
+const wantKey=p=>{try{return pageKey(extUrl(p));}catch{return '';}}; // '' = alamat belum diketahui (mis. YouTube belum tersambung): tidak bisa dicocokkan
+// Cocok kalau: platform sama, koneksi hidup, dan (ekstensi lama tanpa info halaman ATAU alamat belum diketahui ATAU kunci halaman sama dengan yang diminta).
+const okConn=(c,p,w)=>c.platform===p&&c.ws.readyState===1&&(!c.page||!w||c.key===w);
+const hasExt=p=>{const w=wantKey(p);return [...ext].some(c=>okConn(c,p,w));};
+// Ada tab chat platform ini yang terhubung tetapi milik username LAIN (untuk pesan error yang jelas).
+const wrongTab=p=>{const w=wantKey(p);return !!w&&[...ext].some(c=>c.platform===p&&c.ws.readyState===1&&c.page&&c.key!==w);};
 const bgConn=()=>[...ext].filter(c=>c.bg&&c.ws.readyState===1).pop();
 async function waitUntil(fn,ms,step=250){const end=Date.now()+ms;while(Date.now()<end){if(fn())return true;await sleep(step);}return !!fn();}
 // Alamat yang dibuka di tab latar. HARUS cocok dengan pola content script di extension/manifest.json (YouTube: live_chat*, TikTok: */live*, Twitch: twitch.tv/*, Kick: kick.com/*).
@@ -431,11 +444,12 @@ async function doEnsure(p){
   if(!bg)return 'ekstensi Chrome belum terhubung. Pastikan Chrome terbuka dan sudah login, ekstensi sudah dimuat ulang di chrome://extensions, lalu coba lagi. '+manual;
   if(Date.now()-(lastOpen[p]||0)>OPEN_COOLDOWN){lastOpen[p]=Date.now();try{bg.ws.send(JSON.stringify({type:'open',platform:p,url}));}catch{}}
   if(await waitUntil(()=>hasExt(p),OPEN_WAIT))return '';
+  if(wrongTab(p))return 'tab chat '+nm+' yang terbuka di Chrome bukan milik username yang kamu isi di Koneksi, jadi pesan tidak dikirim ke sana (supaya tidak salah channel). Halaman yang benar sudah diminta dibuka: tunggu sebentar lalu kirim lagi.';
   return 'halaman chat '+nm+' sudah dibuka di Chrome tetapi belum terhubung ke aplikasi (mungkin masih memuat atau belum login). Coba kirim lagi sebentar lagi.';
 }
 function autoOpen(p){if(!autoOpenOn()||!isEn(p)||hasExt(p)||!extUrl(p))return;ensureExt(p).catch(()=>{});}
 function extSendRaw(platform,text){return new Promise(resolve=>{
-  const c=[...ext].find(x=>x.platform===platform&&x.ws.readyState===1);
+  const w=wantKey(platform),c=[...ext].find(x=>okConn(x,platform,w));
   if(!c)return resolve('ekstensi Chrome belum terhubung. Buka halaman chat '+PNAME[platform]+' di Chrome (lihat Dashboard > Koneksi).');
   const id=String(++seq),t=setTimeout(()=>{delete pendingExt[id];resolve('halaman chat tidak merespons');},9000);
   pendingExt[id]=m=>{clearTimeout(t);resolve(m.ok?'ok':(m.error||'gagal'));};
