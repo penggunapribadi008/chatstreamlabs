@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ChatStream Labs - Pengirim Chat",
-  "version": "15.3.0",
+  "version": "15.3.2",
   "description": "Mengirim chat dari aplikasi ChatStream Labs ke halaman live YouTube / TikTok / Twitch / Kick di Chrome. Halaman chat dibuka otomatis sebagai tab latar.",
   "icons": {
     "128": "icon.png"

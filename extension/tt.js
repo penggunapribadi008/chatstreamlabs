@@ -12,7 +12,12 @@
   const SEL=['[data-e2e="comment-input"] [contenteditable]','[data-e2e="comment-input"]','div[contenteditable="plaintext-only"]','div[contenteditable="true"]','textarea'];
   const vis=e=>e&&e.getBoundingClientRect().width>0;
   const key=(el,t)=>el.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));
-  async function send(text){
+  // v15.3.2: nama akun TikTok yang login di Chrome, dibaca dari tautan profil di bilah atas. Pemilihnya TEBAKAN (belum teruji di TikTok asli): '' = tidak terbaca,
+  // dan itu TIDAK memblokir pengiriman. Yang diblokir hanya kalau nama terbaca DAN beda dengan username di aplikasi.
+  const me=()=>{try{for(const q of ['[data-e2e="profile-icon"]','a[data-e2e="nav-profile"]']){const e=document.querySelector(q);if(!e)continue;
+    const a=e.closest?e.closest('a'):null,h=(a&&a.getAttribute('href'))||(e.getAttribute&&e.getAttribute('href'))||'',m=String(h).match(/\/@([\w.]+)/);if(m)return m[1].toLowerCase();}}catch{}return '';};
+  async function send(text,as){
+    if(as){const who=me();if(who&&who!==String(as).replace(/^@/,'').toLowerCase())return{ok:false,error:'akun TikTok yang login di Chrome (@'+who+') bukan @'+String(as).replace(/^@/,'')+' (username di Koneksi), jadi pesan tidak dikirim.'};}
     let el=null;for(const s of SEL){el=[...document.querySelectorAll(s)].find(vis);if(el)break;}
     if(!el)return{ok:false,error:'kolom chat TikTok tidak ditemukan (belum login di Chrome, atau live belum berjalan)'};
     el.focus();
@@ -35,7 +40,7 @@
     const L=ports(),port=L[pi%L.length];let ws,opened=false;
     try{ws=new WebSocket('ws://127.0.0.1:'+port+'/ext');}catch{pi++;return setTimeout(connect,1500);}
     ws.onopen=()=>{opened=true;ws.send(JSON.stringify({type:'hello',platform:'tiktok',page:location.href}));};
-    ws.onmessage=async e=>{const m=JSON.parse(e.data);if(m.type!=='send')return;let r;try{r=await send(m.text);}catch(err){r={ok:false,error:String(err)};}ws.send(JSON.stringify({type:'result',id:m.id,...r}));};
+    ws.onmessage=async e=>{const m=JSON.parse(e.data);if(m.type!=='send')return;let r;try{r=await send(m.text,m.as);}catch(err){r={ok:false,error:String(err)};}ws.send(JSON.stringify({type:'result',id:m.id,...r}));};
     ws.onclose=()=>{if(!opened)pi++;setTimeout(connect,opened?3000:400);};ws.onerror=()=>{try{ws.close();}catch{}};
   }
   connect();

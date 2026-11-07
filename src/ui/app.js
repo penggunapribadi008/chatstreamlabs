@@ -87,7 +87,7 @@ function tplOf(id){
 }
 function applyStyle(){
   const s=cur(view),b=document.body,r=document.documentElement.style;
-  b.classList.toggle('nosend',!!(S.global&&S.global.sendOn===false));
+  b.classList.toggle('nosend',!(S.global&&S.global.sendOn===true)); // v15.3.2: bawaan MATI
   r.setProperty('--fsn',s.fsName+'px');r.setProperty('--fst',s.fsText+'px');r.setProperty('--fs',s.fsText+'px');r.setProperty('--gap',s.gap+'px');r.setProperty('--bg',s.bg/100);
   r.setProperty('--cbg',s.chatBg?hexA(s.chatBgColor,s.chatBgOp):'transparent');r.setProperty('--p5-scale',(s.fsText/17.5).toFixed(3));r.setProperty('--nr',(s.fsName/s.fsText).toFixed(3));
   let pid=view==='overlay'?(forceId||s.preset):'polos',tpl=tplOf(pid);if(!tpl){pid='polos';tpl=tplOf('polos');}
@@ -96,7 +96,7 @@ function applyStyle(){
   const usesVars=!!(tpl.custom&&/--fs[nt]\b|--p5-scale|--nr\b/.test(tpl.css||'')),zm=view==='overlay'&&tpl.custom&&!usesVars&&tpl.struct!=='p5'&&tpl.struct!=='cozy'&&/font(-size)?\s*:[^;}]*\d+(\.\d+)?px/.test(tpl.css||'');
   r.setProperty('--zn',(s.fsName/20).toFixed(3));r.setProperty('--zt',(s.fsText/20).toFixed(3));
   $('usercss').textContent=tpl.custom?tpl.css:'';
-  b.className=[view,isPrev?'preview':'',isLocked?'locked':'',s.chatBg?'cb':'',s.order==='top'?'ot':'',(view==='overlay'&&s.align==='right')?'al-right':'',(view==='overlay'&&tpl.struct==='rv')?'s-rv':'','p-'+(tpl.custom?'custom':pid),'an-'+an,zm?'zm':'',(view==='overlay'&&s.gap!==DEF.overlay.gap)?'gap-set':'',booting?'noanim':'',s.viewers?'sv':'',s.time?'st':'',s.avatar?'':'na',s.botTag?'':'nobt',s.hideBots?'hb':'',(view==='dock'&&filt!=='all')?'f-'+filt:'',(S.global&&S.global.sendOn===false)?'nosend':''].filter(Boolean).join(' ');
+  b.className=[view,isPrev?'preview':'',isLocked?'locked':'',s.chatBg?'cb':'',s.order==='top'?'ot':'',(view==='overlay'&&s.align==='right')?'al-right':'',(view==='overlay'&&tpl.struct==='rv')?'s-rv':'','p-'+(tpl.custom?'custom':pid),'an-'+an,zm?'zm':'',(view==='overlay'&&s.gap!==DEF.overlay.gap)?'gap-set':'',booting?'noanim':'',s.viewers?'sv':'',s.time?'st':'',s.avatar?'':'na',s.botTag?'':'nobt',s.hideBots?'hb':'',(view==='dock'&&filt!=='all')?'f-'+filt:'',!(S.global&&S.global.sendOn===true)?'nosend':''].filter(Boolean).join(' ');
   if(view==='dock'&&!isLocked)applyUi(s);
   chatColors(s,pid);
   if(view==='overlay'){wrap.id=curStruct==='rv'?'log':curStruct==='cozy'?'chat':'msgs';if(curStruct==='cozy')wrap.dataset.mode='person';else delete wrap.dataset.mode;}
@@ -458,7 +458,7 @@ function refreshPresets(){const sel=$('overlay_preset');if(!sel)return;const kee
   sel.value=all.some(x=>x[0]===keep)?keep:(all.some(x=>x[0]===cur('overlay').preset)?cur('overlay').preset:'polos');}
 function fill(v,src){const s=src||cur(v);if(v==='overlay')refreshPresets();
   items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;if(it[0]==='chk')e.checked=!!s[it[1]];else e.value=s[it[1]];if(it[0]==='sl')lbl(v,it);});syncDeps(v);pvAll(v);}
-function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn!==false;$('autoOpen').checked=g.autoOpen!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';}
+function fillGlobal(){const g=S.global||{};$('sendOn').checked=g.sendOn===true;$('autoOpen').checked=g.autoOpen!==false;$('protect').checked=g.protect!==false;$('ctrlPos').value=g.ctrlPos||'top-right';$('obsW').value=g.obsW||500;$('obsH').value=g.obsH||900;$('obsPass').value=g.obsPass||'';$('botNames').value=g.botNames||'';}
 function collect(v){const o={};items(v).forEach(it=>{const e=$(v+'_'+it[1]);if(!e)return;o[it[1]]=it[0]==='chk'?e.checked:(it[0]==='sl'?+e.value:e.value);});return o;}
 let dt=null;
 function draftChange(v){items(v).filter(i=>i[0]==='sl').forEach(i=>lbl(v,i));syncDeps(v);pvAll(v);if(v==='dock')applyUi(collect('dock'));if(isDash)pvSend();clearTimeout(dt);dt=setTimeout(()=>post('/draft',{view:v,values:collect(v)}),40);}
@@ -476,16 +476,6 @@ document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{const v=b.da
 // akun
 async function acct(){if(document.hidden)return;try{const a=await(await fetch('/account')).json();accState=a;
   [['ay',a.youtube],['at',a.tiktok],['aw',a.twitch],['ak',a.kick]].forEach(([i,ok])=>{$(i).textContent=ok?'terhubung':'belum terhubung';$(i).className=ok?'ok':'no';});}catch{}}
-// Login resmi (v15.2.1): baris Masuk/Keluar per platform yang punya penyedia di server (sekarang Twitch). Chrome tetap jadi cadangan kirim chat.
-const AUP={twitch:'Twitch'};let AUS={},auMsg={},auTm=0;
-function auRender(){Object.keys(AUP).forEach(p=>{const row=$('au_'+p),s=AUS[p];if(!row||!s)return;row.hidden=false;
-  const t=$('aus_'+p),b=$('aub_'+p),add=(x,bold)=>{const e=document.createElement(bold?'b':'span');e.textContent=x;t.appendChild(e);};t.textContent='';
-  if(s.pending||s.loggedIn)auMsg[p]='';
-  if(s.pending){add('Kodemu: ');add(s.pending.code,1);add('. Halaman '+AUP[p]+' sudah dibuka: masukkan kode itu, lalu klik Aktifkan.');b.textContent='Batal';}
-  else if(s.loggedIn){add('Masuk sebagai ');add(s.name,1);add('. Chat dikirim langsung lewat '+AUP[p]+', tanpa Chrome.'+(s.memOnly?' Tapi login ini hanya berlaku sampai aplikasi ditutup (komputermu tidak punya penyimpanan aman untuk token), jadi perlu masuk lagi nanti.':''));b.textContent='Keluar';}
-  else{add('Kirim chat ke '+AUP[p]+' tanpa Chrome: cukup masuk sekali.');b.textContent='Masuk dengan '+AUP[p];}
-  const m=auMsg[p]||s.error;if(m){const e=document.createElement('div');e.className='no';e.textContent=m;t.appendChild(e);}});}
-async function authRefresh(){if(!$('au_twitch'))return;try{AUS=await(await fetch('/auth-state')).json();auRender();clearTimeout(auTm);if(Object.values(AUS).some(s=>s.pending))auTm=setTimeout(authRefresh,1500);}catch{}}
 const copyText=async t=>{try{await navigator.clipboard.writeText(t);}catch{try{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}catch{}}};
 // hotkey
 const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R',donate:'Ctrl+Alt+D'};
@@ -554,16 +544,13 @@ $('portavoid').onclick=()=>{$('avlist').innerHTML='';(conf.avoid||[]).forEach(a=
 $('avclose').onclick=()=>{$('avmodal').hidden=true;};$('avmodal').onclick=e=>{if(e.target===$('avmodal'))$('avmodal').hidden=true;};
 $('sendOn').onchange=()=>post('/send-set',{on:$('sendOn').checked}).catch(()=>{});
 $('autoOpen').onchange=()=>post('/autoopen-set',{on:$('autoOpen').checked}).catch(()=>{});
-document.querySelectorAll('[id^=aub_]').forEach(b=>b.onclick=async()=>{const p=b.id.slice(4),s=AUS[p]||{};b.disabled=true;auMsg[p]='';
-  try{if(s.pending||s.loggedIn)await post('/auth-logout',{platform:p});else{const r=await(await post('/auth-login',{platform:p})).json();if(r&&r.error)auMsg[p]=r.error;}}catch{auMsg[p]='Tidak bisa menghubungi aplikasi.';}
-  b.disabled=false;authRefresh();});
 $('u2').onclick=()=>{$('u2').select();try{document.execCommand('copy')}catch{}};
 $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textContent='Menghubungi OBS...';
   const r=await(await post('/obs-add',{width:+$('obsW').value||500,height:+$('obsH').value||900,password:$('obsPass').value})).json();
   if(r.error){m.className='hint no';m.textContent='Gagal: '+r.error;}else{m.className='hint ok';m.textContent='Berhasil. Overlay sudah ada di scene OBS yang sedang aktif (nama sumber: ChatStream Overlay).';}};
 }
 function initSettings(){fill('dock');fill('overlay');fillGlobal();applyUi(cur('dock'));$('yt').value=conf.youtube||'';$('tk').value=conf.tiktok||'';$('twu').value=conf.twitch||'';$('kku').value=conf.kick||'';$('kkroom').value=conf.kickRoom||'';$('u2').value=location.origin+'/?view=overlay';showPort();syncPlats();
-  hk={...HK_DEF,...((S.global&&S.global.hotkeys)||{})};hkRender();setTab(isDash?'d':'k');acct();authRefresh();setInterval(()=>{if(!document.hidden){acct();authRefresh();}},5000);if(isDash)initDash();
+  hk={...HK_DEF,...((S.global&&S.global.hotkeys)||{})};hkRender();setTab(isDash?'d':'k');acct();setInterval(()=>{if(!document.hidden){acct();}},5000);if(isDash)initDash();
   addEventListener('beforeunload',()=>{fetch('/draft-clear',{method:'POST',body:'{}',keepalive:true});});}
 // ---- Dashboard: sidebar, halaman beranda, pratinjau kanan (Pribadi / Overlay), laporan ----
 const PVSRC={pvD:'/?view=dock&preview=1&static=1',pvO:'/?view=overlay&preview=1&static=1'};

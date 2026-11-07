@@ -1,4 +1,4 @@
-const {app,BrowserWindow,WebContentsView,session,dialog,Menu,shell,Tray,globalShortcut,nativeImage,screen,safeStorage}=require('electron');
+const {app,BrowserWindow,WebContentsView,session,dialog,Menu,shell,Tray,globalShortcut,nativeImage,screen}=require('electron');
 const path=require('path'),fs=require('fs');
 const ICON=path.join(__dirname,'icon.png');
 // v15.1.4 hemat RAM: batasi heap JavaScript tiap proses tampilan (halaman ini ringan; batas ini hanya mencegah memori membengkak)
@@ -715,10 +715,6 @@ function syncExtension(){
 const hooks={
   protect:on=>{protect=on;BrowserWindow.getAllWindows().forEach(w=>prot(w));applyLockedInput();applyDonateInput();},
   open:what=>{if(what==='ext')shell.openPath(path.dirname(extSrc()));else shell.openExternal(what);}, // 'ext' = folder induk ekstensi (v15.3.0): terpasang = <folder aplikasi>\resources (isinya folder 'extension'); mode dev = folder proyek
-  // v15.2.1: enkripsi token login resmi (dipakai src/tokenstore.js). Linux 'basic_text' = kunci tertanam, bukan enkripsi sungguhan -> dianggap tidak tersedia.
-  cryptOk:()=>{try{return safeStorage.isEncryptionAvailable()&&!(process.platform==='linux'&&safeStorage.getSelectedStorageBackend&&safeStorage.getSelectedStorageBackend()==='basic_text');}catch{return false;}},
-  encrypt:t=>{try{return safeStorage.encryptString(String(t)).toString('base64');}catch{return null;}},
-  decrypt:b=>{try{return safeStorage.decryptString(Buffer.from(String(b),'base64'));}catch{return null;}},
   appVersion:()=>extOk?app.getVersion():'', // dikirim server ke service worker ekstensi (pesan 'ver'); kosong = jangan kirim
   window:(url,opt)=>openWin(url,opt||{}),
   saveCss:async(name,css)=>{const w=BrowserWindow.getFocusedWindow();const r=await dialog.showSaveDialog(w||undefined,{title:'Ekspor gaya (.css)',defaultPath:path.join(app.getPath('documents'),name+'.css'),filters:[{name:'CSS',extensions:['css']}]});

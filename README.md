@@ -14,14 +14,14 @@ Satu aplikasi untuk streamer YouTube + TikTok + Twitch + Kick: gabungkan chat du
 - Mode kunci (tanpa bingkai, transparan, tembus-klik) + hotkey global yang bisa diatur
 - Sembunyikan jendela dari tangkapan layar OBS
 - Super Chat YouTube tampil menonjol (nominal + warna) di dock dan overlay
-- Kirim chat ke YouTube/TikTok lewat ekstensi Chrome
+- Kirim chat lewat ekstensi Chrome (**eksperimental**, bawaannya mati; nyalakan di Dashboard → Koneksi → Kirim Chat). Semua pengiriman memakai ekstensi, tidak ada login di dalam aplikasi
 - Enam tema tampilan aplikasi
 - Pengaturan per platform (Pribadi dan Overlay): TikTok (bergabung, hadiah, suka, ikuti, bagikan, langganan; masing-masing bisa diberi latar dan warna font) dan YouTube (Super Chat, Super Sticker, Member)
-- Twitch (Bits, subscribe, gift sub, raid, pengumuman, chatter baru, emote) dan Kick (Kicks, subscribe, gift sub, follow, raid, hadiah poin, emote), masing-masing punya halaman pengaturan di Pribadi dan Overlay (belum diuji dengan live sungguhan; kirim chat baru untuk YouTube dan TikTok)
+- Twitch dan Kick (**eksperimental**): Bits/Kicks, subscribe, gift sub, raid, pengumuman, follow, hadiah poin, chatter baru, emote; masing-masing punya halaman pengaturan di Pribadi dan Overlay (belum diuji dengan live sungguhan)
 - Pratinjau overlay menampilkan pesan acak terus-menerus dari semua platform dan jenis aktivitas
 - Kotak Total penonton (penonton yang sedang menonton, bukan puncak) dan tombol Laporan penonton: grafik, puncak, rata-rata, chat, hadiah, Super Chat, riwayat sesi
 - Donate Dock: tempel URL widget donasi (alert dan media share, misalnya Saweria), lalu widget tampil di jendela sendiri di atas game. Ikut mode gembok (transparan, tembus klik, tidak mencuri fokus), posisi dan ukuran tersimpan, ada saklar bisu, hotkey (Ctrl+Alt+D) dan menu tray. Chrome tidak perlu dibuka. Belum diuji dengan widget asli
-- Kolom kirim chat bisa dimatikan: kotak isi chat dan tombol Kirim hilang, filter platform dan gembok tetap ada
+- Kolom kirim chat bawaannya mati (kotak isi chat dan tombol Kirim tersembunyi; filter platform dan gembok tetap ada). Nyalakan lewat saklar Kirim Chat di Koneksi
 
 ## Membuat installer lewat GitHub (tanpa Node.js di komputermu)
 Baca **`PANDUAN-GITHUB.md`**: unggah kode ke repositori, jalankan workflow *Build installer Windows*, unduh installer-nya.
@@ -35,7 +35,7 @@ npm test         # tes asap
 npm run dist     # buat installer di folder dist/
 ```
 Pertama kali jalan, buka **Pengaturan → Koneksi**, isi username YouTube (`@nama`) dan TikTok, lalu Sambungkan.
-Untuk kirim chat, pasang ekstensi: Dashboard → Koneksi → **Buka folder ekstensi** (membuka folder `resources` di folder aplikasi; di dalamnya ada folder `extension`), lalu Chrome → `chrome://extensions` → Developer mode → Load unpacked → pilih folder `extension`. Jangan dipindah. Sesudah itu ekstensi memperbarui dirinya sendiri tiap aplikasi di-update.
+Untuk kirim chat (eksperimental), nyalakan saklar **Kirim Chat** di Koneksi, lalu pasang ekstensi: Dashboard → Koneksi → **Buka folder ekstensi** (membuka folder `resources` di folder aplikasi; di dalamnya ada folder `extension`), lalu Chrome → `chrome://extensions` → Developer mode → Load unpacked → pilih folder `extension`. Jangan dipindah. Sesudah itu ekstensi memperbarui dirinya sendiri tiap aplikasi di-update.
 
 ## Struktur singkat
 `src/main.js` (Electron) · `src/server.js` (server lokal + konektor) · `src/ui/*` (tampilan) · `extension/` (ekstensi Chrome) ·

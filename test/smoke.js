@@ -13,8 +13,7 @@ async function serverTests(){
   console.log('\n[server]');
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'cgs-'));
   fs.writeFileSync(path.join(dir,'settings.json'),JSON.stringify({dock:{theme:'spatial'},overlay:{},global:{}}));
-  const fw=await fakeTwitchServer(3991);
-  const p=spawn(process.execPath,[path.join(build,'server.js')],{env:{...process.env,CG_DATA:dir,CG_VERSION:PKG.version,CG_TWITCH_CLIENT_ID:'cid123',CG_TWITCH_OAUTH:'http://127.0.0.1:3991/oauth2',CG_TWITCH_API:'http://127.0.0.1:3991/helix'},stdio:process.env.CG_DEBUG?'inherit':'ignore'});
+  const p=spawn(process.execPath,[path.join(build,'server.js')],{env:{...process.env,CG_DATA:dir,CG_VERSION:PKG.version},stdio:process.env.CG_DEBUG?'inherit':'ignore'});
   await sleep(2500);
   try{
     const base='http://localhost:3000',raw=async(u,b)=>(await fetch(base+u,{method:'POST',body:JSON.stringify(b||{})})).text(),j=async(u,b)=>(await fetch(base+u,{method:'POST',body:JSON.stringify(b||{})})).json();
@@ -30,6 +29,7 @@ async function serverTests(){
     await raw('/sample',{m:{p:'youtube',name:'a',text:'b'},target:'dock'});
     const s=await j('/send',{text:'halo',targets:['youtube','tiktok']});
     ok(/ekstensi/i.test(s.youtube)&&/ekstensi/i.test(s.tiktok),'kirim chat tanpa ekstensi memberi pesan jelas');
+    await sendDefaultOffTests(base,dir,j,raw);
     await extTests(base,dir,j,raw);
     const o=await j('/obs-add',{});ok(/OBS/.test(o.error||''),'tambah ke OBS memberi pesan jelas bila OBS tidak aktif');
     const forbidden=await fetch(base+'/send',{method:'POST',headers:{Origin:'https://evil.example'},body:'{}'});
@@ -47,9 +47,9 @@ async function serverTests(){
     ok(/desktop/i.test((await j('/donate',{act:'open'})).error||''),'/donate di luar aplikasi desktop memberi pesan jelas');
     const d6=await dd('');await sleep(150);ok(d6.ok&&rd().donateDocks[0].url==='','URL kosong diterima (fitur diam)');
     ok((rd().templates||[]).length>0&&rd().autoOpen===true,'menyimpan pengaturan Donate Dock tidak menghapus pengaturan global lain');
-    await officialTests(base,dir,j,raw,fw.tw);
+    await extOnlyTests(base,dir,j,raw);
   }catch(e){ok(false,'server error: '+e.message);}
-  p.kill();fw.close();
+  p.kill();
 }
 
 // ---- v15.2.0: ekstensi memperbarui dirinya + kirim chat instan (tanpa Chrome asli: chrome.* dan DOM dipalsukan, kode asli extension/*.js dijalankan di vm) ----
@@ -109,21 +109,27 @@ async function extensionTests(){
     'tt.js':{i:'[data-e2e="comment-input"] [contenteditable]',b:'[data-e2e="comment-post"]',plat:'tiktok'},
     'tw.js':{i:'[data-a-target="chat-input"]',b:'[data-a-target="chat-send-button"]',plat:'twitch'},
     'kk.js':{i:'[data-testid="chat-input"]',b:'#send-message-button',plat:'kick'}};
-  async function runCs(file,mode){
+  async function runCs(file,mode,opt){opt=opt||{};
     const c=CFG[file],box={textContent:'',tagName:'DIV',focus(){},dispatchEvent(){return true;},getBoundingClientRect:()=>({width:10})};
     const btn={disabled:mode==='late',clicks:0,getAttribute:()=>null,getBoundingClientRect:()=>({width:10}),click(){this.clicks++;if(mode==='ok'||mode==='late')setTimeout(()=>{box.textContent='';},120);}};
     if(mode==='late')setTimeout(()=>{btn.disabled=false;},150);
-    const map={[c.i]:box,[c.b]:btn},sent=[];
+    const map={[c.i]:box,[c.b]:btn},sent=[];if(opt.href)map['[data-e2e="profile-icon"]']={getAttribute:()=>opt.href,closest:()=>null};
     class WS{constructor(){this.readyState=1;setTimeout(()=>{WSI=this;this.onopen&&this.onopen();},0);}send(x){sent.push(JSON.parse(x));}close(){}}let WSI=null;
     const document={querySelector:q=>map[q]||null,querySelectorAll:q=>map[q]?[map[q]]:[],execCommand:(cmd,_,t)=>{if(cmd==='insertText'&&mode!=='noinsert')box.textContent=t;else if(cmd==='selectAll'){}return true;}};
     const chrome={storage:{local:{get:(k,cb)=>cb({})},onChanged:{addListener(){}}}};
     const ctx={document,location:{href:'https://www.twitch.tv/popout/streamer/chat?popout='},chrome,WebSocket:WS,MutationObserver:class{observe(){}disconnect(){}},Event:class{},KeyboardEvent:class{},HTMLTextAreaElement:{prototype:{}},setTimeout,clearTimeout,setInterval,clearInterval,JSON,String,Object,Promise,console};
     vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(extDir,file),'utf8'),ctx);await sleep(30);
-    const t0=Date.now();WSI.onmessage({data:JSON.stringify({type:'send',id:'1',text:'halo dunia'})});
+    const t0=Date.now();WSI.onmessage({data:JSON.stringify({type:'send',id:'1',text:'halo dunia',as:opt.as})});
     let r=null;for(let n=0;n<150&&!r;n++){await sleep(20);r=sent.find(x=>x.type==='result');}
     return{r,ms:Date.now()-t0,clicks:btn.clicks,hello:sent.find(x=>x.type==='hello')};
   }
   const location_fake='https://www.twitch.tv/popout/streamer/chat?popout=';
+  // v15.3.2: TikTok membandingkan akun yang login di Chrome dengan username di aplikasi (hanya memblokir kalau nama TERBACA dan BEDA)
+  {const a=await runCs('tt.js','ok',{href:'/@tono',as:'dewi'});
+   ok(a.r&&a.r.ok===false&&/@tono/.test(a.r.error)&&/@dewi/.test(a.r.error)&&a.clicks===0,'tt.js: akun login (tono) beda dengan username (dewi): ditolak dengan pesan jelas, tombol kirim TIDAK diklik');
+   const b=await runCs('tt.js','ok',{href:'/@Tono',as:'tono'});ok(b.r&&b.r.ok===true&&b.clicks===1,'tt.js: akun login sama dengan username (beda huruf besar/kecil): terkirim');
+   const c=await runCs('tt.js','ok',{as:'dewi'});ok(c.r&&c.r.ok===true&&c.clicks===1,'tt.js: nama akun login tidak terbaca: pengiriman tetap berjalan (tidak memblokir karena tebakan)');
+   const d=await runCs('yt.js','ok',{href:'/@tono',as:'dewi'});ok(d.r&&d.r.ok===true,'platform lain mengabaikan pemeriksaan akun');}
   for(const f of Object.keys(CFG)){
     let o=await runCs(f,'ok');
     ok(o.hello&&o.hello.platform===CFG[f].plat&&o.r&&o.r.ok===true&&o.clicks===1&&o.ms<500,f+': kolom kosong 120 ms setelah klik -> hasil ok dilaporkan segera ('+o.ms+' ms, jeda lama minimal 1000 ms), tepat 1 klik');
@@ -150,6 +156,7 @@ async function extTests(base,dir,j,raw){
   ok(!csGot.includes('ver'),'content script (hello platform) tidak menerima pesan ver');csV.close();
   const cs=(platform,delay)=>conn({type:'hello',platform},(m,w)=>{if(m.type==='send')setTimeout(()=>w.send(JSON.stringify({type:'result',id:m.id,ok:true})),delay||0);});
   const rdG=()=>JSON.parse(fs.readFileSync(path.join(dir,'settings.json'),'utf8')).global;
+  await raw('/send-set',{on:true});await sleep(150); // v15.3.2: Kirim Chat bawaannya MATI; buka-tab otomatis butuh sendOn=true
   await j('/platform',{platform:'tiktok',on:true,user:'@abc.def'});
   await j('/platform',{platform:'youtube',on:true,user:'https://www.youtube.com/watch?v=abcdefghijk'});
   await sleep(200);
@@ -202,6 +209,12 @@ async function extTests(base,dir,j,raw){
   ok((await acc()).youtube===false,'tab YouTube milik video lain: status belum terhubung');
   const rightYt=await pg('youtube','https://www.youtube.com/live_chat?is_popout=1&v=abcdefghijk',{n:0});
   ok((await acc()).youtube===true,'tab YouTube dengan video yang benar: status terhubung');
+  const gotT=[],ttc=await conn({type:'hello',platform:'tiktok',page:'https://www.tiktok.com/@abc.def/live'},(m,w)=>{if(m.type==='send'){gotT.push(m);w.send(JSON.stringify({type:'result',id:m.id,ok:true}));}});
+  await j('/send',{text:'z',targets:['tiktok']});
+  ok(gotT.length===1&&gotT[0].as==='abc.def','server: pesan ke TikTok membawa akun yang diharapkan (as=abc.def)');
+  const gotY=[];wrongYt.close();rightYt.close();await sleep(100);const ytc=await conn({type:'hello',platform:'youtube',page:'https://www.youtube.com/live_chat?is_popout=1&v=abcdefghijk'},(m,w)=>{if(m.type==='send'){gotY.push(m);w.send(JSON.stringify({type:'result',id:m.id,ok:true}));}});
+  await j('/send',{text:'z',targets:['youtube']});ok(gotY.length===1&&!('as' in gotY[0]),'server: pesan ke YouTube tidak membawa as');
+  [ttc,ytc].forEach(w=>{try{w.close();}catch{}});
   [wrongTw,rightTw,wrongYt,rightYt,bg3].forEach(w=>{try{w.close();}catch{}});
   [bg2,csW].forEach(w=>{try{w.close();}catch{}});
 }
@@ -214,143 +227,49 @@ const TPL=[...seeds,{id:'c_riv',name:'rivals',css:rivals,struct:'std'},{id:'c_co
 const mk=(ov,dock)=>({settings:{dock:{...(dock||{})},overlay:{...ov},global:{templates:TPL,hotkeys:{}}},cfg:{youtube:'@a',tiktok:'@b',enabled:{youtube:true,tiktok:true,twitch:true,kick:true}},status:{},viewers:{},
   history:[{p:'tiktok',name:'dewi anggraini',text:'halo teman',t:Date.now(),id:1},{p:'youtube',name:'Andi',text:'hai semua',mod:true,t:Date.now(),id:2},{p:'youtube',name:'Sinta_Rahma',text:'Terima kasih kak!',sc:{amount:'Rp50.000',color:'#ffca28'},t:Date.now(),id:3},
   {p:'tiktok',kind:'join',name:'rizkyy_',t:Date.now(),id:4},{p:'tiktok',kind:'gift',name:'Budi',gift:'Rose',n:5,coins:5,t:Date.now(),id:5},{p:'tiktok',kind:'like',name:'Sinta',others:3,n:48,t:Date.now(),id:6}]});
-// ---- v15.2.1: login resmi Twitch (Device Code Grant + Helix Send Chat Message). Tanpa Twitch asli: fetch/HTTP dipalsukan. ----
-const DEVT='urn:ietf:params:oauth:grant-type:device_code';
-function mockTw(){
-  const m={calls:[],pend:0,tokens:0,sendMode:'ok',refreshMode:'ok',expired:'',throwOn:'',throwName:'TypeError',deny:false,uri:'',refreshUsed:[]};
-  const res=(status,j)=>({ok:status>=200&&status<300,status,json:async()=>j});
-  m.fetch=async(url,o)=>{o=o||{};const u=new URL(url),p=u.pathname,body=o.body?String(o.body):'',f=p.startsWith('/oauth2')&&o.method==='POST'?Object.fromEntries(new URLSearchParams(body)):null;
-    m.calls.push({method:o.method||'GET',path:p,search:u.search,form:f,json:p==='/helix/chat/messages'?JSON.parse(body):null,h:o.headers||{}});
-    if(m.throwOn&&p.includes(m.throwOn)){const e=new Error('x');e.name=m.throwName;throw e;}
-    if(p==='/oauth2/device')return res(200,{device_code:'DC1',user_code:'ABCD1234',verification_uri:m.uri||'https://www.twitch.tv/activate?device-code=ABCD1234',expires_in:1800,interval:1});
-    if(p==='/oauth2/token'){
-      if(f.grant_type===DEVT){if(m.pend>0){m.pend--;return res(400,{status:400,message:'authorization_pending'});}if(m.deny)return res(400,{status:400,message:'access_denied'});
-        return res(200,{access_token:'AT'+(++m.tokens),refresh_token:'RT'+m.tokens,expires_in:14400,scope:['user:write:chat'],token_type:'bearer'});}
-      if(f.grant_type==='refresh_token'){if(m.refreshMode==='bad')return res(400,{status:400,message:'Invalid refresh token'});m.refreshUsed.push(f.refresh_token);
-        return res(200,{access_token:'AT'+(++m.tokens),refresh_token:'RT'+m.tokens,expires_in:14400});}}
-    if(p==='/oauth2/revoke')return res(200,{});
-    if(p==='/helix/users')return u.searchParams.get('login')?res(200,{data:[{id:'555',login:u.searchParams.get('login')}]}):res(200,{data:[{id:'222',login:'streamerx',display_name:'StreamerX'}]});
-    if(p==='/helix/chat/messages'){
-      if(m.expired&&(o.headers||{}).Authorization==='Bearer '+m.expired)return res(401,{status:401,message:'Invalid OAuth token'});
-      if(m.sendMode==='dropped')return res(200,{data:[{message_id:'',is_sent:false,drop_reason:{code:'msg_duplicate',message:'Pesan duplikat'}}]});
-      if(m.sendMode==='err')return res(400,{status:400,message:'bad'});
-      return res(200,{data:[{message_id:'m1',is_sent:true}]});}
-    return res(404,{});};
-  return m;}
-async function twitchTests(){
-  console.log('\n[login resmi Twitch (mock)]');
-  const T=require(path.join(root,'src/twitch.js')),Store=require(path.join(root,'src/tokenstore.js'));
-  const until=async(fn,ms=2000)=>{const e=Date.now()+ms;while(Date.now()<e){if(fn())return true;await sleep(5);}return !!fn();};
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'cgt-')),file=path.join(dir,'auth.dat');
-  const hk={cryptOk:()=>true,encrypt:t=>Buffer.from('ENC:'+t.split('').reverse().join('')).toString('base64'),decrypt:b=>String(Buffer.from(b,'base64')).slice(4).split('').reverse().join('')};
-  const mk=(m,extra)=>{const opened=[];const t=T.create({clientId:'cid123',fetch:m.fetch,store:Store(file,hk),channel:()=>'streamerx',open:u=>opened.push(u),sleep:()=>Promise.resolve(),...(extra||{})});t.opened=opened;return t;};
-  const loginOk=async(t)=>{await t.login();await until(()=>t.state().loggedIn);};
-  // tanpa Client ID
-  {const m=mockTw(),t=mk(m,{clientId:'ISI_TWITCH_CLIENT_ID_DI_SINI'});const r=await t.login();
-   ok(/Client ID/.test(r.error||'')&&m.calls.length===0&&t.state().configured===false,'tanpa Client ID (placeholder): pesan jelas, tidak ada permintaan jaringan');
-   const t2=mk(mockTw(),{clientId:''});ok(/Client ID/.test((await t2.login()).error||''),'Client ID kosong: pesan jelas');}
-  // alur device code
-  fs.rmSync(file,{force:true});
-  const m=mockTw();m.pend=2;const t=mk(m);
-  const r=await t.login();
-  ok(r.pending&&r.pending.code==='ABCD1234'&&t.opened.length===1&&/^https:\/\/www\.twitch\.tv\/activate/.test(t.opened[0]),'login: kode pengguna ditampilkan dan halaman verifikasi Twitch dibuka');
-  const dv=m.calls.find(c=>c.path==='/oauth2/device');ok(dv.form.client_id==='cid123'&&dv.form.scopes==='user:write:chat'&&!('client_secret' in dv.form),'permintaan device: client_id + scope user:write:chat, tanpa client secret');
-  await until(()=>t.state().loggedIn);
-  const polls=m.calls.filter(c=>c.path==='/oauth2/token'&&c.form.grant_type===DEVT);
-  ok(polls.length===3&&polls.every(c=>c.form.device_code==='DC1'),'polling: authorization_pending ditunggu 2x, lalu berhasil di percobaan ke-3');
-  ok(t.state().loggedIn&&t.state().name==='StreamerX'&&!t.state().pending&&t.state().memOnly===false,'sesudah masuk: nama akun terbaca (Get Users), tidak lagi pending');
-  const disk=fs.readFileSync(file,'utf8');ok(!/AT1|RT1/.test(disk)&&!/AT1|RT1/.test(Buffer.from(JSON.parse(disk).twitch,'base64').toString()),'berkas token berisi data terenkripsi, bukan teks biasa');
-  ok(mk(m).state().loggedIn&&mk(m).state().name==='StreamerX','token terenkripsi dibaca lagi saat aplikasi dibuka ulang (tetap masuk)');
-  // kirim
-  let s=await t.send('halo dunia');const pc=m.calls.filter(c=>c.path==='/helix/chat/messages').pop();
-  ok(s.ok&&pc.json.message==='halo dunia'&&pc.json.broadcaster_id==='555'&&pc.json.sender_id==='222'&&pc.h.Authorization==='Bearer AT1'&&pc.h['Client-Id']==='cid123','kirim: Helix chat/messages dengan broadcaster_id (Get Users login), sender_id, Bearer, Client-Id');
-  await t.send('lagi');ok(m.calls.filter(c=>c.path==='/helix/users'&&c.search.includes('login=')).length===1,'broadcaster_id dicache (Get Users login hanya sekali)');
-  m.sendMode='dropped';s=await t.send('x');ok(!s.ok&&!s.final&&/duplikat/.test(s.fail),'is_sent=false: gagal dengan alasan dari Twitch, boleh jatuh ke ekstensi');
-  m.sendMode='err';s=await t.send('x');ok(!s.ok&&!s.final&&/bad/.test(s.fail),'HTTP error Helix: gagal, boleh jatuh ke ekstensi');
-  m.sendMode='ok';
-  m.throwOn='/helix/chat';m.throwName='TypeError';s=await t.send('x');ok(!s.ok&&!s.final&&/tidak bisa menghubungi/.test(s.fail),'jaringan gagal: gagal, boleh jatuh ke ekstensi');
-  m.throwName='TimeoutError';s=await t.send('x');ok(!s.ok&&s.final===true,'timeout: tidak pasti terkirim, TIDAK jatuh ke ekstensi (cegah pesan dobel)');m.throwOn='';
-  // refresh: 401 -> refresh -> ulang
-  m.expired='AT1';s=await t.send('setelah 401');
-  ok(s.ok&&m.refreshUsed.join()==='RT1'&&t.state().loggedIn,'401: token di-refresh sekali (refresh token lama dipakai) lalu kirim diulang berhasil');
-  const rf=m.calls.filter(c=>c.path==='/oauth2/token'&&c.form.grant_type==='refresh_token').pop();ok(rf.form.client_id==='cid123'&&!('client_secret' in rf.form),'refresh memakai client_id saja (aplikasi publik)');
-  m.expired='AT2';s=await t.send('401 lagi');ok(s.ok&&m.refreshUsed.join()==='RT1,RT2','refresh token sekali-pakai: refresh kedua memakai refresh token BARU (RT2), bukan RT1');
-  ok(mk(m).state().loggedIn,'token hasil refresh langsung tersimpan');
-  // refresh proaktif + satu proses refresh
-  {const m2=mockTw(),t2=mk(m2);await loginOk(t2);const st=Store(file,hk),tk=st.get('twitch');tk.exp=Date.now()-1000;st.set('twitch',tk);
-   const t3=mk(m2);const [a,b]=await Promise.all([t3.send('1'),t3.send('2')]);
-   ok(a.ok&&b.ok&&m2.refreshUsed.length===1,'token hampir habis: di-refresh dulu, dan dua kirim bersamaan hanya memicu SATU refresh');}
-  // refresh ditolak (30 hari tanpa pemakaian / dicabut)
-  {const m3=mockTw(),t3=mk(m3);await loginOk(t3);m3.refreshMode='bad';m3.expired='AT'+m3.tokens;const s3=await t3.send('x');
-   ok(!s3.ok&&!t3.state().loggedIn&&/Masuk lagi/.test(t3.state().error)&&!mk(m3).state().loggedIn,'refresh ditolak: dianggap keluar, token dibuang, pesan "Masuk lagi" muncul');
-   ok((await t3.send('x')).skip===true,'sesudah keluar: kirim dilewati (jatuh ke ekstensi)');}
-  // belum masuk / username kosong
-  {const t4=mk(mockTw());await t4.logout();const s4=await t4.send('x');ok(s4.skip===true,'belum masuk: send dilewati (jatuh ke ekstensi)');
-   const m5=mockTw(),t5=mk(m5,{channel:()=>''});await loginOk(t5);ok((await t5.send('x')).skip===true&&!m5.calls.some(c=>c.path==='/helix/chat/messages'),'username Twitch belum diisi: dilewati, tidak ada permintaan kirim');}
-  // keluar
-  {const m6=mockTw(),t6=mk(m6);await loginOk(t6);await t6.logout();
-   ok(!t6.state().loggedIn&&m6.calls.some(c=>c.path==='/oauth2/revoke')&&!JSON.parse(fs.readFileSync(file,'utf8')).twitch,'Keluar: token dicabut di Twitch dan dihapus dari disk');}
-  // ditolak / batal / kedaluwarsa / alamat asing
-  {const m7=mockTw();m7.pend=1;m7.deny=true;const t7=mk(m7);await t7.login();await until(()=>t7.state().error);
-   ok(!t7.state().loggedIn&&!t7.state().pending&&/dibatalkan/.test(t7.state().error),'pengguna menolak izin di Twitch: pesan jelas, tidak pending');
-   const m8=mockTw();m8.uri='https://evil.example/activate';const t8=mk(m8);await t8.login();ok(t8.opened.length===0,'alamat verifikasi bukan twitch.tv: tidak dibuka di browser');await t8.logout();
-   const m9=mockTw();m9.pend=1e9;const t9=mk(m9,{sleep:()=>new Promise(r=>setTimeout(r,2))});await t9.login();ok(!!t9.state().pending,'menunggu: status pending selama pengguna belum menyetujui');await t9.logout();await sleep(20);ok(!t9.state().pending&&!t9.state().loggedIn,'Batal: polling berhenti');
-   const m10=mockTw();m10.throwOn='/oauth2/device';const t10=mk(m10);ok(/menghubungi Twitch/.test((await t10.login()).error||''),'login tanpa internet: pesan jelas');}
-  // safeStorage tidak tersedia: tidak menulis teks biasa ke disk, pengguna diberi tahu (memOnly)
-  {const f2=path.join(dir,'auth2.dat'),m11=mockTw(),t11=T.create({clientId:'cid123',fetch:m11.fetch,store:Store(f2,{}),channel:()=>'streamerx',sleep:()=>Promise.resolve()});
-   await t11.login();await until(()=>t11.state().loggedIn);
-   ok(t11.state().loggedIn&&t11.state().memOnly===true&&!fs.existsSync(f2),'safeStorage tidak tersedia: tetap bisa masuk di sesi ini, memOnly=true, TIDAK ada berkas token di disk');
-   ok((await t11.send('x')).ok,'safeStorage tidak tersedia: kirim tetap jalan di sesi itu');
-   const t12=T.create({clientId:'cid123',fetch:m11.fetch,store:Store(f2,{cryptOk:()=>false,encrypt:()=>{throw new Error('x')},decrypt:()=>'x'}),channel:()=>'streamerx'});ok(!t12.state().loggedIn,'sesi baru tanpa safeStorage: harus masuk lagi (tidak ada token tersimpan)');}
-  fs.rmSync(dir,{recursive:true,force:true});
-}
-// ---- v15.2.1: /send memilih jalur resmi Twitch, ekstensi sebagai cadangan (server sungguhan + mock Twitch HTTP + klien WebSocket palsu) ----
-async function officialTests(base,dir,j,raw,tw){
-  console.log('\n[server: jalur kirim resmi Twitch dan cadangan ekstensi]');
-  const WS=require('ws'),gj=async u=>(await fetch(base+u)).json();
+// ---- v15.3.2: login resmi Twitch DIHAPUS. Semua kirim chat lewat ekstensi Chrome; Kirim Chat bawaannya MATI. ----
+async function extOnlyTests(base,dir,j,raw){
+  console.log('\n[server: tanpa login Twitch, kirim chat hanya lewat ekstensi]');
+  const WS=require('ws'),has=f=>fs.existsSync(path.join(root,f));
+  ok(!has('src/twitch.js')&&!has('src/tokenstore.js')&&!has('src/oauth-config.js'),'berkas login resmi Twitch (twitch.js, tokenstore.js, oauth-config.js) sudah dihapus');
+  const bundle=fs.readFileSync(path.join(build,'server.js'),'utf8');
+  ok(!/id\.twitch\.tv|helix\/chat\/messages|auth\.dat|device_code/.test(bundle),'bundel server tidak lagi memuat kode login/Helix Twitch');
+  for(const r of ['/auth-state','/auth-login','/auth-logout']){const x=await fetch(base+r,r==='/auth-state'?{}:{method:'POST',body:'{}'});const t=await x.text();ok(!/loggedIn|pending|configured/.test(t),r+' sudah tidak ada (tidak membalas status login)');}
   const conn=(platform,got,reply)=>new Promise((res,rej)=>{const w=new WS('ws://127.0.0.1:3000/ext');w.on('open',()=>{w.send(JSON.stringify({type:'hello',platform}));res(w);});w.on('message',d=>{const m=JSON.parse(String(d));if(m.type==='send'){got.push(platform+':'+m.text);w.send(JSON.stringify({type:'result',id:m.id,ok:reply!==false,error:'ekstensi gagal'}));}});w.on('error',rej);});
   await raw('/autoopen-set',{on:false}); // tidak ada service worker palsu di tes ini: jangan menunggu buka-tab
   await j('/platform',{platform:'twitch',on:true,user:'streamerx'});await j('/platform',{platform:'kick',on:true,user:'kickerx'});
   const got=[],csT=await conn('twitch',got),csK=await conn('kick',got);await sleep(150);
-  let st=(await gj('/auth-state')).twitch;
-  ok(st&&st.configured===true&&st.loggedIn===false&&!st.pending,'/auth-state: Twitch tersedia, Client ID terisi, belum masuk');
-  ok(!(await gj('/auth-state')).kick,'Kick belum punya baris login (sesi berikutnya)');
-  let r=await j('/send',{text:'sebelum masuk',targets:['twitch']});
-  ok(r.twitch==='ok'&&got.join()==='twitch:sebelum masuk'&&tw.chat.length===0,'belum masuk: Twitch jatuh ke ekstensi (perilaku lama), Helix tidak dipanggil');
-  const l=await j('/auth-login',{platform:'twitch'});ok(l.pending&&l.pending.code==='ABCD1234','/auth-login: kode ditampilkan');
-  ok(await(async()=>{for(let i=0;i<60;i++){if((await gj('/auth-state')).twitch.loggedIn)return true;await sleep(100);}return false;})(),'polling server menyelesaikan login sesudah authorization_pending');
-  st=(await gj('/auth-state')).twitch;ok(st.name==='StreamerX'&&st.memOnly===true&&!JSON.stringify(st).match(/AT\d|RT\d/),'status: "StreamerX", memOnly (tanpa safeStorage di tes), token tidak pernah dikirim ke UI');
-  got.length=0;r=await j('/send',{text:'lewat resmi',targets:['twitch']});
-  ok(r.twitch==='ok'&&tw.chat.length===1&&tw.chat[0].message==='lewat resmi'&&got.length===0,'sudah masuk: kirim lewat Helix, ekstensi TIDAK dipakai, hasil tetap "ok" per platform');
-  r=await j('/send',{text:'campur',targets:['twitch','kick']});
-  ok(r.twitch==='ok'&&r.kick==='ok'&&tw.chat.length===2&&got.join()==='kick:campur','paralel: Twitch lewat resmi, Kick tetap lewat ekstensi, hasil per platform dilaporkan seperti biasa');
-  tw.mode='dropped';got.length=0;r=await j('/send',{text:'ditolak',targets:['twitch']});
-  ok(r.twitch==='ok'&&got.join()==='twitch:ditolak','resmi gagal (is_sent=false): jatuh ke ekstensi dan berhasil');
+  let r=await j('/send',{text:'halo tw',targets:['twitch']});
+  ok(r.twitch==='ok'&&got.join()==='twitch:halo tw','Twitch: pesan dikirim lewat ekstensi Chrome');
+  got.length=0;r=await j('/send',{text:'campur',targets:['twitch','kick']});
+  ok(r.twitch==='ok'&&r.kick==='ok'&&got.sort().join()==='kick:campur,twitch:campur','Twitch dan Kick: dua-duanya lewat ekstensi, paralel, hasil per platform seperti biasa');
   csT.close();await sleep(150);
-  r=await j('/send',{text:'dua-duanya gagal',targets:['twitch']});
-  ok(/duplikat/.test(r.twitch)&&/cadangan lewat Chrome juga gagal/.test(r.twitch),'resmi DAN ekstensi gagal: pesan menyebut keduanya');
-  tw.mode='ok';
-  const log=()=>fs.existsSync(path.join(dir,'log.txt'))?fs.readFileSync(path.join(dir,'log.txt'),'utf8'):'';
-  const files=['config.json','settings.json'].map(f=>fs.readFileSync(path.join(dir,f),'utf8')).join('\n')+log();
-  ok(!/AT\d|RT\d|DC1/.test(files)&&!fs.existsSync(path.join(dir,'auth.dat')),'token tidak ada di config.json / settings.json / log.txt, dan tidak ada berkas token teks biasa');
-  await j('/auth-logout',{platform:'twitch'});st=(await gj('/auth-state')).twitch;
-  ok(!st.loggedIn&&tw.revoked===true,'/auth-logout: keluar dan token dicabut di Twitch');
-  const csT2=await conn('twitch',got);await sleep(100);got.length=0;tw.chat.length=0;r=await j('/send',{text:'setelah keluar',targets:['twitch']});
-  ok(r.twitch==='ok'&&got.join()==='twitch:setelah keluar'&&tw.chat.length===0,'sesudah keluar: kembali ke ekstensi');
-  ok(/belum diisi|platform/i.test((await j('/auth-login',{platform:'youtube'})).error||''),'/auth-login untuk platform tanpa penyedia: pesan jelas');
-  csT2.close();csK.close();
+  r=await j('/send',{text:'tanpa ekstensi',targets:['twitch']});
+  ok(/ekstensi Chrome belum terhubung/.test(r.twitch)&&!/cadangan/.test(r.twitch),'Twitch tanpa ekstensi: pesan error ekstensi yang jelas (tidak ada lagi \"cadangan\")');
+  csK.close();
+  ok(!fs.existsSync(path.join(dir,'auth.dat')),'tidak ada berkas token (auth.dat) di folder data');
 }
-// Twitch palsu (HTTP) untuk tes server: /oauth2/device, /oauth2/token (pending sekali), /oauth2/revoke, /helix/users, /helix/chat/messages
-function fakeTwitchServer(port){
-  const tw={chat:[],mode:'ok',revoked:false,pend:1};
-  const srv=require('http').createServer((req,res)=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>{const u=new URL(req.url,'http://x'),send=(s,o)=>{res.writeHead(s,{'Content-Type':'application/json'});res.end(JSON.stringify(o));};
-    if(u.pathname==='/oauth2/device')return send(200,{device_code:'DC1',user_code:'ABCD1234',verification_uri:'https://www.twitch.tv/activate?device-code=ABCD1234',expires_in:1800,interval:1});
-    if(u.pathname==='/oauth2/token'){if(tw.pend>0){tw.pend--;return send(400,{status:400,message:'authorization_pending'});}return send(200,{access_token:'AT1',refresh_token:'RT1',expires_in:14400});}
-    if(u.pathname==='/oauth2/revoke'){tw.revoked=true;return send(200,{});}
-    if(u.pathname==='/helix/users')return send(200,{data:[u.searchParams.get('login')?{id:'555',login:u.searchParams.get('login')}:{id:'222',login:'streamerx',display_name:'StreamerX'}]});
-    if(u.pathname==='/helix/chat/messages'){const m=JSON.parse(b);if(tw.mode==='dropped')return send(200,{data:[{is_sent:false,drop_reason:{code:'x',message:'Pesan duplikat'}}]});tw.chat.push(m);return send(200,{data:[{message_id:'m',is_sent:true}]});}
-    send(404,{});});});
-  return new Promise(r=>srv.listen(port,'127.0.0.1',()=>r({tw,close:()=>srv.close()})));}
+// ---- v15.3.2: Kirim Chat bawaannya MATI ----
+async function sendDefaultOffTests(base,dir,j,raw){
+  console.log('\n[server: Kirim Chat bawaan mati (eksperimental)]');
+  const rdG=()=>JSON.parse(fs.readFileSync(path.join(dir,'settings.json'),'utf8')).global;
+  const WS=require('ws');
+  const opens=[],bg=await new Promise((res,rej)=>{const w=new WS('ws://127.0.0.1:3000/ext');w.on('open',()=>{w.send(JSON.stringify({type:'bg'}));res(w);});w.on('message',d=>{const m=JSON.parse(String(d));if(m.type==='open')opens.push(m);});w.on('error',rej);});
+  await j('/platform',{platform:'kick',on:true,user:'kickerx'});await sleep(150);
+  ok(rdG().sendOn===undefined,'pengaturan baru: sendOn belum ada (dianggap MATI)');
+  await raw('/autoopen-set',{on:true});await sleep(250);
+  const r1=await j('/send',{text:'x',targets:['kick']});
+  ok(/ekstensi Chrome belum terhubung/.test(r1.kick)&&opens.length===0,'Kirim Chat belum dinyalakan: tab chat TIDAK dibuka otomatis walau saklar "Buka halaman chat otomatis" nyala');
+  await raw('/send-set',{on:true});await sleep(250);
+  ok(rdG().sendOn===true,'/send-set on:true menyimpan sendOn=true');
+  const pr=j('/send',{text:'y',targets:['kick']});await sleep(600);
+  ok(opens.length===1&&opens[0].platform==='kick'&&opens[0].url==='https://kick.com/kickerx','Kirim Chat dinyalakan: tab chat dibuka otomatis lagi');
+  const cs=await new Promise((res,rej)=>{const w=new WS('ws://127.0.0.1:3000/ext');w.on('open',()=>{w.send(JSON.stringify({type:'hello',platform:'kick'}));res(w);});w.on('message',d=>{const m=JSON.parse(String(d));if(m.type==='send')w.send(JSON.stringify({type:'result',id:m.id,ok:true}));});w.on('error',rej);});
+  ok((await pr).kick==='ok','... lalu pesan terkirim lewat ekstensi');cs.close();
+  await raw('/send-set',{on:false});await sleep(250);ok(rdG().sendOn===false,'/send-set on:false menyimpan sendOn=false');
+  await raw('/send-set',{});await sleep(250);ok(rdG().sendOn===false,'/send-set tanpa nilai = mati (bukan nyala)');
+  bg.close();await sleep(150);
+}
 async function page(q,ov,dock,after){
   const errs=[],posts=[],vc=new VirtualConsole();vc.on('jsdomError',e=>errs.push(e.message));
   const dom=new JSDOM(html(),{url:'http://localhost:3000/'+q,runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){
@@ -443,6 +362,13 @@ async function uiTests(){
     ok(d.querySelectorAll('#msgs .m,#msgs .cs-act').length>=4,'pratinjau overlay terus menerima pesan acak');
     const pf=new Set([...d.querySelectorAll('#msgs [data-platform]')].map(x=>x.dataset.platform));ok(pf.size>=2,'pesan acak berasal dari beberapa platform');});
   await page('?view=report',{},{},async(d,dom)=>{await sleep(200);ok(/reportwin/.test(d.body.className)&&!!d.getElementById('rbody'),'jendela laporan dimuat');});
+  // ---- v15.3.2: Kirim Chat bawaan MATI (sendOn belum ada = mati); baru tampil kalau sendOn===true ----
+  await page('?view=dock',{},{},(d,dom)=>{
+    ok(/\bnosend\b/.test(d.body.className),'bawaan (sendOn belum ada): body punya kelas nosend, kotak isi chat tersembunyi');
+    dom.window.eval("S.global.sendOn=true;applyStyle()");
+    ok(!/\bnosend\b/.test(d.body.className),'sendOn=true: kelas nosend hilang, kotak isi chat tampil');
+    dom.window.eval("delete S.global.sendOn;applyStyle()");
+    ok(/\bnosend\b/.test(d.body.className),'sendOn dihapus lagi: kembali tersembunyi');});
   // ---- Kirim Chat dimatikan: hanya kotak isi chat dan tombol kirim yang hilang ----
   await page('?view=dock',{},{},(d,dom)=>{
     dom.window.eval("S.global.sendOn=false;applyStyle()");
@@ -488,21 +414,22 @@ async function uiTests(){
     ok(msg.value==='halo'&&/Gagal: jaringan putus/.test(msg.placeholder),'request gagal (jaringan): teks kembali dan error tampil');
     hold();send('satu');send('dua');ok(calls.length===2&&msg.value==='','beberapa pesan beruntun boleh berjalan bersamaan (tombol kirim tidak dikunci)');
   });
-  // ---- v15.2.1: baris login resmi Twitch di Dashboard > Koneksi ----
+  // ---- v15.3.2: tanpa login Twitch; Twitch/Kick dan Kirim Chat berlabel (eksperimental); Kirim Chat bawaan MATI ----
   await page('?view=dashboard',{},{},async(d,dom,posts)=>{
-    const w=dom.window,row=d.getElementById('au_twitch'),txt=()=>d.getElementById('aus_twitch').textContent,btn=d.getElementById('aub_twitch');
-    ok(!!row&&!d.getElementById('au_kick'),'Koneksi: baris login ada untuk Twitch saja (Kick belum)');
-    w.eval("AUS={twitch:{configured:true,loggedIn:false,name:'',pending:null,error:'',memOnly:false}};auRender();");
-    ok(!row.hidden&&/tanpa Chrome/.test(txt())&&btn.textContent==='Masuk dengan Twitch','belum masuk: ajakan masuk + tombol \"Masuk dengan Twitch\"');
-    w.eval("AUS={twitch:{configured:true,loggedIn:false,name:'',pending:{code:'ABCD1234'},error:'',memOnly:false}};auRender();");
-    ok(/ABCD1234/.test(txt())&&d.querySelector('#aus_twitch b').textContent==='ABCD1234'&&btn.textContent==='Batal','menunggu: kode tampil dan tombol berubah jadi Batal');
-    w.eval("AUS={twitch:{configured:true,loggedIn:true,name:'<img src=x onerror=alert(1)>',pending:null,error:'',memOnly:true}};auRender();");
-    ok(/Masuk sebagai/.test(txt())&&btn.textContent==='Keluar'&&!d.querySelector('#aus_twitch img')&&/hanya berlaku sampai aplikasi ditutup/.test(txt()),'sudah masuk: \"Masuk sebagai <nama>\" (nama sebagai teks, bukan HTML), tombol Keluar, peringatan bila token tidak bisa disimpan');
-    btn.click();await sleep(40);ok(posts.some(x=>x[0]==='/auth-logout'&&/twitch/.test(x[1]||'')),'tombol Keluar memanggil /auth-logout');
-    w.eval("AUS={twitch:{configured:false,loggedIn:false,name:'',pending:null,error:'',memOnly:false}};auRender();");
-    w.fetch=(u,o)=>{posts.push([u,o&&o.body]);return Promise.resolve({json:()=>Promise.resolve({error:'Login Twitch belum disiapkan di aplikasi ini (Client ID belum diisi oleh pembuatnya).'})});};
-    btn.click();await sleep(60);
-    ok(posts.some(x=>x[0]==='/auth-login')&&/Client ID belum diisi/.test(txt()),'tanpa Client ID: tombol Masuk menampilkan pesan jelas di barisnya');});
+    const w=dom.window,exp=el=>!!el&&/\(eksperimental\)/.test(el.textContent);
+    ok(!d.getElementById('au_twitch')&&!d.getElementById('aus_twitch')&&!d.getElementById('aub_twitch')&&!d.querySelector('.cau')&&!/Masuk dengan Twitch/.test(d.body.textContent),'Koneksi: tidak ada lagi baris/tombol login Twitch');
+    ok(w.eval('typeof auRender')==='undefined'&&w.eval('typeof authRefresh')==='undefined','kode login Twitch di app.js sudah dihapus (auRender/authRefresh)');
+    await sleep(80);ok(!posts.some(x=>/auth-/.test(x[0])),'halaman tidak lagi memanggil /auth-state, /auth-login, atau /auth-logout');
+    ok(exp(d.querySelector('#cn_twitch .cnh b'))&&exp(d.querySelector('#cn_kick .cnh b')),'kartu Koneksi Twitch dan Kick berlabel (eksperimental)');
+    ok(!exp(d.querySelector('#cn_youtube .cnh b'))&&!exp(d.querySelector('#cn_tiktok .cnh b')),'YouTube dan TikTok TIDAK berlabel eksperimental');
+    ok(exp(d.querySelector('h3.h3sw'))&&/Kirim Chat/.test(d.querySelector('h3.h3sw').textContent),'judul kartu Kirim Chat berlabel (eksperimental)');
+    ok(exp(d.querySelector('.chip2[data-pf="twitch"]'))&&exp(d.querySelector('.chip2[data-pf="kick"]'))&&!exp(d.querySelector('.chip2[data-pf="youtube"]')),'status Kirim Chat: Twitch dan Kick berlabel (eksperimental), YouTube tidak');
+    ok(['dock_tw','dock_kk','overlay_tw','overlay_kk'].every(g=>exp(d.querySelector('.plat[data-pg="'+g+'"] b')))&&!['dock_yt','dock_tt','overlay_yt','overlay_tt'].some(g=>exp(d.querySelector('.plat[data-pg="'+g+'"] b'))),'tombol pengaturan Twitch & Kick (Pribadi dan Overlay) berlabel (eksperimental)');
+    ok(d.getElementById('sendOn').checked===false,'saklar Kirim Chat bawaan MATI (sendOn belum ada di pengaturan)');
+    w.eval("S.global.sendOn=true;fillGlobal()");ok(d.getElementById('sendOn').checked===true,'sendOn=true: saklar menyala');
+    w.eval("S.global.sendOn=false;fillGlobal()");ok(d.getElementById('sendOn').checked===false,'sendOn=false: saklar mati');
+    d.getElementById('sendOn').checked=true;d.getElementById('sendOn').dispatchEvent(new w.Event('change',{bubbles:true}));await sleep(40);
+    ok(posts.some(x=>x[0]==='/send-set'&&/"on":true/.test(x[1]||'')),'menyalakan saklar memanggil /send-set on:true');});
   // ---- Donate Dock ----
   await page('?view=donatebar',{},{},(d,dom,posts)=>{
     ok(/donatewin/.test(d.body.className)&&d.getElementById('tbt').textContent==='Donate Dock'&&dom.window.__ready===true,'bilah judul Donate Dock dimuat dan menandai siap');
@@ -515,4 +442,4 @@ async function uiTests(){
     ok(/Donate Dock/.test(d.getElementById('hkl').textContent),'hotkey Buka / tutup Donate Dock muncul di tab Hotkey');});
   await page('?view=ctl',{},{},(d)=>{ok(!!d.getElementById('eye')&&!!d.getElementById('unlock')&&!!d.getElementById('mover'),'jendela kecil gembok punya 3 kotak');});
 }
-(async()=>{parserTests();await twitchTests();await serverTests();await extensionTests();await uiTests();console.log(fail?'\n'+fail+' pemeriksaan GAGAL':'\nsemua pemeriksaan lulus');process.exit(fail?1:0);})();
+(async()=>{parserTests();await serverTests();await extensionTests();await uiTests();console.log(fail?'\n'+fail+' pemeriksaan GAGAL':'\nsemua pemeriksaan lulus');process.exit(fail?1:0);})();

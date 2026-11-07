@@ -96,17 +96,14 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/restart')return body(()=>{if(hooks.relaunch)setTimeout(()=>hooks.relaunch(),300);});
     // Kirim PARALEL (Promise.all): platform yang lambat (mis. membuka tab, timeout 9 dtk) tidak menahan platform lain.
     if(u.pathname==='/send')return json(async({text,targets})=>{const out={},tx=String(text||'').slice(0,190),ts=[...new Set((Array.isArray(targets)?targets:[]).filter(t=>PF4.includes(t)))];
-      await Promise.all(ts.map(async t=>{try{out[t]=await sendVia(t,tx);}catch(e){out[t]=String(e&&e.message||e);}}));return out;});
-    // Login resmi (v15.2.1): per platform yang punya penyedia di OFF (sekarang Twitch). Token tidak pernah dikirim ke UI.
-    if(u.pathname==='/auth-login')return json(async({platform})=>OFF[platform]?await OFF[platform].login():{error:'platform ini belum punya login resmi'});
-    if(u.pathname==='/auth-logout')return json(async({platform})=>OFF[platform]?await OFF[platform].logout():{error:'platform ini belum punya login resmi'});
+      await Promise.all(ts.map(async t=>{try{out[t]=await extSend(t,tx);}catch(e){out[t]=String(e&&e.message||e);}}));return out;});
     if(u.pathname==='/update-check')return json(async()=>({status:hooks.checkUpdate?await hooks.checkUpdate():'dev'}));
     if(u.pathname==='/win')return body(({which,act})=>{if(hooks.winCtl)hooks.winCtl(which,act);});
     if(u.pathname==='/draft')return body(d=>emit('draft',d));
     if(u.pathname==='/draft-clear')return body(()=>emit('draftclear',{}));
     if(u.pathname==='/hotkeys')return json(async({hotkeys})=>{settings.global={...settings.global,hotkeys};fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);return hooks.setHotkeys?hooks.setHotkeys(hotkeys||{}):{};});
     if(u.pathname==='/templates-restore')return body(()=>{const have=new Set((settings.global.templates||[]).map(t=>t.id));settings.global.templates=[...SEEDS.filter(x=>!have.has(x.id)),...(settings.global.templates||[])];fs.writeFileSync(SF,JSON.stringify(settings));emit('settings',settings);});
-    if(u.pathname==='/send-set')return body(({on})=>setGlobal({sendOn:on!==false}));
+    if(u.pathname==='/send-set')return body(({on})=>setGlobal({sendOn:on===true})); // v15.3.2: bawaan MATI (eksperimental); hanya nyala kalau sendOn === true
     if(u.pathname==='/autoopen-set')return body(({on})=>setGlobal({autoOpen:on!==false}));
     if(u.pathname==='/donate-docks')return json(async({docks})=>{const r=cleanDocks(docks);if(r.error)return r;setGlobal({donateDocks:r.docks});return{ok:true,docks:r.docks};});
     if(u.pathname==='/donate')return json(async({act,id})=>{if(!hooks.donate)return{error:'hanya di aplikasi desktop'};return(await hooks.donate(String(act||''),id?String(id):''))||{ok:true};});
@@ -145,7 +142,6 @@ const srv=http.createServer((req,res)=>{
   if(u.pathname==='/analytics'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(stats.get(u.searchParams.get('id')||'cur',viewers)));}
   if(u.pathname==='/dash-state'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify({protect:settings.global.protect!==false,...(hooks.dashState?hooks.dashState():{chat:{},docks:{}})}));}
   if(u.pathname==='/state'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({protect:settings.global.protect!==false}));}
-  if(u.pathname==='/auth-state'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(Object.fromEntries(Object.entries(OFF).map(([k,v])=>[k,v.state()]))));}
   if(u.pathname==='/account'){res.writeHead(200,{'Content-Type':'application/json'});const has=p=>hasExt(p);return res.end(JSON.stringify({youtube:has('youtube'),tiktok:has('tiktok'),twitch:has('twitch'),kick:has('kick')}));}
   if(u.pathname==='/urls'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({youtube:extUrl('youtube')||chatUrl('youtube'),tiktok:extUrl('tiktok')||chatUrl('tiktok'),twitch:extUrl('twitch')||chatUrl('twitch'),kick:extUrl('kick')||chatUrl('kick')}));}
   if(FILES[u.pathname]){res.writeHead(200,{'Content-Type':FILES[u.pathname],'Cache-Control':'max-age=3600'});return res.end(fs.readFileSync(path.join(__dirname,u.pathname)));}
@@ -426,7 +422,8 @@ function extUrl(p){
   if(p==='kick'){const u=kkTarget(cfg.kick);return u?'https://kick.com/'+u:'';}
   return '';}
 // Buka-otomatis hanya jalan kalau saklar nyala DAN kirim chat dinyalakan (kalau kirim chat mati, tab tidak perlu dibuka).
-const autoOpenOn=()=>settings.global.autoOpen!==false&&settings.global.sendOn!==false;
+// v15.3.2: Kirim Chat bawaannya MATI, jadi harus sendOn === true (dulu !== false).
+const autoOpenOn=()=>settings.global.autoOpen!==false&&settings.global.sendOn===true;
 const OPEN_COOLDOWN=15000,OPEN_WAIT=10000,BG_WAIT=3000,lastOpen={},opening={};
 // Pastikan content script platform terhubung: kalau belum, minta service worker membuka tab latar lalu tunggu. Hasil: '' = terhubung, selain itu = pesan error (bahasa Indonesia).
 function ensureExt(p){
@@ -448,12 +445,14 @@ async function doEnsure(p){
   return 'halaman chat '+nm+' sudah dibuka di Chrome tetapi belum terhubung ke aplikasi (mungkin masih memuat atau belum login). Coba kirim lagi sebentar lagi.';
 }
 function autoOpen(p){if(!autoOpenOn()||!isEn(p)||hasExt(p)||!extUrl(p))return;ensureExt(p).catch(()=>{});}
+// v15.3.2: akun yang diharapkan mengirim (content script TikTok membandingkannya dengan akun yang login). Platform lain: undefined (tidak ikut terkirim).
+const asOf=p=>{if(p!=='tiktok')return undefined;const u=ttTarget(cfg.tiktok);return u?u.toLowerCase():undefined;};
 function extSendRaw(platform,text){return new Promise(resolve=>{
   const w=wantKey(platform),c=[...ext].find(x=>okConn(x,platform,w));
   if(!c)return resolve('ekstensi Chrome belum terhubung. Buka halaman chat '+PNAME[platform]+' di Chrome (lihat Dashboard > Koneksi).');
   const id=String(++seq),t=setTimeout(()=>{delete pendingExt[id];resolve('halaman chat tidak merespons');},9000);
   pendingExt[id]=m=>{clearTimeout(t);resolve(m.ok?'ok':(m.error||'gagal'));};
-  c.ws.send(JSON.stringify({type:'send',id,text}));});}
+  c.ws.send(JSON.stringify({type:'send',id,text,as:asOf(platform)}));});}
 // Kirim lewat ekstensi. Kalau content script platform belum terhubung -> buka tab latar dulu (ensureExt), baru kirim.
 // Kalau tab baru dibuka dan kolom chat belum sempat tampil ("tidak ditemukan"), coba SEKALI lagi setelah jeda, baru menyerah.
 async function extSend(platform,text){
@@ -462,16 +461,3 @@ async function extSend(platform,text){
   let r=await extSendRaw(platform,text);
   if(r!=='ok'&&fresh&&/tidak ditemukan/i.test(r)){await sleep(2500);r=await extSendRaw(platform,text);}
   return r;}
-// ===== v15.2.1: login resmi (jalur kirim utama) dengan ekstensi Chrome sebagai CADANGAN =====
-// OFF[platform] = {state(), login(), logout(), send(teks)}; send -> {ok} | {skip} | {fail,final?} (lihat src/twitch.js). Platform baru (Kick) cukup mendaftar di sini.
-const OFF={};
-{const C=require('./oauth-config.js'),store=require('./tokenstore.js')(path.join(base,'auth.dat'),hooks),E=process.env, // E.CG_* hanya untuk tes (alamat/Client ID palsu)
-  logf=m=>{try{fs.appendFileSync(path.join(base,'log.txt'),new Date().toISOString()+' '+String(m).slice(0,300)+'\n');}catch{}};
-  OFF.twitch=require('./twitch.js').create({clientId:E.CG_TWITCH_CLIENT_ID||C.TWITCH_CLIENT_ID,oauth:E.CG_TWITCH_OAUTH,api:E.CG_TWITCH_API,store,channel:()=>twTarget(cfg.twitch)||'',open:u=>hooks.open&&hooks.open(u),log:logf});}
-// Pilih jalur kirim satu platform: resmi dulu (kalau sudah masuk), gagal/belum masuk -> ekstensi (extSend, perilaku lama). Hasil tetap 'ok' atau teks error.
-async function sendVia(t,tx){
-  const o=OFF[t],r=o?await o.send(tx):{skip:true};
-  if(r.ok)return 'ok';
-  if(r.final)return r.fail; // tidak pasti terkirim atau tidak: jangan kirim ulang lewat ekstensi (bisa dobel)
-  const e=await extSend(t,tx);
-  return(e==='ok'||r.skip)?e:r.fail+' (cadangan lewat Chrome juga gagal: '+e+')';}
