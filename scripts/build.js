@@ -10,6 +10,7 @@ fs.writeFileSync(path.join(out,'index.html'),
 esbuild.buildSync({entryPoints:[path.join(root,'src/server.js')],bundle:true,platform:'node',target:'node22',format:'cjs',outfile:path.join(out,'server.js'),
   external:['bufferutil','utf-8-validate'],minifyWhitespace:true,minifySyntax:true,logLevel:'error'});
 fs.copyFileSync(path.join(root,'src/main.js'),path.join(out,'main.js'));
+fs.copyFileSync(path.join(root,'src/extsync.js'),path.join(out,'extsync.js')); // dipakai main.js (salin folder ekstensi tetap)
 for(const f of['yt.png','tt.png','tw.png','kick.png','icon.png'])fs.copyFileSync(path.join(root,'assets',f),path.join(out,f));
 fs.copyFileSync(path.join(root,'src/splash.html'),path.join(out,'splash.html'));
 for(const f of['splash-bg.webp','splash-logo.png'])fs.copyFileSync(path.join(root,'assets',f),path.join(out,f));

@@ -476,6 +476,16 @@ document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{const v=b.da
 // akun
 async function acct(){if(document.hidden)return;try{const a=await(await fetch('/account')).json();accState=a;
   [['ay',a.youtube],['at',a.tiktok],['aw',a.twitch],['ak',a.kick]].forEach(([i,ok])=>{$(i).textContent=ok?'terhubung':'belum terhubung';$(i).className=ok?'ok':'no';});}catch{}}
+// Login resmi (v15.2.1): baris Masuk/Keluar per platform yang punya penyedia di server (sekarang Twitch). Chrome tetap jadi cadangan kirim chat.
+const AUP={twitch:'Twitch'};let AUS={},auMsg={},auTm=0;
+function auRender(){Object.keys(AUP).forEach(p=>{const row=$('au_'+p),s=AUS[p];if(!row||!s)return;row.hidden=false;
+  const t=$('aus_'+p),b=$('aub_'+p),add=(x,bold)=>{const e=document.createElement(bold?'b':'span');e.textContent=x;t.appendChild(e);};t.textContent='';
+  if(s.pending||s.loggedIn)auMsg[p]='';
+  if(s.pending){add('Kodemu: ');add(s.pending.code,1);add('. Halaman '+AUP[p]+' sudah dibuka: masukkan kode itu, lalu klik Aktifkan.');b.textContent='Batal';}
+  else if(s.loggedIn){add('Masuk sebagai ');add(s.name,1);add('. Chat dikirim langsung lewat '+AUP[p]+', tanpa Chrome.'+(s.memOnly?' Tapi login ini hanya berlaku sampai aplikasi ditutup (komputermu tidak punya penyimpanan aman untuk token), jadi perlu masuk lagi nanti.':''));b.textContent='Keluar';}
+  else{add('Kirim chat ke '+AUP[p]+' tanpa Chrome: cukup masuk sekali.');b.textContent='Masuk dengan '+AUP[p];}
+  const m=auMsg[p]||s.error;if(m){const e=document.createElement('div');e.className='no';e.textContent=m;t.appendChild(e);}});}
+async function authRefresh(){if(!$('au_twitch'))return;try{AUS=await(await fetch('/auth-state')).json();auRender();clearTimeout(auTm);if(Object.values(AUS).some(s=>s.pending))auTm=setTimeout(authRefresh,1500);}catch{}}
 const copyText=async t=>{try{await navigator.clipboard.writeText(t);}catch{try{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}catch{}}};
 // hotkey
 const HK_DEF={lock:'Ctrl+Alt+L',hide:'Ctrl+Alt+H',obs:'Ctrl+Alt+O',up:'Ctrl+Alt+PageUp',down:'Ctrl+Alt+PageDown',clear:'Ctrl+Alt+C',filter:'Ctrl+Alt+F',settings:'Ctrl+Alt+S',report:'Ctrl+Alt+R',donate:'Ctrl+Alt+D'};
@@ -544,13 +554,16 @@ $('portavoid').onclick=()=>{$('avlist').innerHTML='';(conf.avoid||[]).forEach(a=
 $('avclose').onclick=()=>{$('avmodal').hidden=true;};$('avmodal').onclick=e=>{if(e.target===$('avmodal'))$('avmodal').hidden=true;};
 $('sendOn').onchange=()=>post('/send-set',{on:$('sendOn').checked}).catch(()=>{});
 $('autoOpen').onchange=()=>post('/autoopen-set',{on:$('autoOpen').checked}).catch(()=>{});
+document.querySelectorAll('[id^=aub_]').forEach(b=>b.onclick=async()=>{const p=b.id.slice(4),s=AUS[p]||{};b.disabled=true;auMsg[p]='';
+  try{if(s.pending||s.loggedIn)await post('/auth-logout',{platform:p});else{const r=await(await post('/auth-login',{platform:p})).json();if(r&&r.error)auMsg[p]=r.error;}}catch{auMsg[p]='Tidak bisa menghubungi aplikasi.';}
+  b.disabled=false;authRefresh();});
 $('u2').onclick=()=>{$('u2').select();try{document.execCommand('copy')}catch{}};
 $('obsadd').onclick=async()=>{const m=$('obsmsg');m.className='hint';m.textContent='Menghubungi OBS...';
   const r=await(await post('/obs-add',{width:+$('obsW').value||500,height:+$('obsH').value||900,password:$('obsPass').value})).json();
   if(r.error){m.className='hint no';m.textContent='Gagal: '+r.error;}else{m.className='hint ok';m.textContent='Berhasil. Overlay sudah ada di scene OBS yang sedang aktif (nama sumber: ChatStream Overlay).';}};
 }
 function initSettings(){fill('dock');fill('overlay');fillGlobal();applyUi(cur('dock'));$('yt').value=conf.youtube||'';$('tk').value=conf.tiktok||'';$('twu').value=conf.twitch||'';$('kku').value=conf.kick||'';$('kkroom').value=conf.kickRoom||'';$('u2').value=location.origin+'/?view=overlay';showPort();syncPlats();
-  hk={...HK_DEF,...((S.global&&S.global.hotkeys)||{})};hkRender();setTab(isDash?'d':'k');acct();setInterval(()=>{if(!document.hidden)acct();},5000);if(isDash)initDash();
+  hk={...HK_DEF,...((S.global&&S.global.hotkeys)||{})};hkRender();setTab(isDash?'d':'k');acct();authRefresh();setInterval(()=>{if(!document.hidden){acct();authRefresh();}},5000);if(isDash)initDash();
   addEventListener('beforeunload',()=>{fetch('/draft-clear',{method:'POST',body:'{}',keepalive:true});});}
 // ---- Dashboard: sidebar, halaman beranda, pratinjau kanan (Pribadi / Overlay), laporan ----
 const PVSRC={pvD:'/?view=dock&preview=1&static=1',pvO:'/?view=overlay&preview=1&static=1'};
@@ -727,18 +740,21 @@ function flash(m){const i=$('msg');if(!i.dataset.ph)i.dataset.ph=i.placeholder;i
 // Tujuan kirim. Filter "Semua" = hanya platform yang dinyalakan DAN berstatus "Terhubung" (yang belum tersambung dilewati tanpa error).
 // Filter satu platform = platform itu apa adanya (kalau belum tersambung, error eksplisit dari server).
 function sendTargets(f,en,st){return f==='all'?PF4.filter(p=>en[p]&&stView((st||{})[p])[1]==='Terhubung'):[f];}
+// v15.2.0 optimistis: kolom pesan dikosongkan LANGSUNG saat Enter (terasa instan). Kalau SEMUA target gagal, teksnya dikembalikan + error ditampilkan; kalau minimal satu berhasil, tetap kosong.
+// Boleh beberapa pesan berjalan bersamaan (tombol kirim tidak dikunci). Kalau kolom sudah diisi pesan baru saat kegagalan datang, teks yang gagal ditaruh di depannya (tidak ada yang hilang/ditimpa).
 async function doSend(){
   const text=$('msg').value.trim();if(!text)return;
   const targets=sendTargets(filt,EN,status);
   if(!targets.length){flash(PF4.some(p=>EN[p])?'Belum ada platform yang tersambung.':'Belum ada platform yang menyala. Nyalakan di Dashboard > Koneksi.');return;}
-  $('send').disabled=true;
+  $('msg').value='';
+  const back=()=>{const i=$('msg');i.value=i.value.trim()?text+' '+i.value:text;};
   try{const r=await(await post('/send',{text,targets})).json();
-    if(r.error)flash('Gagal: '+r.error);
+    if(r.error){back();flash('Gagal: '+r.error);}
     else{const okk=targets.filter(k=>r[k]==='ok'),bad=targets.filter(k=>r[k]!==undefined&&r[k]!=='ok');
-      if(okk.length)$('msg').value='';
+      if(!okk.length)back();
       if(bad.length)flash(bad.map(k=>PNAME[k]+': '+r[k]).join(' | '));}
-  }catch(e){flash('Gagal: '+e.message);}
-  $('send').disabled=false;$('msg').focus();}
+  }catch(e){back();flash('Gagal: '+e.message);}
+  $('msg').focus();}
 $('send').onclick=doSend;$('msg').onkeydown=e=>{if(e.key==='Enter')doSend();};
 }
 

@@ -1,14 +1,26 @@
 (function(){
-  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  // v15.2.0: tidak ada jeda tetap. waitFor memeriksa kondisi sekarang juga, lalu tiap perubahan DOM (MutationObserver; tidak ikut diperlambat Chrome pada tab latar) dan tiap ~50 ms,
+  // dan berhenti begitu kondisi benar. Batas {max} ms = total jeda lama (pengaman). Hanya MEMBACA halaman: klik kirim tetap tepat satu kali.
+  const waitFor=(fn,max)=>new Promise(res=>{
+    let done=false,mo=null,iv=null,to=null;
+    const fin=v=>{if(done)return;done=true;try{if(mo)mo.disconnect();}catch{}clearInterval(iv);clearTimeout(to);res(v);};
+    const chk=()=>{let v=false;try{v=!!fn();}catch{}if(v)fin(true);return v;};
+    if(chk())return;
+    try{mo=new MutationObserver(chk);mo.observe(document,{subtree:true,childList:true,characterData:true,attributes:true});}catch{}
+    iv=setInterval(chk,50);to=setTimeout(()=>{chk();fin(false);},max);
+  });
   async function send(text){
     const i=document.querySelector('yt-live-chat-text-input-field-renderer #input');
     if(!i)return{ok:false,error:'kolom chat YouTube tidak ditemukan (belum login di Chrome, atau chat live ini dimatikan)'};
     i.focus();document.execCommand('selectAll');document.execCommand('insertText',false,text);
-    i.dispatchEvent(new Event('input',{bubbles:true}));await sleep(300);
-    const b=document.querySelector('yt-live-chat-message-input-renderer #send-button button')||document.querySelector('#send-button button');
+    i.dispatchEvent(new Event('input',{bubbles:true}));
+    if((i.textContent||'').trim()==='')return{ok:false,error:'teks tidak bisa dimasukkan ke kolom chat YouTube'}; // jangan lapor "ok" kalau memang tidak ada yang dikirim
+    const getB=()=>document.querySelector('yt-live-chat-message-input-renderer #send-button button')||document.querySelector('#send-button button');
+    await waitFor(()=>{const x=getB();return x&&!x.disabled&&x.getAttribute('aria-disabled')!=='true';},300); // tombol kirim siap (dulu jeda tetap 300 ms)
+    const b=getB();
     if(b)b.click();else i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}));
-    await sleep(700);
-    return(i.textContent||'').trim()===''?{ok:true}:{ok:false,error:'pesan tidak terkirim (YouTube menolak, mungkin mode lambat/slow mode)'};
+    const sent=await waitFor(()=>(i.textContent||'').trim()==='',700); // kolom kosong = terkirim (dulu jeda tetap 700 ms)
+    return sent?{ok:true}:{ok:false,error:'pesan tidak terkirim (YouTube menolak, mungkin mode lambat/slow mode)'};
   }
   let cport=0;
   try{chrome.storage.local.get('port',r=>{cport=+(r&&r.port)||0;});chrome.storage.onChanged.addListener(c=>{if(c.port)cport=+c.port.newValue||0;});}catch{}

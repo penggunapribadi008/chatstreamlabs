@@ -96,7 +96,10 @@ const srv=http.createServer((req,res)=>{
     if(u.pathname==='/restart')return body(()=>{if(hooks.relaunch)setTimeout(()=>hooks.relaunch(),300);});
     // Kirim PARALEL (Promise.all): platform yang lambat (mis. membuka tab, timeout 9 dtk) tidak menahan platform lain.
     if(u.pathname==='/send')return json(async({text,targets})=>{const out={},tx=String(text||'').slice(0,190),ts=[...new Set((Array.isArray(targets)?targets:[]).filter(t=>PF4.includes(t)))];
-      await Promise.all(ts.map(async t=>{try{out[t]=await extSend(t,tx);}catch(e){out[t]=String(e&&e.message||e);}}));return out;});
+      await Promise.all(ts.map(async t=>{try{out[t]=await sendVia(t,tx);}catch(e){out[t]=String(e&&e.message||e);}}));return out;});
+    // Login resmi (v15.2.1): per platform yang punya penyedia di OFF (sekarang Twitch). Token tidak pernah dikirim ke UI.
+    if(u.pathname==='/auth-login')return json(async({platform})=>OFF[platform]?await OFF[platform].login():{error:'platform ini belum punya login resmi'});
+    if(u.pathname==='/auth-logout')return json(async({platform})=>OFF[platform]?await OFF[platform].logout():{error:'platform ini belum punya login resmi'});
     if(u.pathname==='/update-check')return json(async()=>({status:hooks.checkUpdate?await hooks.checkUpdate():'dev'}));
     if(u.pathname==='/win')return body(({which,act})=>{if(hooks.winCtl)hooks.winCtl(which,act);});
     if(u.pathname==='/draft')return body(d=>emit('draft',d));
@@ -142,6 +145,7 @@ const srv=http.createServer((req,res)=>{
   if(u.pathname==='/analytics'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(stats.get(u.searchParams.get('id')||'cur',viewers)));}
   if(u.pathname==='/dash-state'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify({protect:settings.global.protect!==false,...(hooks.dashState?hooks.dashState():{chat:{},docks:{}})}));}
   if(u.pathname==='/state'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({protect:settings.global.protect!==false}));}
+  if(u.pathname==='/auth-state'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify(Object.fromEntries(Object.entries(OFF).map(([k,v])=>[k,v.state()]))));}
   if(u.pathname==='/account'){res.writeHead(200,{'Content-Type':'application/json'});const has=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);return res.end(JSON.stringify({youtube:has('youtube'),tiktok:has('tiktok'),twitch:has('twitch'),kick:has('kick')}));}
   if(u.pathname==='/urls'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({youtube:extUrl('youtube')||chatUrl('youtube'),tiktok:extUrl('tiktok')||chatUrl('tiktok'),twitch:extUrl('twitch')||chatUrl('twitch'),kick:extUrl('kick')||chatUrl('kick')}));}
   if(FILES[u.pathname]){res.writeHead(200,{'Content-Type':FILES[u.pathname],'Cache-Control':'max-age=3600'});return res.end(fs.readFileSync(path.join(__dirname,u.pathname)));}
@@ -385,11 +389,16 @@ wss.on('connection',ws=>{
   const c={ws,platform:'',bg:false};ext.add(c);
   ws.on('message',raw=>{try{const m=JSON.parse(raw);
     if(m.type==='hello'&&PF4.includes(m.platform))c.platform=m.platform;
-    else if(m.type==='bg')c.bg=true; // service worker ekstensi (pembuka tab latar); bukan content script platform
+    else if(m.type==='bg'){c.bg=true; // service worker ekstensi (pembuka tab latar); bukan content script platform
+      // v15.2.0: beri tahu versi aplikasi supaya ekstensi yang versinya beda memuat ulang dirinya (lihat extension/bg.js). Ekstensi lama (<=15.1.7) mengabaikan pesan ini.
+      const v=appVer();if(v){try{ws.send(JSON.stringify({type:'ver',version:v}));}catch{}}}
     else if(m.type==='ping'){try{ws.send('{"type":"pong"}');}catch{}}
     else if(m.type==='result'&&pendingExt[m.id]){pendingExt[m.id](m);delete pendingExt[m.id];}}catch{}});
   ws.on('close',()=>ext.delete(c));ws.on('error',()=>ext.delete(c));
 });
+// Versi aplikasi untuk pesan 'ver'. Diisi main.js lewat hooks.appVersion (server tidak boleh mengimpor electron); kosong = jangan kirim (mis. folder ekstensi gagal disalin).
+// CG_VERSION hanya cadangan untuk menjalankan server sendirian (tes), main.js tidak memakainya.
+const appVer=()=>{try{return String((hooks.appVersion&&hooks.appVersion())||process.env.CG_VERSION||'').trim();}catch{return '';}};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const PNAME={youtube:'YouTube',tiktok:'TikTok',twitch:'Twitch',kick:'Kick'};
 const hasExt=p=>[...ext].some(c=>c.platform===p&&c.ws.readyState===1);
@@ -439,3 +448,16 @@ async function extSend(platform,text){
   let r=await extSendRaw(platform,text);
   if(r!=='ok'&&fresh&&/tidak ditemukan/i.test(r)){await sleep(2500);r=await extSendRaw(platform,text);}
   return r;}
+// ===== v15.2.1: login resmi (jalur kirim utama) dengan ekstensi Chrome sebagai CADANGAN =====
+// OFF[platform] = {state(), login(), logout(), send(teks)}; send -> {ok} | {skip} | {fail,final?} (lihat src/twitch.js). Platform baru (Kick) cukup mendaftar di sini.
+const OFF={};
+{const C=require('./oauth-config.js'),store=require('./tokenstore.js')(path.join(base,'auth.dat'),hooks),E=process.env, // E.CG_* hanya untuk tes (alamat/Client ID palsu)
+  logf=m=>{try{fs.appendFileSync(path.join(base,'log.txt'),new Date().toISOString()+' '+String(m).slice(0,300)+'\n');}catch{}};
+  OFF.twitch=require('./twitch.js').create({clientId:E.CG_TWITCH_CLIENT_ID||C.TWITCH_CLIENT_ID,oauth:E.CG_TWITCH_OAUTH,api:E.CG_TWITCH_API,store,channel:()=>twTarget(cfg.twitch)||'',open:u=>hooks.open&&hooks.open(u),log:logf});}
+// Pilih jalur kirim satu platform: resmi dulu (kalau sudah masuk), gagal/belum masuk -> ekstensi (extSend, perilaku lama). Hasil tetap 'ok' atau teks error.
+async function sendVia(t,tx){
+  const o=OFF[t],r=o?await o.send(tx):{skip:true};
+  if(r.ok)return 'ok';
+  if(r.final)return r.fail; // tidak pasti terkirim atau tidak: jangan kirim ulang lewat ekstensi (bisa dobel)
+  const e=await extSend(t,tx);
+  return(e==='ok'||r.skip)?e:r.fail+' (cadangan lewat Chrome juga gagal: '+e+')';}

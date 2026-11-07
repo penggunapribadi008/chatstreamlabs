@@ -1,4 +1,4 @@
-const {app,BrowserWindow,WebContentsView,session,dialog,Menu,shell,Tray,globalShortcut,nativeImage,screen}=require('electron');
+const {app,BrowserWindow,WebContentsView,session,dialog,Menu,shell,Tray,globalShortcut,nativeImage,screen,safeStorage}=require('electron');
 const path=require('path'),fs=require('fs');
 const ICON=path.join(__dirname,'icon.png');
 // v15.1.4 hemat RAM: batasi heap JavaScript tiap proses tampilan (halaman ini ringan; batas ini hanya mencegah memori membengkak)
@@ -699,9 +699,27 @@ function setHotkeys(map){
   }
   return res;
 }
+// ===== v15.2.0: folder ekstensi TETAP di data pengguna (%APPDATA%/ChatStream Labs/extension) =====
+// Ekstensi dipasang manual (Load unpacked) dari folder ini, bukan dari folder instalasi aplikasi. Tiap aplikasi mulai, isinya disamakan dengan extension/ milik aplikasi
+// (hanya berkas yang berbeda yang ditulis; manifest.json terakhir). Sesudah itu server memberi tahu versi aplikasi ke service worker ekstensi ('ver'), dan ekstensi memuat dirinya sendiri kalau versinya beda.
+const extSrc=()=>app.isPackaged?path.join(process.resourcesPath,'extension'):path.join(__dirname,'..','extension');
+const extDir=()=>path.join(app.getPath('userData'),'extension');
+let extOk=false; // true = folder tetap sudah sama dengan extension/ aplikasi; hanya saat itu versi dikirim ke ekstensi
+function syncExtension(){
+  try{
+    const dst=extDir(),changed=require('./extsync.js').syncDir(extSrc(),dst); // lihat src/extsync.js (berkas yang beda saja, manifest.json terakhir)
+    if(changed.length)log('ekstensi: folder tetap diperbarui ke v'+app.getVersion()+' ('+changed.join(', ')+') di '+dst);
+    extOk=true;
+  }catch(e){extOk=false;log('ekstensi: gagal menyalin ke folder tetap: '+(e&&e.message||e));}
+}
 const hooks={
   protect:on=>{protect=on;BrowserWindow.getAllWindows().forEach(w=>prot(w));applyLockedInput();applyDonateInput();},
-  open:what=>{if(what==='ext')shell.openPath(app.isPackaged?path.join(process.resourcesPath,'extension'):path.join(__dirname,'..','extension'));else shell.openExternal(what);},
+  open:what=>{if(what==='ext')shell.openPath(path.dirname(extSrc()));else shell.openExternal(what);}, // 'ext' = folder induk ekstensi (v15.3.0): terpasang = <folder aplikasi>\resources (isinya folder 'extension'); mode dev = folder proyek
+  // v15.2.1: enkripsi token login resmi (dipakai src/tokenstore.js). Linux 'basic_text' = kunci tertanam, bukan enkripsi sungguhan -> dianggap tidak tersedia.
+  cryptOk:()=>{try{return safeStorage.isEncryptionAvailable()&&!(process.platform==='linux'&&safeStorage.getSelectedStorageBackend&&safeStorage.getSelectedStorageBackend()==='basic_text');}catch{return false;}},
+  encrypt:t=>{try{return safeStorage.encryptString(String(t)).toString('base64');}catch{return null;}},
+  decrypt:b=>{try{return safeStorage.decryptString(Buffer.from(String(b),'base64'));}catch{return null;}},
+  appVersion:()=>extOk?app.getVersion():'', // dikirim server ke service worker ekstensi (pesan 'ver'); kosong = jangan kirim
   window:(url,opt)=>openWin(url,opt||{}),
   saveCss:async(name,css)=>{const w=BrowserWindow.getFocusedWindow();const r=await dialog.showSaveDialog(w||undefined,{title:'Ekspor gaya (.css)',defaultPath:path.join(app.getPath('documents'),name+'.css'),filters:[{name:'CSS',extensions:['css']}]});
     if(r.canceled||!r.filePath)return{canceled:true};fs.writeFileSync(r.filePath,css,'utf8');return{ok:true,path:r.filePath};},
@@ -727,6 +745,7 @@ app.whenReady().then(()=>{
   Menu.setApplicationMenu(null);
   startUp();
   try{tray=new Tray(nativeImage.createFromPath(ICON).resize({width:16,height:16}));tray.setToolTip('ChatStream Labs');tray.setContextMenu(trayMenu());tray.on('click',()=>showDash());}catch{}
+  syncExtension(); // sebelum server hidup: ekstensi baru boleh muat ulang begitu menerima 'ver', folder harus sudah siap
   setTimeout(()=>{
     srv=require('./server.js');Object.assign(srv.hooks,hooks);
     setHotkeys(G().hotkeys);

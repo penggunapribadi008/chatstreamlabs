@@ -35,7 +35,7 @@ npm test         # tes asap
 npm run dist     # buat installer di folder dist/
 ```
 Pertama kali jalan, buka **Pengaturan → Koneksi**, isi username YouTube (`@nama`) dan TikTok, lalu Sambungkan.
-Untuk kirim chat, pasang ekstensi dari folder `extension/` (Chrome → `chrome://extensions` → Developer mode → Load unpacked).
+Untuk kirim chat, pasang ekstensi: Dashboard → Koneksi → **Buka folder ekstensi** (membuka folder `resources` di folder aplikasi; di dalamnya ada folder `extension`), lalu Chrome → `chrome://extensions` → Developer mode → Load unpacked → pilih folder `extension`. Jangan dipindah. Sesudah itu ekstensi memperbarui dirinya sendiri tiap aplikasi di-update.
 
 ## Struktur singkat
 `src/main.js` (Electron) · `src/server.js` (server lokal + konektor) · `src/ui/*` (tampilan) · `extension/` (ekstensi Chrome) ·
